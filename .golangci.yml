@@ -7,6 +7,11 @@ linters:
     - staticcheck
     - unused
     - ineffassign
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
 
 formatters:
   exclusions:
