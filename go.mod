@@ -1,4 +1,4 @@
-module github.com/dixson3/nba
+module github.com/dixson3/naba
 
 go 1.25.7
 

@@ -1,3 +1,4 @@
+// Package config manages naba CLI configuration via YAML files and environment variables.
 package config
 
 import (
@@ -9,7 +10,7 @@ import (
 
 const configFileName = "config.yaml"
 
-// Config holds the nba configuration.
+// Config holds the naba configuration.
 type Config struct {
 	APIKey           string `yaml:"api_key,omitempty"`
 	Model            string `yaml:"model,omitempty"`
@@ -18,11 +19,11 @@ type Config struct {
 
 // ConfigDir returns the configuration directory path.
 func ConfigDir() string {
-	if dir := os.Getenv("NBA_CONFIG_DIR"); dir != "" {
+	if dir := os.Getenv("NABA_CONFIG_DIR"); dir != "" {
 		return dir
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "nba")
+	return filepath.Join(home, ".config", "naba")
 }
 
 // ConfigPath returns the full path to the config file.

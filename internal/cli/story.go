@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/dixson3/nba/internal/config"
-	"github.com/dixson3/nba/internal/gemini"
-	"github.com/dixson3/nba/internal/output"
+	"github.com/dixson3/naba/internal/config"
+	"github.com/dixson3/naba/internal/gemini"
+	"github.com/dixson3/naba/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +45,7 @@ func runStory(cmd *cobra.Command, args []string) error {
 
 	apiKey := resolveAPIKey()
 	if apiKey == "" {
-		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: nba config set api_key <your-key>")
+		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: naba config set api_key <your-key>")
 	}
 
 	model := flagModel

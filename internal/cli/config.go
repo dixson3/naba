@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dixson3/nba/internal/config"
-	"github.com/dixson3/nba/internal/gemini"
+	"github.com/dixson3/naba/internal/config"
+	"github.com/dixson3/naba/internal/gemini"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +18,7 @@ func init() {
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration",
-	Long:  fmt.Sprintf("Manage nba configuration.\n\nConfig file: %s\nValid keys: %s", config.ConfigPath(), strings.Join(config.ValidKeys(), ", ")),
+	Long:  fmt.Sprintf("Manage naba configuration.\n\nConfig file: %s\nValid keys: %s", config.ConfigPath(), strings.Join(config.ValidKeys(), ", ")),
 }
 
 var configGetCmd = &cobra.Command{

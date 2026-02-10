@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dixson3/nba/internal/cli"
+	"github.com/dixson3/naba/internal/cli"
 )
 
 func main() {

@@ -1,3 +1,4 @@
+// Package output handles file writing, JSON formatting, and system preview for generated images.
 package output
 
 import (
@@ -45,9 +46,9 @@ func generateFilename(command, mimeType string, index int) string {
 	ext := mimeTypeToExt(mimeType)
 	ts := time.Now().Format("20060102-150405")
 	if index > 0 {
-		return fmt.Sprintf("nba-%s-%s-%d%s", command, ts, index+1, ext)
+		return fmt.Sprintf("naba-%s-%s-%d%s", command, ts, index+1, ext)
 	}
-	return fmt.Sprintf("nba-%s-%s%s", command, ts, ext)
+	return fmt.Sprintf("naba-%s-%s%s", command, ts, ext)
 }
 
 func mimeTypeToExt(mimeType string) string {
