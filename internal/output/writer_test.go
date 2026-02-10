@@ -127,3 +127,81 @@ func TestExtForFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteImage_JPEG(t *testing.T) {
+	path, err := WriteImage([]byte("jpeg-data"), "image/jpeg", "", "generate", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(path)
+
+	if !strings.HasSuffix(path, ".jpg") {
+		t.Errorf("expected path ending in .jpg, got %s", path)
+	}
+}
+
+func TestWriteImage_EmptyData(t *testing.T) {
+	tmpDir := t.TempDir()
+	outPath := filepath.Join(tmpDir, "empty.png")
+
+	path, err := WriteImage([]byte{}, "image/png", outPath, "generate", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("file does not exist: %v", err)
+	}
+	if info.Size() != 0 {
+		t.Errorf("expected zero-length file, got %d bytes", info.Size())
+	}
+}
+
+func TestGenerateFilename_WithIndex(t *testing.T) {
+	name := generateFilename("generate", "image/png", 2)
+
+	if !strings.Contains(name, "-3") {
+		t.Errorf("expected name to contain '-3' (index+1), got %s", name)
+	}
+	if !strings.HasSuffix(name, ".png") {
+		t.Errorf("expected .png suffix, got %s", name)
+	}
+}
+
+func TestGenerateFilename_ZeroIndex(t *testing.T) {
+	name := generateFilename("generate", "image/png", 0)
+
+	// With zero index, there should be no trailing number before .png.
+	// The format is "nba-generate-YYYYMMDD-HHMMSS.png" — no index suffix.
+	withoutExt := strings.TrimSuffix(name, ".png")
+	if !strings.HasSuffix(name, ".png") {
+		t.Errorf("expected .png suffix, got %s", name)
+	}
+	// The last character before .png should not be a digit from an index suffix.
+	// The timestamp ends with digits, but there should be no "-N" index appended.
+	// We verify by checking the format directly: should not match "-\d+.png" after timestamp.
+	parts := strings.Split(withoutExt, "-")
+	// Expected parts: ["nba", "generate", "YYYYMMDD", "HHMMSS"]
+	if len(parts) != 4 {
+		t.Errorf("expected 4 dash-separated parts (nba-generate-date-time), got %d: %s", len(parts), name)
+	}
+}
+
+func TestDedup_MultipleConflicts(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create conflicting files: test.png, test-1.png, test-2.png
+	for _, name := range []string{"test.png", "test-1.png", "test-2.png"} {
+		f, err := os.Create(filepath.Join(tmpDir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+	}
+
+	result := dedup(filepath.Join(tmpDir, "test.png"))
+	if !strings.HasSuffix(result, "test-3.png") {
+		t.Errorf("expected path ending in test-3.png, got %s", result)
+	}
+}
