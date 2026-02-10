@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultBaseURL = "https://generativelanguage.googleapis.com/v1beta"
-	defaultModel   = "gemini-2.0-flash-exp"
+	defaultModel   = "gemini-2.0-flash-exp-image-generation"
 
 	ExitGeneral    = 1
 	ExitUsage      = 2
@@ -38,10 +38,14 @@ func NewClient(apiKey, model string) *Client {
 	if model == "" {
 		model = defaultModel
 	}
+	baseURL := defaultBaseURL
+	if override := os.Getenv("GEMINI_BASE_URL"); override != "" {
+		baseURL = override
+	}
 	return &Client{
 		APIKey:  apiKey,
 		Model:   model,
-		BaseURL: defaultBaseURL,
+		BaseURL: baseURL,
 		HTTPClient: &http.Client{
 			Timeout: 120 * time.Second,
 		},
