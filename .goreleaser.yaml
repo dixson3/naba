@@ -24,6 +24,26 @@ archives:
 checksum:
   name_template: checksums.txt
 
+brews:
+  - name: naba
+    repository:
+      owner: dixson3
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/dixson3/naba"
+    description: "AI image generation CLI powered by Google Gemini"
+    license: MIT
+    install: |
+      bin.install "naba"
+    test: |
+      system "#{bin}/naba", "version"
+    commit_author:
+      name: goreleaserbot
+      email: goreleaserbot@users.noreply.github.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    skip_upload: auto
+
 changelog:
   sort: asc
   filters:
