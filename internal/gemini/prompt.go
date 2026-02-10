@@ -91,11 +91,12 @@ func EnrichStoryPrompt(prompt string, step, totalSteps int, style, transition st
 		parts = append(parts, "Use smooth, natural transitions between scenes")
 	}
 
-	if step == 1 {
+	switch step {
+	case 1:
 		parts = append(parts, "This is the opening scene — establish the setting and characters")
-	} else if step == totalSteps {
+	case totalSteps:
 		parts = append(parts, "This is the final scene — bring the story to a conclusion")
-	} else {
+	default:
 		parts = append(parts, fmt.Sprintf("This is scene %d — continue developing the narrative", step))
 	}
 
