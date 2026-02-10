@@ -1,0 +1,16 @@
+.beads/
+.claude/settings.local.json
+.claude/yf.json
+.claude/rules/yf-*.md
+.claude/.plan-*
+
+# Build output
+/nba
+/nba-*
+
+# Generated images
+nba-generate-*
+nba-edit-*
+nba-restore-*
+nba-story-*
+icon-*
