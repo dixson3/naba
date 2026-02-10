@@ -1,3 +1,4 @@
+// Package cli implements the cobra command tree for the naba CLI.
 package cli
 
 import (
@@ -15,7 +16,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "nba",
+	Use:   "naba",
 	Short: "Nanobanana image generation CLI",
 	Long:  "Generate, edit, and transform images using Google Gemini AI.",
 	SilenceUsage:  true,

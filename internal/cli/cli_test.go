@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/dixson3/nba/internal/gemini"
+	"github.com/dixson3/naba/internal/gemini"
 )
 
 // resetFlags resets all package-level flag variables to their defaults.
@@ -179,7 +179,7 @@ func TestEditCmd_MissingFile(t *testing.T) {
 	resetFlags()
 	tmpDir := t.TempDir()
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 	rootCmd.SetArgs([]string{"edit", "/nonexistent/file.png", "make blue"})
 	err := rootCmd.Execute()
 	if err == nil {
@@ -218,7 +218,7 @@ func TestStoryCmd_InvalidSteps(t *testing.T) {
 			resetFlags()
 			tmpDir := t.TempDir()
 			t.Setenv("GEMINI_API_KEY", "test-key")
-			t.Setenv("NBA_CONFIG_DIR", tmpDir)
+			t.Setenv("NABA_CONFIG_DIR", tmpDir)
 			rootCmd.SetArgs([]string{"story", "--steps", tt.steps, "test"})
 			err := rootCmd.Execute()
 			if err == nil {
@@ -250,7 +250,7 @@ func TestConfigGetCmd_NoArgs(t *testing.T) {
 func TestConfigSetCmd_InvalidKey(t *testing.T) {
 	resetFlags()
 	tmpDir := t.TempDir()
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 	rootCmd.SetArgs([]string{"config", "set", "invalid_key", "value"})
 	err := rootCmd.Execute()
 	if err == nil {
@@ -284,8 +284,8 @@ func TestVersionCmd(t *testing.T) {
 
 	var buf bytes.Buffer
 	buf.ReadFrom(r)
-	if !strings.Contains(buf.String(), "nba") {
-		t.Errorf("expected output to contain 'nba', got: %s", buf.String())
+	if !strings.Contains(buf.String(), "naba") {
+		t.Errorf("expected output to contain 'naba', got: %s", buf.String())
 	}
 }
 
@@ -310,7 +310,7 @@ func TestAllCommands_MissingAPIKey(t *testing.T) {
 			resetFlags()
 			tmpDir := t.TempDir()
 			t.Setenv("GEMINI_API_KEY", "")
-			t.Setenv("NBA_CONFIG_DIR", tmpDir)
+			t.Setenv("NABA_CONFIG_DIR", tmpDir)
 			rootCmd.SetArgs(tt.args)
 			err := rootCmd.Execute()
 			if err == nil {
@@ -338,7 +338,7 @@ func TestGenerateCmd_Success(t *testing.T) {
 	outFile := filepath.Join(tmpDir, "out.png")
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"generate", "--quiet", "--output", outFile, "test prompt"})
 	err := rootCmd.Execute()
@@ -360,7 +360,7 @@ func TestGenerateCmd_JSON(t *testing.T) {
 	outFile := filepath.Join(tmpDir, "out.png")
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -405,7 +405,7 @@ func TestGenerateCmd_Count(t *testing.T) {
 	}
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"generate", "--quiet", "--count", "2", "--output", filepath.Join(outDir, "img.png"), "test prompt"})
 	err := rootCmd.Execute()
@@ -443,7 +443,7 @@ func TestEditCmd_Success(t *testing.T) {
 	outFile := filepath.Join(tmpDir, "edited.png")
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"edit", "--quiet", "--output", outFile, inputFile, "make it blue"})
 	err := rootCmd.Execute()
@@ -466,7 +466,7 @@ func TestRestoreCmd_Success(t *testing.T) {
 	outFile := filepath.Join(tmpDir, "restored.png")
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"restore", "--quiet", "--output", outFile, inputFile})
 	err := rootCmd.Execute()
@@ -488,7 +488,7 @@ func TestStoryCmd_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"story", "--steps", "3", "--quiet", "--output", filepath.Join(tmpDir, "story.png"), "a cat adventure"})
 	err := rootCmd.Execute()
@@ -509,7 +509,7 @@ func TestGenerateCmd_APIError401(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"generate", "--quiet", "test prompt"})
 	err := rootCmd.Execute()
@@ -533,7 +533,7 @@ func TestGenerateCmd_APIError429(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("GEMINI_BASE_URL", server.URL)
 	t.Setenv("GEMINI_API_KEY", "test-key")
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	rootCmd.SetArgs([]string{"generate", "--quiet", "test prompt"})
 	err := rootCmd.Execute()
@@ -552,7 +552,7 @@ func TestGenerateCmd_APIError429(t *testing.T) {
 func TestConfigSetAndGet_RoundTrip(t *testing.T) {
 	resetFlags()
 	tmpDir := t.TempDir()
-	t.Setenv("NBA_CONFIG_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", tmpDir)
 
 	// Set
 	rootCmd.SetArgs([]string{"config", "set", "api_key", "test-key-123"})

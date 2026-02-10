@@ -20,7 +20,7 @@ func TestWriteImage(t *testing.T) {
 		if !filepath.IsAbs(path) {
 			t.Error("expected absolute path")
 		}
-		if !strings.Contains(path, "nba-generate-") {
+		if !strings.Contains(path, "naba-generate-") {
 			t.Errorf("expected auto-generated name, got %s", path)
 		}
 		if !strings.HasSuffix(path, ".png") {
@@ -173,7 +173,7 @@ func TestGenerateFilename_ZeroIndex(t *testing.T) {
 	name := generateFilename("generate", "image/png", 0)
 
 	// With zero index, there should be no trailing number before .png.
-	// The format is "nba-generate-YYYYMMDD-HHMMSS.png" — no index suffix.
+	// The format is "naba-generate-YYYYMMDD-HHMMSS.png" — no index suffix.
 	withoutExt := strings.TrimSuffix(name, ".png")
 	if !strings.HasSuffix(name, ".png") {
 		t.Errorf("expected .png suffix, got %s", name)
@@ -182,9 +182,9 @@ func TestGenerateFilename_ZeroIndex(t *testing.T) {
 	// The timestamp ends with digits, but there should be no "-N" index appended.
 	// We verify by checking the format directly: should not match "-\d+.png" after timestamp.
 	parts := strings.Split(withoutExt, "-")
-	// Expected parts: ["nba", "generate", "YYYYMMDD", "HHMMSS"]
+	// Expected parts: ["naba", "generate", "YYYYMMDD", "HHMMSS"]
 	if len(parts) != 4 {
-		t.Errorf("expected 4 dash-separated parts (nba-generate-date-time), got %d: %s", len(parts), name)
+		t.Errorf("expected 4 dash-separated parts (naba-generate-date-time), got %d: %s", len(parts), name)
 	}
 }
 

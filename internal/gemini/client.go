@@ -1,3 +1,4 @@
+// Package gemini provides a client for the Google Gemini image generation API.
 package gemini
 
 import (
@@ -226,7 +227,7 @@ func parseAPIError(statusCode int, body []byte) *APIError {
 	switch {
 	case statusCode == 401 || statusCode == 403:
 		exitCode = ExitAuth
-		msg = fmt.Sprintf("authentication failed: %s\n\nSet GEMINI_API_KEY or run: nba config set api_key <your-key>", msg)
+		msg = fmt.Sprintf("authentication failed: %s\n\nSet GEMINI_API_KEY or run: naba config set api_key <your-key>", msg)
 	case statusCode == 429:
 		exitCode = ExitRateLimit
 		msg = fmt.Sprintf("rate limit exceeded: %s\n\nWait a moment and try again.", msg)

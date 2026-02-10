@@ -1,19 +1,19 @@
-# nba
+# naba
 
 A standalone CLI for AI image generation using Google Gemini. Generate, edit, and transform images from the command line.
 
 ## Install
 
 ```bash
-go install github.com/dixson3/nba/cmd/nba@latest
+go install github.com/dixson3/naba/cmd/naba@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/dixson3/nba.git
-cd nba
-go build -o nba ./cmd/nba
+git clone https://github.com/dixson3/naba.git
+cd naba
+go build -o naba ./cmd/naba
 ```
 
 ## Setup
@@ -27,7 +27,7 @@ export GEMINI_API_KEY=<your-key>
 Or save it to config:
 
 ```bash
-nba config set api_key <your-key>
+naba config set api_key <your-key>
 ```
 
 ## Usage
@@ -35,61 +35,61 @@ nba config set api_key <your-key>
 ### Generate images
 
 ```bash
-nba generate "a red apple on a white background"
-nba generate "mountain landscape" --style watercolor
-nba generate "city skyline" -n 4 --style pixel-art
-nba generate "abstract art" -v lighting -v color-palette -o art.png
+naba generate "a red apple on a white background"
+naba generate "mountain landscape" --style watercolor
+naba generate "city skyline" -n 4 --style pixel-art
+naba generate "abstract art" -v lighting -v color-palette -o art.png
 ```
 
 ### Edit images
 
 ```bash
-nba edit photo.png "make the sky more dramatic"
-nba edit portrait.jpg "add a hat" -o portrait-hat.png
+naba edit photo.png "make the sky more dramatic"
+naba edit portrait.jpg "add a hat" -o portrait-hat.png
 ```
 
 ### Restore/enhance images
 
 ```bash
-nba restore old-photo.jpg
-nba restore blurry.png "sharpen and improve colors"
+naba restore old-photo.jpg
+naba restore blurry.png "sharpen and improve colors"
 ```
 
 ### Generate icons
 
 ```bash
-nba icon "a music note" --size 64 --size 256 --size 512
-nba icon "rocket ship" --style flat --background white --corners sharp
+naba icon "a music note" --size 64 --size 256 --size 512
+naba icon "rocket ship" --style flat --background white --corners sharp
 ```
 
 ### Generate patterns
 
 ```bash
-nba pattern "tropical leaves" --style floral --colors colorful
-nba pattern "circuit board" --style tech --density dense --colors mono
+naba pattern "tropical leaves" --style floral --colors colorful
+naba pattern "circuit board" --style tech --density dense --colors mono
 ```
 
 ### Generate stories
 
 ```bash
-nba story "a cat's journey through a magical forest" --steps 6
-nba story "sunrise to sunset" --steps 4 --transition dramatic
+naba story "a cat's journey through a magical forest" --steps 6
+naba story "sunrise to sunset" --steps 4 --transition dramatic
 ```
 
 ### Generate diagrams
 
 ```bash
-nba diagram "user authentication flow" --type flowchart
-nba diagram "microservices architecture" --type architecture --complexity comprehensive
-nba diagram "database schema for blog" --type database --style clean
+naba diagram "user authentication flow" --type flowchart
+naba diagram "microservices architecture" --type architecture --complexity comprehensive
+naba diagram "database schema for blog" --type database --style clean
 ```
 
 ### Configuration
 
 ```bash
-nba config set api_key <key>
-nba config set model gemini-2.0-flash-exp
-nba config get model
+naba config set api_key <key>
+naba config set model gemini-2.0-flash-exp
+naba config get model
 ```
 
 ## Global Flags

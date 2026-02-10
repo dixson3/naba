@@ -1,0 +1,16 @@
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosimple
+
+linters-settings:
+  errcheck:
+    check-blank: false
+
+issues:
+  exclude-dirs:
+    - docs

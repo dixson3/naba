@@ -8,30 +8,30 @@ import (
 )
 
 func TestConfigDir_EnvOverride(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", "/tmp/test-nba")
-	if got := ConfigDir(); got != "/tmp/test-nba" {
-		t.Errorf("ConfigDir() = %q, want %q", got, "/tmp/test-nba")
+	t.Setenv("NABA_CONFIG_DIR", "/tmp/test-naba")
+	if got := ConfigDir(); got != "/tmp/test-naba" {
+		t.Errorf("ConfigDir() = %q, want %q", got, "/tmp/test-naba")
 	}
 }
 
 func TestConfigDir_Default(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", "")
+	t.Setenv("NABA_CONFIG_DIR", "")
 	got := ConfigDir()
-	if !strings.HasSuffix(got, filepath.Join(".config", "nba")) {
-		t.Errorf("ConfigDir() = %q, want suffix %q", got, filepath.Join(".config", "nba"))
+	if !strings.HasSuffix(got, filepath.Join(".config", "naba")) {
+		t.Errorf("ConfigDir() = %q, want suffix %q", got, filepath.Join(".config", "naba"))
 	}
 }
 
 func TestConfigPath(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", "/tmp/test-nba")
-	want := "/tmp/test-nba/config.yaml"
+	t.Setenv("NABA_CONFIG_DIR", "/tmp/test-naba")
+	want := "/tmp/test-naba/config.yaml"
 	if got := ConfigPath(); got != want {
 		t.Errorf("ConfigPath() = %q, want %q", got, want)
 	}
 }
 
 func TestLoad_MissingFile(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v, want nil", err)
@@ -43,7 +43,7 @@ func TestLoad_MissingFile(t *testing.T) {
 
 func TestLoad_ValidFile(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("NBA_CONFIG_DIR", dir)
+	t.Setenv("NABA_CONFIG_DIR", dir)
 
 	content := "api_key: test-key\nmodel: gemini-pro\ndefault_output_dir: /tmp/out\n"
 	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(content), 0o644); err != nil {
@@ -67,7 +67,7 @@ func TestLoad_ValidFile(t *testing.T) {
 
 func TestLoad_MalformedYAML(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("NBA_CONFIG_DIR", dir)
+	t.Setenv("NABA_CONFIG_DIR", dir)
 
 	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(":::invalid"), 0o644); err != nil {
 		t.Fatalf("failed to write test config: %v", err)
@@ -80,7 +80,7 @@ func TestLoad_MalformedYAML(t *testing.T) {
 }
 
 func TestSave_RoundTrip(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 
 	original := &Config{
 		APIKey:           "round-trip-key",
@@ -109,7 +109,7 @@ func TestSave_RoundTrip(t *testing.T) {
 func TestSave_CreatesDirectory(t *testing.T) {
 	base := t.TempDir()
 	nested := filepath.Join(base, "deep", "nested", "config")
-	t.Setenv("NBA_CONFIG_DIR", nested)
+	t.Setenv("NABA_CONFIG_DIR", nested)
 
 	cfg := &Config{APIKey: "test"}
 	if err := Save(cfg); err != nil {
@@ -191,7 +191,7 @@ func TestValidKeys(t *testing.T) {
 }
 
 func TestResolveAPIKey_EnvVar(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 	t.Setenv("GEMINI_API_KEY", "env-key")
 
 	if got := ResolveAPIKey(); got != "env-key" {
@@ -200,7 +200,7 @@ func TestResolveAPIKey_EnvVar(t *testing.T) {
 }
 
 func TestResolveAPIKey_ConfigFallback(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 	t.Setenv("GEMINI_API_KEY", "")
 
 	cfg := &Config{APIKey: "config-key"}
@@ -214,7 +214,7 @@ func TestResolveAPIKey_ConfigFallback(t *testing.T) {
 }
 
 func TestResolveAPIKey_EnvTakesPrecedence(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 	t.Setenv("GEMINI_API_KEY", "env-key")
 
 	cfg := &Config{APIKey: "config-key"}
@@ -228,7 +228,7 @@ func TestResolveAPIKey_EnvTakesPrecedence(t *testing.T) {
 }
 
 func TestResolveAPIKey_Neither(t *testing.T) {
-	t.Setenv("NBA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
 	t.Setenv("GEMINI_API_KEY", "")
 
 	if got := ResolveAPIKey(); got != "" {
@@ -238,7 +238,7 @@ func TestResolveAPIKey_Neither(t *testing.T) {
 
 func TestResolveAPIKey_BrokenConfig(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("NBA_CONFIG_DIR", dir)
+	t.Setenv("NABA_CONFIG_DIR", dir)
 	t.Setenv("GEMINI_API_KEY", "")
 
 	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(":::invalid"), 0o644); err != nil {

@@ -1,0 +1,33 @@
+version: 2
+
+builds:
+  - main: ./cmd/naba
+    binary: naba
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/dixson3/naba/internal/cli.Version={{.Version}}
+      - -X github.com/dixson3/naba/internal/cli.Commit={{.Commit}}
+      - -X github.com/dixson3/naba/internal/cli.Date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

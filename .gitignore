@@ -5,14 +5,15 @@
 .claude/.plan-*
 
 # Build output
-/nba
-/nba-*
+/naba
+/naba-*
+/dist/
 
 # Generated images
-nba-generate-*
-nba-edit-*
-nba-restore-*
-nba-story-*
+naba-generate-*
+naba-edit-*
+naba-restore-*
+naba-story-*
 icon-*
 
 # >>> yf-managed >>>
