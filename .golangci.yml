@@ -1,3 +1,5 @@
+version: "2"
+
 linters:
   enable:
     - errcheck
@@ -7,10 +9,7 @@ linters:
     - ineffassign
     - gosimple
 
-linters-settings:
-  errcheck:
-    check-blank: false
-
-issues:
-  exclude-dirs:
-    - docs
+formatters:
+  exclusions:
+    paths:
+      - docs
