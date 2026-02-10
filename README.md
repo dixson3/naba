@@ -4,16 +4,24 @@ A standalone CLI for AI image generation using Google Gemini. Generate, edit, an
 
 ## Install
 
+### Homebrew (macOS and Linux)
+
+```bash
+brew install dixson3/tap/naba
+```
+
+### Go
+
 ```bash
 go install github.com/dixson3/naba/cmd/naba@latest
 ```
 
-Or build from source:
+### Build from source
 
 ```bash
 git clone https://github.com/dixson3/naba.git
 cd naba
-go build -o naba ./cmd/naba
+make build
 ```
 
 ## Setup
