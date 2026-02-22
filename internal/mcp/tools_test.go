@@ -260,6 +260,7 @@ func TestGenerateImage_Success(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGenerateImage(context.Background(), makeRequest(map[string]any{
 		"prompt": "a red apple",
@@ -271,7 +272,7 @@ func TestGenerateImage_Success(t *testing.T) {
 		t.Fatalf("unexpected error result: %s", contentText(t, result))
 	}
 
-	// Should have text content (path) and image content
+	// Should have text content (path) and resource link
 	if len(result.Content) < 2 {
 		t.Fatalf("expected at least 2 content items, got %d", len(result.Content))
 	}
@@ -286,6 +287,10 @@ func TestGenerateImage_Success(t *testing.T) {
 	if _, err := os.Stat(text); err != nil {
 		t.Fatalf("output file does not exist: %s", text)
 	}
+
+	// Verify second content is a ResourceLink, not ImageContent
+	assertHasResourceLink(t, result)
+	assertNoImageContent(t, result)
 }
 
 func TestEditImage_Success(t *testing.T) {
@@ -300,6 +305,7 @@ func TestEditImage_Success(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	// Create a test input image
 	inputFile := filepath.Join(tmpDir, "input.png")
@@ -318,6 +324,8 @@ func TestEditImage_Success(t *testing.T) {
 	if len(result.Content) < 2 {
 		t.Fatalf("expected at least 2 content items, got %d", len(result.Content))
 	}
+	assertHasResourceLink(t, result)
+	assertNoImageContent(t, result)
 }
 
 func TestRestoreImage_Success(t *testing.T) {
@@ -332,6 +340,7 @@ func TestRestoreImage_Success(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	inputFile := filepath.Join(tmpDir, "old-photo.jpg")
 	os.WriteFile(inputFile, []byte("fake jpg"), 0o644)
@@ -348,6 +357,8 @@ func TestRestoreImage_Success(t *testing.T) {
 	if len(result.Content) < 2 {
 		t.Fatalf("expected at least 2 content items, got %d", len(result.Content))
 	}
+	assertHasResourceLink(t, result)
+	assertNoImageContent(t, result)
 }
 
 func TestGeneratePattern_Success(t *testing.T) {
@@ -362,6 +373,7 @@ func TestGeneratePattern_Success(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGeneratePattern(context.Background(), makeRequest(map[string]any{
 		"prompt": "floral wallpaper",
@@ -377,6 +389,8 @@ func TestGeneratePattern_Success(t *testing.T) {
 	if len(result.Content) < 2 {
 		t.Fatalf("expected at least 2 content items, got %d", len(result.Content))
 	}
+	assertHasResourceLink(t, result)
+	assertNoImageContent(t, result)
 }
 
 func TestGenerateDiagram_Success(t *testing.T) {
@@ -391,6 +405,7 @@ func TestGenerateDiagram_Success(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGenerateDiagram(context.Background(), makeRequest(map[string]any{
 		"prompt": "auth flow",
@@ -405,6 +420,8 @@ func TestGenerateDiagram_Success(t *testing.T) {
 	if len(result.Content) < 2 {
 		t.Fatalf("expected at least 2 content items, got %d", len(result.Content))
 	}
+	assertHasResourceLink(t, result)
+	assertNoImageContent(t, result)
 }
 
 // --- Multi-Output Tests ---
@@ -421,6 +438,7 @@ func TestGenerateImage_MultipleCount(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGenerateImage(context.Background(), makeRequest(map[string]any{
 		"prompt": "test",
@@ -438,10 +456,11 @@ func TestGenerateImage_MultipleCount(t *testing.T) {
 		t.Fatalf("expected 3 API calls, got %d", got)
 	}
 
-	// Should have 3 text + 3 image content items = 6 total
+	// Should have 3 text + 3 resource link content items = 6 total
 	if len(result.Content) != 6 {
 		t.Fatalf("expected 6 content items, got %d", len(result.Content))
 	}
+	assertNoImageContent(t, result)
 }
 
 func TestGenerateStory_MultipleSteps(t *testing.T) {
@@ -456,6 +475,7 @@ func TestGenerateStory_MultipleSteps(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGenerateStory(context.Background(), makeRequest(map[string]any{
 		"prompt": "a cat adventure",
@@ -472,10 +492,11 @@ func TestGenerateStory_MultipleSteps(t *testing.T) {
 		t.Fatalf("expected 3 API calls for 3 steps, got %d", got)
 	}
 
-	// 3 text + 3 image = 6
+	// 3 text + 3 resource link = 6
 	if len(result.Content) != 6 {
 		t.Fatalf("expected 6 content items, got %d", len(result.Content))
 	}
+	assertNoImageContent(t, result)
 }
 
 func TestGenerateIcon_MultipleSizes(t *testing.T) {
@@ -490,6 +511,7 @@ func TestGenerateIcon_MultipleSizes(t *testing.T) {
 	t.Setenv("GEMINI_API_KEY", "test-key")
 	t.Setenv("GEMINI_BASE_URL", srv.URL)
 	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
 
 	result, err := handleGenerateIcon(context.Background(), makeRequest(map[string]any{
 		"prompt": "rocket icon",
@@ -506,10 +528,11 @@ func TestGenerateIcon_MultipleSizes(t *testing.T) {
 		t.Fatalf("expected 2 API calls for 2 sizes, got %d", got)
 	}
 
-	// 2 text + 2 image = 4
+	// 2 text + 2 resource link = 4
 	if len(result.Content) != 4 {
 		t.Fatalf("expected 4 content items, got %d", len(result.Content))
 	}
+	assertNoImageContent(t, result)
 }
 
 // --- Tool Definition Tests ---
@@ -527,6 +550,7 @@ func TestToolDefinitions_HaveRequiredParams(t *testing.T) {
 		{"generate_pattern", generatePatternTool(), []string{"prompt"}},
 		{"generate_story", generateStoryTool(), []string{"prompt"}},
 		{"generate_diagram", generateDiagramTool(), []string{"prompt"}},
+		{"list_images", listImagesTool(), nil},
 	}
 
 	for _, tt := range tools {
@@ -625,6 +649,188 @@ func TestGeneratePattern_OutputDir(t *testing.T) {
 	}
 }
 
+// --- list_images Tests ---
+
+func TestListImages_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	// Create some fake image files
+	for _, name := range []string{"naba-generate-20260221-100000.png", "naba-edit-20260221-100001.png", "naba-icon-20260221-100002.jpg"} {
+		os.WriteFile(filepath.Join(tmpDir, name), []byte("fake"), 0o644)
+	}
+	// Create a non-image file that should be excluded
+	os.WriteFile(filepath.Join(tmpDir, "naba-generate-20260221-100003.txt"), []byte("fake"), 0o644)
+	// Create a non-naba file that should be excluded
+	os.WriteFile(filepath.Join(tmpDir, "other-file.png"), []byte("fake"), 0o644)
+
+	result, err := handleListImages(context.Background(), makeRequest(map[string]any{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", contentText(t, result))
+	}
+
+	// Should list exactly 3 image files
+	textCount := 0
+	for _, c := range result.Content {
+		if _, ok := c.(mcpsdk.TextContent); ok {
+			textCount++
+		}
+	}
+	if textCount != 3 {
+		t.Fatalf("expected 3 text entries, got %d", textCount)
+	}
+}
+
+func TestListImages_EmptyDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	result, err := handleListImages(context.Background(), makeRequest(map[string]any{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", contentText(t, result))
+	}
+
+	text := contentText(t, result)
+	if !strings.Contains(text, "No images found") {
+		t.Fatalf("expected 'No images found' message, got: %s", text)
+	}
+}
+
+func TestListImages_NonexistentDir(t *testing.T) {
+	t.Setenv("NABA_OUTPUT_DIR", filepath.Join(t.TempDir(), "nonexistent"))
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	result, err := handleListImages(context.Background(), makeRequest(map[string]any{}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected non-error result for nonexistent dir")
+	}
+
+	text := contentText(t, result)
+	if !strings.Contains(text, "does not exist") {
+		t.Fatalf("expected 'does not exist' message, got: %s", text)
+	}
+}
+
+func TestListImages_WithLimit(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("NABA_OUTPUT_DIR", tmpDir)
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	// Create 5 image files
+	for i := 0; i < 5; i++ {
+		name := fmt.Sprintf("naba-generate-20260221-10000%d.png", i)
+		os.WriteFile(filepath.Join(tmpDir, name), []byte("fake"), 0o644)
+	}
+
+	result, err := handleListImages(context.Background(), makeRequest(map[string]any{
+		"limit": float64(2),
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", contentText(t, result))
+	}
+
+	textCount := 0
+	for _, c := range result.Content {
+		if _, ok := c.(mcpsdk.TextContent); ok {
+			textCount++
+		}
+	}
+	if textCount != 2 {
+		t.Fatalf("expected 2 text entries with limit=2, got %d", textCount)
+	}
+}
+
+// --- Resource Handler Tests ---
+
+func TestReadResource_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "test-image.png")
+	imgData := []byte("fake png data")
+	os.WriteFile(imgPath, imgData, 0o644)
+
+	req := mcpsdk.ReadResourceRequest{}
+	req.Params.URI = "file://" + imgPath
+
+	contents, err := handleReadResource(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(contents) != 1 {
+		t.Fatalf("expected 1 resource content, got %d", len(contents))
+	}
+
+	blob, ok := contents[0].(mcpsdk.BlobResourceContents)
+	if !ok {
+		t.Fatalf("expected BlobResourceContents, got %T", contents[0])
+	}
+	if blob.MIMEType != "image/png" {
+		t.Fatalf("expected mime image/png, got %s", blob.MIMEType)
+	}
+	if blob.URI != "file://"+imgPath {
+		t.Fatalf("expected URI %q, got %q", "file://"+imgPath, blob.URI)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(blob.Blob)
+	if err != nil {
+		t.Fatalf("failed to decode blob: %v", err)
+	}
+	if string(decoded) != string(imgData) {
+		t.Fatalf("decoded blob mismatch: got %q, want %q", decoded, imgData)
+	}
+}
+
+func TestReadResource_NotFound(t *testing.T) {
+	req := mcpsdk.ReadResourceRequest{}
+	req.Params.URI = "file:///nonexistent/path/image.png"
+
+	_, err := handleReadResource(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+	if !strings.Contains(err.Error(), "read image") {
+		t.Fatalf("expected 'read image' error, got: %v", err)
+	}
+}
+
+// --- Default Output Dir Tests ---
+
+func TestResolveOutputDirWithDefault(t *testing.T) {
+	t.Setenv("NABA_OUTPUT_DIR", "")
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	dir := resolveOutputDirWithDefault()
+	if dir == "" {
+		t.Fatal("expected non-empty default output dir")
+	}
+	if !strings.Contains(dir, filepath.Join(".local", "share", "naba", "images")) {
+		t.Fatalf("expected XDG default path, got: %s", dir)
+	}
+}
+
+func TestResolveOutputDirWithDefault_EnvOverride(t *testing.T) {
+	t.Setenv("NABA_OUTPUT_DIR", "/custom/output")
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+
+	dir := resolveOutputDirWithDefault()
+	if dir != "/custom/output" {
+		t.Fatalf("expected /custom/output, got: %s", dir)
+	}
+}
+
 // --- Helpers ---
 
 // contentText extracts the first text content from a result.
@@ -637,4 +843,25 @@ func contentText(t *testing.T, result *mcpsdk.CallToolResult) string {
 	}
 	t.Fatal("no text content found in result")
 	return ""
+}
+
+// assertHasResourceLink verifies at least one ResourceLink content exists.
+func assertHasResourceLink(t *testing.T, result *mcpsdk.CallToolResult) {
+	t.Helper()
+	for _, c := range result.Content {
+		if _, ok := c.(mcpsdk.ResourceLink); ok {
+			return
+		}
+	}
+	t.Fatal("expected ResourceLink content in result, found none")
+}
+
+// assertNoImageContent verifies no ImageContent exists in the result.
+func assertNoImageContent(t *testing.T, result *mcpsdk.CallToolResult) {
+	t.Helper()
+	for _, c := range result.Content {
+		if _, ok := c.(mcpsdk.ImageContent); ok {
+			t.Fatal("found unexpected ImageContent in result (base64 should be removed)")
+		}
+	}
 }

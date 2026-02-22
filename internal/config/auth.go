@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
 const EnvAPIKey = "GEMINI_API_KEY"
 const EnvOutputDir = "NABA_OUTPUT_DIR"
@@ -28,4 +31,14 @@ func ResolveOutputDir() string {
 		return ""
 	}
 	return cfg.DefaultOutputDir
+}
+
+// DefaultOutputDir returns the XDG-conventional default output directory
+// for generated images (~/.local/share/naba/images).
+func DefaultOutputDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".local", "share", "naba", "images")
 }
