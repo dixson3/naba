@@ -1,5 +1,7 @@
 # Plan: Add `naba mcp` Subcommand
 
+**Status:** Completed
+
 ## Context
 
 naba is a CLI for AI image generation via Gemini API. It already has 7 generation commands (generate, edit, restore, icon, pattern, story, diagram). This change adds an `mcp` subcommand that starts a stdio-based MCP server, exposing all 7 capabilities as MCP tools — allowing AI assistants (Claude Desktop, etc.) to use naba directly.

@@ -106,6 +106,21 @@ The design prioritizes:
 - (+) Clear separation: CLI handles flags, prompt.go handles enrichment, client.go handles HTTP
 - (-) Enrichment is string concatenation only -- no template engine for complex formatting
 
+### DD-007: MCP Server via mcp-go SDK
+
+**Context:** To enable AI assistants (Claude Desktop, etc.) to use naba's image generation capabilities directly, naba needs to expose its 7 tools via the Model Context Protocol (MCP) over stdio.
+
+**Decision:** Add `github.com/mark3labs/mcp-go` as the MCP SDK. Implement a new `internal/mcp` package with server setup and tool handlers. The MCP server reuses existing `gemini.Client`, all 7 `Enrich*Prompt` functions, and `output.WriteImage` -- no duplication of business logic. Tool results include both a text file path and base64 image content so MCP clients can display images inline.
+
+**Rationale:** mcp-go provides builder-style tool definitions, typed argument accessors (`RequireString`, `GetInt`, etc.), and `NewImageContent()` for returning images. Lighter dependency footprint than the official SDK. The thin `naba mcp` subcommand delegates entirely to `mcp.Serve(version)`.
+
+**Consequences:**
+- (+) All 7 capabilities available to MCP clients with zero prompt-engineering duplication
+- (+) Follows DD-001 and DD-006 -- reuses single endpoint pattern and pure enrichment functions
+- (+) No flags on `mcp` command -- MCP server configuration is handled by the client
+- (-) Adds mcp-go dependency tree (jsonschema, cast, uritemplate, uuid)
+- (-) MCP server errors are returned as tool result errors (not exit codes) since MCP has no exit code concept
+
 ## 4. Package Architecture
 
 ```

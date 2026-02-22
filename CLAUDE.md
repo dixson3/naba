@@ -16,7 +16,8 @@ make build                  # build with version ldflags
 
 ```
 cmd/naba/main.go         # entry point, exit code handling
-internal/cli/             # cobra commands (root, generate, edit, restore, icon, pattern, story, diagram, config, version)
+internal/cli/             # cobra commands (root, generate, edit, restore, icon, pattern, story, diagram, config, version, mcp)
+internal/mcp/             # MCP server, tool definitions, handlers (stdio-based, exposes all 7 generation tools)
 internal/gemini/          # API client, types, prompt enrichment
 internal/output/          # file writer, JSON formatter, system preview
 internal/config/          # YAML config (~/.config/naba/config.yaml), auth resolution
@@ -47,3 +48,4 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 
 - `github.com/spf13/cobra` — CLI framework
 - `gopkg.in/yaml.v3` — config file parsing
+- `github.com/mark3labs/mcp-go` — MCP server SDK
