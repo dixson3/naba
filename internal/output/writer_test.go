@@ -188,6 +188,33 @@ func TestGenerateFilename_ZeroIndex(t *testing.T) {
 	}
 }
 
+func TestOutputPath_EmptyDir(t *testing.T) {
+	got := OutputPath("", "generate", "image/png")
+	if got != "" {
+		t.Errorf("OutputPath(\"\", ...) = %q, want empty string", got)
+	}
+}
+
+func TestOutputPath_WithDir(t *testing.T) {
+	got := OutputPath("/tmp/out", "generate", "image/png")
+	if !strings.HasPrefix(got, "/tmp/out/naba-generate-") {
+		t.Errorf("OutputPath() = %q, want prefix /tmp/out/naba-generate-", got)
+	}
+	if !strings.HasSuffix(got, ".png") {
+		t.Errorf("OutputPath() = %q, want .png suffix", got)
+	}
+}
+
+func TestOutputPath_JPEG(t *testing.T) {
+	got := OutputPath("/tmp/out", "edit", "image/jpeg")
+	if !strings.HasPrefix(got, "/tmp/out/naba-edit-") {
+		t.Errorf("OutputPath() = %q, want prefix /tmp/out/naba-edit-", got)
+	}
+	if !strings.HasSuffix(got, ".jpg") {
+		t.Errorf("OutputPath() = %q, want .jpg suffix", got)
+	}
+}
+
 func TestDedup_MultipleConflicts(t *testing.T) {
 	tmpDir := t.TempDir()
 

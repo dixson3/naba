@@ -1,5 +1,7 @@
 # Plan: Update README with MCP Usage Documentation
 
+**Status:** Abandoned
+
 ## Context
 
 The `naba mcp` subcommand was just implemented but the README has no mention of MCP. Users need to know how to configure naba as an MCP server in their AI assistant (Claude Desktop, Cursor, etc.).

@@ -551,6 +551,80 @@ func TestToolDefinitions_HaveRequiredParams(t *testing.T) {
 	}
 }
 
+// --- Output Dir Tests ---
+
+func TestGenerateImage_OutputDir(t *testing.T) {
+	srv := newMockGeminiServer(t)
+	defer srv.Close()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	// Point output to a non-existent subdir — should be created automatically
+	outDir := filepath.Join(tmpDir, "custom", "output")
+
+	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("GEMINI_BASE_URL", srv.URL)
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", outDir)
+
+	result, err := handleGenerateImage(context.Background(), makeRequest(map[string]any{
+		"prompt": "test output dir",
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", contentText(t, result))
+	}
+
+	// Verify file was written inside the custom output dir
+	text := contentText(t, result)
+	if !strings.HasPrefix(text, outDir) {
+		t.Fatalf("expected path under %s, got: %s", outDir, text)
+	}
+	if _, err := os.Stat(text); err != nil {
+		t.Fatalf("output file does not exist: %s", text)
+	}
+}
+
+func TestGeneratePattern_OutputDir(t *testing.T) {
+	srv := newMockGeminiServer(t)
+	defer srv.Close()
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	outDir := filepath.Join(tmpDir, "patterns")
+
+	t.Setenv("GEMINI_API_KEY", "test-key")
+	t.Setenv("GEMINI_BASE_URL", srv.URL)
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", outDir)
+
+	result, err := handleGeneratePattern(context.Background(), makeRequest(map[string]any{
+		"prompt": "test pattern",
+	}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %s", contentText(t, result))
+	}
+
+	text := contentText(t, result)
+	if !strings.HasPrefix(text, outDir) {
+		t.Fatalf("expected path under %s, got: %s", outDir, text)
+	}
+	if _, err := os.Stat(text); err != nil {
+		t.Fatalf("output file does not exist: %s", text)
+	}
+}
+
 // --- Helpers ---
 
 // contentText extracts the first text content from a result.

@@ -3,6 +3,7 @@ package config
 import "os"
 
 const EnvAPIKey = "GEMINI_API_KEY"
+const EnvOutputDir = "NABA_OUTPUT_DIR"
 
 // ResolveAPIKey returns the Gemini API key from environment or config file.
 func ResolveAPIKey() string {
@@ -14,4 +15,17 @@ func ResolveAPIKey() string {
 		return ""
 	}
 	return cfg.APIKey
+}
+
+// ResolveOutputDir returns the output directory from environment or config file.
+// Precedence: NABA_OUTPUT_DIR env var > default_output_dir config > empty string (CWD).
+func ResolveOutputDir() string {
+	if dir := os.Getenv(EnvOutputDir); dir != "" {
+		return dir
+	}
+	cfg, err := Load()
+	if err != nil {
+		return ""
+	}
+	return cfg.DefaultOutputDir
 }

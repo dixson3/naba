@@ -113,7 +113,8 @@ naba config get model
       "command": "naba",
       "args": ["mcp"],
       "env": {
-        "GEMINI_API_KEY": "<your-key>"
+        "GEMINI_API_KEY": "<your-key>",
+        "NABA_OUTPUT_DIR": "/path/to/output"
       }
     }
   }

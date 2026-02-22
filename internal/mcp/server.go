@@ -85,7 +85,9 @@ func generateAndReturn(prompt, command string) (*mcpsdk.CallToolResult, error) {
 		return mcpsdk.NewToolResultError("no images in response"), nil
 	}
 
-	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, "", command, 0)
+	outDir := config.ResolveOutputDir()
+	outPath := output.OutputPath(outDir, command, images[0].MIMEType)
+	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, outPath, command, 0)
 	if err != nil {
 		return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 	}
@@ -113,7 +115,9 @@ func generateWithImageAndReturn(prompt, imagePath, command string) (*mcpsdk.Call
 		return mcpsdk.NewToolResultError("no images in response"), nil
 	}
 
-	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, "", command, 0)
+	outDir := config.ResolveOutputDir()
+	outPath := output.OutputPath(outDir, command, images[0].MIMEType)
+	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, outPath, command, 0)
 	if err != nil {
 		return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 	}
@@ -142,6 +146,8 @@ func handleGenerateImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 	}
 
 	enriched := gemini.EnrichGeneratePrompt(prompt, style, variations)
+	outDir := config.ResolveOutputDir()
+	outPath := output.OutputPath(outDir, "generate", "image/png")
 
 	var allPaths []string
 	var allImages []gemini.ImageResult
@@ -153,7 +159,7 @@ func handleGenerateImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		}
 		for j, img := range images {
 			idx := i*len(images) + j
-			path, err := output.WriteImage(img.Data, img.MIMEType, "", "generate", idx)
+			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "generate", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 			}
@@ -212,6 +218,9 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
+	outDir := config.ResolveOutputDir()
+	outPath := output.OutputPath(outDir, "icon", "image/png")
+
 	var allPaths []string
 	var allImages []gemini.ImageResult
 
@@ -223,7 +232,7 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 		}
 		for j, img := range images {
 			idx := i*len(images) + j
-			path, err := output.WriteImage(img.Data, img.MIMEType, "", "icon", idx)
+			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "icon", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 			}
@@ -275,6 +284,9 @@ func handleGenerateStory(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
+	outDir := config.ResolveOutputDir()
+	outPath := output.OutputPath(outDir, "story", "image/png")
+
 	var allPaths []string
 	var allImages []gemini.ImageResult
 
@@ -286,7 +298,7 @@ func handleGenerateStory(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		}
 		for j, img := range images {
 			idx := (i-1)*len(images) + j
-			path, err := output.WriteImage(img.Data, img.MIMEType, "", "story", idx)
+			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "story", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 			}
