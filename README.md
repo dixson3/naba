@@ -100,6 +100,44 @@ naba config set model gemini-2.0-flash-exp
 naba config get model
 ```
 
+### MCP Server
+
+`naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 7 image generation tools to AI assistants like Claude Desktop and Cursor.
+
+**Claude Desktop configuration** — add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "naba": {
+      "command": "naba",
+      "args": ["mcp"],
+      "env": {
+        "GEMINI_API_KEY": "<your-key>"
+      }
+    }
+  }
+}
+```
+
+**Available tools:**
+
+| Tool | Description |
+|------|-------------|
+| `generate_image` | Generate an image from a text prompt |
+| `edit_image` | Edit an existing image based on a text prompt |
+| `restore_image` | Restore or enhance an existing image |
+| `generate_icon` | Generate app icons in multiple sizes |
+| `generate_pattern` | Generate seamless patterns and textures |
+| `generate_story` | Generate a sequence of images that tell a visual story |
+| `generate_diagram` | Generate technical diagrams and flowcharts |
+
+**Manual test** — verify the server responds to the MCP initialize handshake:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | naba mcp
+```
+
 ## Global Flags
 
 | Flag | Description |
