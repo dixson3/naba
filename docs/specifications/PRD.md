@@ -45,6 +45,9 @@ The CLI follows established conventions from tools like `gh` and `kubectl`: stru
 | REQ-013 | All 5 packages have test files | P0 | Plan-02 Completion Criteria | Partial | `cmd/naba` has no test file (noted as acceptable -- thin main.go) |
 | REQ-014 | Homebrew distribution via dixson3/tap | P1 | README | Complete | `.goreleaser.yaml` (brews section) |
 | REQ-015 | Auto-detect piped stdout and enable JSON mode | P1 | Plan-01 Output Behavior | Complete | `internal/cli/root.go` (PersistentPreRun) |
+| REQ-016 | MCP server exposes all 7 generation capabilities as tools via stdio | P1 | Plan-gxu5t | In Progress | `internal/mcp/server.go`, `internal/cli/mcp.go` |
+| REQ-017 | MCP tool results include both file path (text) and base64 image content | P1 | Plan-gxu5t | In Progress | `internal/mcp/server.go` (imageResult, multiImageResult) |
+| REQ-018 | MCP server reuses existing prompt enrichment and Gemini client (no duplication) | P1 | Plan-gxu5t, DD-001, DD-006 | In Progress | `internal/mcp/server.go` |
 
 ## 4. Functional Specifications
 
@@ -101,3 +104,9 @@ Code: `internal/cli/config.go`, `internal/config/config.go`
 Displays version, git commit, and build date. Values injected via ldflags at build time.
 
 Code: `internal/cli/version.go`
+
+### FS-010: MCP Server (mcp command)
+
+Starts a stdio-based Model Context Protocol server exposing all 7 generation capabilities as MCP tools. No flags -- MCP servers are configured by the client. Uses `github.com/mark3labs/mcp-go` SDK. Each tool handler follows the same pattern: parse args, resolve API client, enrich prompt, call Gemini, write output file, return text path + base64 image content. Supports multi-output for generate (count), icon (sizes), and story (steps).
+
+Code: `internal/cli/mcp.go`, `internal/mcp/server.go`
