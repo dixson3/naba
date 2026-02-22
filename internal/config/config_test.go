@@ -236,6 +236,54 @@ func TestResolveAPIKey_Neither(t *testing.T) {
 	}
 }
 
+// --- ResolveOutputDir Tests ---
+
+func TestResolveOutputDir_EnvVar(t *testing.T) {
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", "/tmp/naba-images")
+
+	if got := ResolveOutputDir(); got != "/tmp/naba-images" {
+		t.Errorf("ResolveOutputDir() = %q, want %q", got, "/tmp/naba-images")
+	}
+}
+
+func TestResolveOutputDir_ConfigFallback(t *testing.T) {
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", "")
+
+	cfg := &Config{DefaultOutputDir: "/config/output"}
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	if got := ResolveOutputDir(); got != "/config/output" {
+		t.Errorf("ResolveOutputDir() = %q, want %q", got, "/config/output")
+	}
+}
+
+func TestResolveOutputDir_EnvTakesPrecedence(t *testing.T) {
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", "/env/output")
+
+	cfg := &Config{DefaultOutputDir: "/config/output"}
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	if got := ResolveOutputDir(); got != "/env/output" {
+		t.Errorf("ResolveOutputDir() = %q, want %q (env should take precedence)", got, "/env/output")
+	}
+}
+
+func TestResolveOutputDir_Neither(t *testing.T) {
+	t.Setenv("NABA_CONFIG_DIR", t.TempDir())
+	t.Setenv("NABA_OUTPUT_DIR", "")
+
+	if got := ResolveOutputDir(); got != "" {
+		t.Errorf("ResolveOutputDir() = %q, want empty string", got)
+	}
+}
+
 func TestResolveAPIKey_BrokenConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NABA_CONFIG_DIR", dir)

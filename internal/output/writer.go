@@ -81,6 +81,15 @@ func dedup(path string) string {
 	return path
 }
 
+// OutputPath returns a full file path by joining a directory with an auto-generated filename.
+// If dir is empty, returns empty string (caller uses CWD via WriteImage default).
+func OutputPath(dir, command, mimeType string) string {
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, generateFilename(command, mimeType, 0))
+}
+
 // ExtForFormat returns the file extension for a given format string.
 func ExtForFormat(format string) string {
 	switch strings.ToLower(format) {

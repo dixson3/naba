@@ -42,6 +42,7 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 |---|---|
 | `GEMINI_API_KEY` | API authentication (required for generation commands) |
 | `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`) |
+| `NABA_OUTPUT_DIR` | Override output directory for generated images (MCP and CLI) |
 | `GEMINI_BASE_URL` | Override API base URL (used by tests) |
 
 ## Dependencies
