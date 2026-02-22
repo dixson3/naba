@@ -121,6 +121,8 @@ naba config get model
 }
 ```
 
+Setting `NABA_OUTPUT_DIR` is recommended — it tells naba where to write generated images. Without it, images are saved to `~/.local/share/naba/images` by default.
+
 **Available tools:**
 
 | Tool | Description |
@@ -132,6 +134,7 @@ naba config get model
 | `generate_pattern` | Generate seamless patterns and textures |
 | `generate_story` | Generate a sequence of images that tell a visual story |
 | `generate_diagram` | Generate technical diagrams and flowcharts |
+| `list_images` | List recently generated images in the output directory |
 
 **Manual test** — verify the server responds to the MCP initialize handshake:
 

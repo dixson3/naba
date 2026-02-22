@@ -6,7 +6,7 @@ Standalone CLI for AI image generation via Google Gemini API.
 
 ```bash
 go build ./...              # build all packages
-go test ./... -count=1      # run all 81 tests
+go test ./... -count=1      # run all tests
 go test ./internal/cli/...  # test CLI commands only
 go run ./cmd/naba generate "a red apple"  # run locally
 make build                  # build with version ldflags
@@ -17,7 +17,7 @@ make build                  # build with version ldflags
 ```
 cmd/naba/main.go         # entry point, exit code handling
 internal/cli/             # cobra commands (root, generate, edit, restore, icon, pattern, story, diagram, config, version, mcp)
-internal/mcp/             # MCP server, tool definitions, handlers (stdio-based, exposes all 7 generation tools)
+internal/mcp/             # MCP server, tool definitions, handlers (stdio-based, exposes 8 tools + resource template)
 internal/gemini/          # API client, types, prompt enrichment
 internal/output/          # file writer, JSON formatter, system preview
 internal/config/          # YAML config (~/.config/naba/config.yaml), auth resolution
@@ -44,6 +44,8 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 | `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`) |
 | `NABA_OUTPUT_DIR` | Override output directory for generated images (MCP and CLI) |
 | `GEMINI_BASE_URL` | Override API base URL (used by tests) |
+
+**MCP mode**: When no output directory is configured, MCP handlers default to `~/.local/share/naba/images` (not CWD). Tool results return file paths + `ResourceLink` (no inline base64) to stay under Claude Desktop's ~1MB response limit.
 
 ## Dependencies
 

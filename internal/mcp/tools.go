@@ -161,6 +161,16 @@ func generateStoryTool() mcpsdk.Tool {
 	)
 }
 
+func listImagesTool() mcpsdk.Tool {
+	return mcpsdk.NewTool("list_images",
+		mcpsdk.WithDescription("List recently generated images in the output directory"),
+		mcpsdk.WithNumber("limit",
+			mcpsdk.Description("Maximum number of images to return"),
+			mcpsdk.DefaultNumber(20),
+		),
+	)
+}
+
 func generateDiagramTool() mcpsdk.Tool {
 	return mcpsdk.NewTool("generate_diagram",
 		mcpsdk.WithDescription("Generate technical diagrams and flowcharts"),

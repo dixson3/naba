@@ -7,6 +7,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	mcpsdk "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
@@ -22,8 +25,10 @@ func Serve(version string) error {
 		"naba",
 		version,
 		mcpserver.WithToolCapabilities(false),
+		mcpserver.WithResourceCapabilities(false, false),
 	)
 	registerTools(s)
+	registerResources(s)
 	return mcpserver.ServeStdio(s)
 }
 
@@ -35,6 +40,19 @@ func registerTools(s *mcpserver.MCPServer) {
 	s.AddTool(generatePatternTool(), handleGeneratePattern)
 	s.AddTool(generateStoryTool(), handleGenerateStory)
 	s.AddTool(generateDiagramTool(), handleGenerateDiagram)
+	s.AddTool(listImagesTool(), handleListImages)
+}
+
+func registerResources(s *mcpserver.MCPServer) {
+	s.AddResourceTemplate(
+		mcpsdk.NewResourceTemplate(
+			"file:///{path}",
+			"Generated image file",
+			mcpsdk.WithTemplateDescription("Access a generated image by its file path"),
+			mcpsdk.WithTemplateMIMEType("image/*"),
+		),
+		handleReadResource,
+	)
 }
 
 // resolveClient creates a Gemini client from config/env.
@@ -47,24 +65,43 @@ func resolveClient() (*gemini.Client, error) {
 	return gemini.NewClient(apiKey, cfg.Model), nil
 }
 
-// imageResult builds a CallToolResult with a text path and base64 image content.
-func imageResult(path string, data []byte, mimeType string) *mcpsdk.CallToolResult {
-	encoded := base64.StdEncoding.EncodeToString(data)
+// resolveOutputDirWithDefault returns the configured output directory,
+// falling back to the XDG default (~/.local/share/naba/images) when unset.
+func resolveOutputDirWithDefault() string {
+	if dir := config.ResolveOutputDir(); dir != "" {
+		return dir
+	}
+	return config.DefaultOutputDir()
+}
+
+// imageResult builds a CallToolResult with a text path and resource link.
+func imageResult(path string, _ []byte, mimeType string) *mcpsdk.CallToolResult {
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{
 			mcpsdk.NewTextContent(path),
-			mcpsdk.NewImageContent(encoded, mimeType),
+			mcpsdk.NewResourceLink(
+				"file://"+path,
+				filepath.Base(path),
+				"Generated image",
+				mimeType,
+			),
 		},
 	}
 }
 
-// multiImageResult builds a CallToolResult from multiple images.
+// multiImageResult builds a CallToolResult from multiple images with resource links.
 func multiImageResult(paths []string, images []gemini.ImageResult) *mcpsdk.CallToolResult {
 	var content []mcpsdk.Content
 	for i, img := range images {
-		content = append(content, mcpsdk.NewTextContent(paths[i]))
-		encoded := base64.StdEncoding.EncodeToString(img.Data)
-		content = append(content, mcpsdk.NewImageContent(encoded, img.MIMEType))
+		content = append(content,
+			mcpsdk.NewTextContent(paths[i]),
+			mcpsdk.NewResourceLink(
+				"file://"+paths[i],
+				filepath.Base(paths[i]),
+				fmt.Sprintf("Generated image %d", i+1),
+				img.MIMEType,
+			),
+		)
 	}
 	return &mcpsdk.CallToolResult{Content: content}
 }
@@ -85,7 +122,7 @@ func generateAndReturn(prompt, command string) (*mcpsdk.CallToolResult, error) {
 		return mcpsdk.NewToolResultError("no images in response"), nil
 	}
 
-	outDir := config.ResolveOutputDir()
+	outDir := resolveOutputDirWithDefault()
 	outPath := output.OutputPath(outDir, command, images[0].MIMEType)
 	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, outPath, command, 0)
 	if err != nil {
@@ -115,7 +152,7 @@ func generateWithImageAndReturn(prompt, imagePath, command string) (*mcpsdk.Call
 		return mcpsdk.NewToolResultError("no images in response"), nil
 	}
 
-	outDir := config.ResolveOutputDir()
+	outDir := resolveOutputDirWithDefault()
 	outPath := output.OutputPath(outDir, command, images[0].MIMEType)
 	path, err := output.WriteImage(images[0].Data, images[0].MIMEType, outPath, command, 0)
 	if err != nil {
@@ -146,7 +183,7 @@ func handleGenerateImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 	}
 
 	enriched := gemini.EnrichGeneratePrompt(prompt, style, variations)
-	outDir := config.ResolveOutputDir()
+	outDir := resolveOutputDirWithDefault()
 	outPath := output.OutputPath(outDir, "generate", "image/png")
 
 	var allPaths []string
@@ -218,7 +255,7 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
-	outDir := config.ResolveOutputDir()
+	outDir := resolveOutputDirWithDefault()
 	outPath := output.OutputPath(outDir, "icon", "image/png")
 
 	var allPaths []string
@@ -284,7 +321,7 @@ func handleGenerateStory(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
-	outDir := config.ResolveOutputDir()
+	outDir := resolveOutputDirWithDefault()
 	outPath := output.OutputPath(outDir, "story", "image/png")
 
 	var allPaths []string
@@ -328,4 +365,114 @@ func handleGenerateDiagram(_ context.Context, req mcpsdk.CallToolRequest) (*mcps
 
 	enriched := gemini.EnrichDiagramPrompt(prompt, diagramType, style, layout, complexity, colors)
 	return generateAndReturn(enriched, "diagram")
+}
+
+// handleListImages lists recently generated images in the output directory.
+func handleListImages(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	outDir := resolveOutputDirWithDefault()
+	if outDir == "" {
+		return mcpsdk.NewToolResultError("no output directory configured"), nil
+	}
+
+	limit := req.GetInt("limit", 20)
+	if limit < 1 {
+		limit = 20
+	}
+
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &mcpsdk.CallToolResult{
+				Content: []mcpsdk.Content{
+					mcpsdk.NewTextContent("No images found (directory does not exist)"),
+				},
+			}, nil
+		}
+		return mcpsdk.NewToolResultError(fmt.Sprintf("read output directory: %v", err)), nil
+	}
+
+	// Filter to naba-* image files and collect with mod times
+	type fileEntry struct {
+		path    string
+		modTime int64
+	}
+	var files []fileEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasPrefix(name, "naba-") {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(name))
+		if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".gif" && ext != ".webp" {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, fileEntry{
+			path:    filepath.Join(outDir, name),
+			modTime: info.ModTime().UnixNano(),
+		})
+	}
+
+	// Sort newest first
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime > files[j].modTime
+	})
+
+	if len(files) > limit {
+		files = files[:limit]
+	}
+
+	if len(files) == 0 {
+		return &mcpsdk.CallToolResult{
+			Content: []mcpsdk.Content{
+				mcpsdk.NewTextContent("No images found"),
+			},
+		}, nil
+	}
+
+	var content []mcpsdk.Content
+	for _, f := range files {
+		content = append(content, mcpsdk.NewTextContent(f.path))
+	}
+	return &mcpsdk.CallToolResult{Content: content}, nil
+}
+
+// handleReadResource reads a generated image file by its file:// URI.
+func handleReadResource(_ context.Context, req mcpsdk.ReadResourceRequest) ([]mcpsdk.ResourceContents, error) {
+	path := strings.TrimPrefix(req.Params.URI, "file://")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read image: %w", err)
+	}
+	mime := mimeFromExt(filepath.Ext(path))
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return []mcpsdk.ResourceContents{
+		mcpsdk.BlobResourceContents{
+			URI:      req.Params.URI,
+			MIMEType: mime,
+			Blob:     encoded,
+		},
+	}, nil
+}
+
+// mimeFromExt returns the MIME type for a file extension.
+func mimeFromExt(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }

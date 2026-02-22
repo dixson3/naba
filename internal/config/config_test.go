@@ -284,6 +284,18 @@ func TestResolveOutputDir_Neither(t *testing.T) {
 	}
 }
 
+// --- DefaultOutputDir Tests ---
+
+func TestDefaultOutputDir(t *testing.T) {
+	dir := DefaultOutputDir()
+	if dir == "" {
+		t.Fatal("DefaultOutputDir() returned empty string")
+	}
+	if !strings.Contains(dir, filepath.Join(".local", "share", "naba", "images")) {
+		t.Fatalf("DefaultOutputDir() = %q, want path containing .local/share/naba/images", dir)
+	}
+}
+
 func TestResolveAPIKey_BrokenConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("NABA_CONFIG_DIR", dir)
