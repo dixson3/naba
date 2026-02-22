@@ -1,0 +1,4 @@
+# Ignore everything except config.yaml and this file
+*
+!.gitignore
+!config.yaml
