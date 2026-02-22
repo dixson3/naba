@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "config": {
+    "artifact_dir": "docs"
+  }
+}
