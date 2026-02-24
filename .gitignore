@@ -19,3 +19,8 @@ icon-*
 # Plugin-managed rule symlinks
 .claude/rules/yf/
 # <<< yf-managed <<<
+
+# >>> naba-managed >>>
+# Plugin-managed rule symlinks
+.claude/rules/naba/
+# <<< naba-managed <<<
