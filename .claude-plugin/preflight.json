@@ -1,0 +1,9 @@
+{
+  "mode": "symlink",
+  "artifacts": {
+    "rules": [
+      { "source": "rules/naba-image-prompts.md", "target": ".claude/rules/naba/naba-image-prompts.md" },
+      { "source": "rules/naba-tool-routing.md", "target": ".claude/rules/naba/naba-tool-routing.md" }
+    ]
+  }
+}
