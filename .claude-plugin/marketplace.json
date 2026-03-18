@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "AI image generation plugin for Claude Code — wraps the naba CLI for image generation, editing, icon creation, pattern design, and more.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "license": "MIT",
     "organization": "Yoshiko Studios LLC",
     "github": "dixson3"
@@ -16,7 +16,7 @@
       "name": "naba",
       "source": "./",
       "description": "AI image generation via naba CLI — generate, edit, restore, icon, pattern, story, and diagram commands with prompt engineering rules.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "James Dixson",
         "email": "dixson3@gmail.com"

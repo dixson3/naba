@@ -54,3 +54,70 @@ naba pattern "flowing ocean waves and sea foam" --style organic --colors duotone
 # Step 3: Hero image — brand showcase
 naba generate "abstract ocean waves at golden hour, minimal composition with deep blues and warm highlights" --style modern
 ```
+
+## Prompt Engineering
+
+Build prompts in this order: **subject + composition + style + lighting + details**.
+
+1. **Subject**: What is the main focus? Be specific — "a tabby cat sitting on a wooden fence" not "a cat"
+2. **Composition**: Camera angle, framing, depth of field — "close-up shot", "bird's eye view", "centered with negative space"
+3. **Style**: Art style or medium
+4. **Lighting**: "golden hour", "soft diffused", "dramatic side lighting", "studio lighting"
+5. **Details**: Color palette, mood, texture, atmosphere — "warm earth tones", "moody and atmospheric"
+
+### Per-Command Guidance
+
+**icon**: Focus on the **symbol or concept**, not composition. Naba handles icon framing. Use `--style` for visual treatment (flat, skeuomorphic, minimal, modern).
+
+**pattern**: Describe the **motif and feel**, not the tiling mechanics. The `--style`, `--colors`, and `--density` flags handle the technical pattern attributes.
+
+**generate**: General-purpose image creation. Prompts can be descriptive and open-ended. Use `--style` to anchor the visual treatment.
+
+### Anti-Patterns
+
+- **Avoid negatives**: "no text" or "without watermarks" often backfire. Instead, describe what you want.
+- **Avoid resolution specs in prompts**: Use CLI flags (`--size`, `--tile-size`) instead of "4K" or "1024x1024" in the prompt text.
+- **Avoid overly long prompts**: 1-3 sentences is the sweet spot. Beyond that, details compete and quality drops.
+- **Avoid generic prompts**: "a beautiful landscape" produces generic results. Add specifics: "a misty fjord at dawn with a lone fishing boat".
+
+## Command Flags
+
+### Global Flags
+
+| Flag | Short | Purpose |
+|------|-------|---------|
+| `--output` | `-o` | Output file path or directory |
+| `--json` | | Structured JSON output (auto-enabled when piped) |
+| `--quiet` | `-q` | Suppress progress output |
+| `--model` | `-m` | Override Gemini model |
+| `--preview` | | Open result in system viewer |
+
+### icon
+
+| Flag | Default | Values |
+|------|---------|--------|
+| `--style` | modern | flat, skeuomorphic, minimal, modern |
+| `--size` | 256 | Any integer (repeatable for multiple sizes) |
+| `--format` | png | png, jpeg |
+| `--background` | transparent | transparent, white, black, or color name |
+| `--corners` | rounded | rounded, sharp |
+
+### pattern
+
+| Flag | Default | Values |
+|------|---------|--------|
+| `--style` | abstract | geometric, organic, abstract, floral, tech |
+| `--colors` | colorful | mono, duotone, colorful |
+| `--density` | medium | sparse, medium, dense |
+| `--tile-size` | 256x256 | Any dimension string |
+| `--repeat` | tile | tile, mirror |
+
+### generate
+
+| Flag | Short | Default | Values |
+|------|-------|---------|--------|
+| `--style` | `-s` | (none) | photorealistic, watercolor, oil-painting, sketch, pixel-art, anime, vintage, modern, abstract, minimalist |
+| `--count` | `-n` | 1 | 1-8 |
+| `--seed` | | 0 | Any integer |
+| `--format` | | separate | grid, separate |
+| `--variation` | `-v` | (none) | lighting, angle, color-palette, composition, mood, season, time-of-day |
