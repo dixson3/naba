@@ -2,6 +2,10 @@
 
 Standalone CLI for AI image generation via Google Gemini API.
 
+## Rules 
+
+Read @AGENTS.md 
+
 ## Build & Test
 
 ```bash
