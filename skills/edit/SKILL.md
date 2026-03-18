@@ -57,3 +57,24 @@ naba edit logo.png "change the primary color from blue to green"
 # Add elements
 naba edit scene.png "add a flock of birds in the sky"
 ```
+
+## Prompt Engineering
+
+Prompts should describe the **desired change**, not the full image. Be surgical: "remove the background and replace with a sunset sky" or "change the shirt color to blue". The source image provides context.
+
+### Anti-Patterns
+
+- **Avoid negatives**: "no text" or "without watermarks" often backfire. Instead, describe what you want.
+- **Avoid resolution specs in prompts**: Use CLI flags (`--size`, `--tile-size`) instead of "4K" or "1024x1024" in the prompt text.
+- **Avoid overly long prompts**: 1-3 sentences is the sweet spot. Beyond that, details compete and quality drops.
+- **Avoid generic prompts**: "a beautiful landscape" produces generic results. Add specifics: "a misty fjord at dawn with a lone fishing boat".
+
+## Global Flags
+
+| Flag | Short | Purpose |
+|------|-------|---------|
+| `--output` | `-o` | Output file path or directory |
+| `--json` | | Structured JSON output (auto-enabled when piped) |
+| `--quiet` | `-q` | Suppress progress output |
+| `--model` | `-m` | Override Gemini model |
+| `--preview` | | Open result in system viewer |

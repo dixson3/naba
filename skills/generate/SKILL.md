@@ -15,7 +15,7 @@ Generate an image from a text prompt using the naba CLI.
    command -v naba || echo "ERROR: naba not found on PATH"
    ```
 
-2. **Refine the prompt**: Apply prompt engineering guidance from the naba-image-prompts rule. Structure as: subject + composition + style + lighting + details.
+2. **Refine the prompt**: Apply the prompt engineering guidance below. Structure as: subject + composition + style + lighting + details.
 
 3. **Build and run the command**:
    ```bash
@@ -53,3 +53,32 @@ naba generate "portrait of a robot" --count 3 --style anime
 # Explore lighting variations
 naba generate "still life with flowers" --variation lighting --count 4
 ```
+
+## Prompt Engineering
+
+Build prompts in this order: **subject + composition + style + lighting + details**.
+
+1. **Subject**: What is the main focus? Be specific — "a tabby cat sitting on a wooden fence" not "a cat"
+2. **Composition**: Camera angle, framing, depth of field — "close-up shot", "bird's eye view", "centered with negative space"
+3. **Style**: Art style or medium — maps to `--style` flag values (photorealistic, watercolor, oil-painting, sketch, pixel-art, anime, vintage, modern, abstract, minimalist)
+4. **Lighting**: "golden hour", "soft diffused", "dramatic side lighting", "studio lighting"
+5. **Details**: Color palette, mood, texture, atmosphere — "warm earth tones", "moody and atmospheric"
+
+General-purpose image creation. Prompts can be descriptive and open-ended. Use `--style` to anchor the visual treatment. Use `--variation` for systematic exploration of lighting, angle, color-palette, composition, mood, season, or time-of-day.
+
+### Anti-Patterns
+
+- **Avoid negatives**: "no text" or "without watermarks" often backfire. Instead, describe what you want.
+- **Avoid resolution specs in prompts**: Use CLI flags (`--size`, `--tile-size`) instead of "4K" or "1024x1024" in the prompt text.
+- **Avoid overly long prompts**: 1-3 sentences is the sweet spot. Beyond that, details compete and quality drops.
+- **Avoid generic prompts**: "a beautiful landscape" produces generic results. Add specifics: "a misty fjord at dawn with a lone fishing boat".
+
+## Global Flags
+
+| Flag | Short | Purpose |
+|------|-------|---------|
+| `--output` | `-o` | Output file path or directory |
+| `--json` | | Structured JSON output (auto-enabled when piped) |
+| `--quiet` | `-q` | Suppress progress output |
+| `--model` | `-m` | Override Gemini model |
+| `--preview` | | Open result in system viewer |
