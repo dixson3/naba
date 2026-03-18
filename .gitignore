@@ -1,8 +1,3 @@
-.claude/settings.local.json
-.claude/yf.json
-.claude/rules/yf-*.md
-.claude/.plan-*
-
 # Build output
 /naba
 /naba-*
@@ -15,12 +10,7 @@ naba-restore-*
 naba-story-*
 icon-*
 
-# >>> yf-managed >>>
-# Plugin-managed rule symlinks
-.claude/rules/yf/
-# <<< yf-managed <<<
 
-# >>> naba-managed >>>
-# Plugin-managed rule symlinks
-.claude/rules/naba/
-# <<< naba-managed <<<
+# Dolt database files (added by bd init)
+.dolt/
+*.db
