@@ -2,9 +2,9 @@
 
 Standalone CLI for AI image generation via Google Gemini API.
 
-## Rules 
+## Rules
 
-Read @AGENTS.md 
+Read @AGENTS.md
 
 ## Build & Test
 
@@ -42,12 +42,12 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 
 ## Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | API authentication (required for generation commands) |
-| `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`) |
+| Variable          | Purpose                                                      |
+| ----------------- | ------------------------------------------------------------ |
+| `GEMINI_API_KEY`  | API authentication (required for generation commands)        |
+| `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`)        |
 | `NABA_OUTPUT_DIR` | Override output directory for generated images (MCP and CLI) |
-| `GEMINI_BASE_URL` | Override API base URL (used by tests) |
+| `GEMINI_BASE_URL` | Override API base URL (used by tests)                        |
 
 **MCP mode**: When no output directory is configured, MCP handlers default to `~/.local/share/naba/images` (not CWD). Tool results return file paths + `ResourceLink` (no inline base64) to stay under Claude Desktop's ~1MB response limit.
 
@@ -56,3 +56,24 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 - `github.com/spf13/cobra` — CLI framework
 - `gopkg.in/yaml.v3` — config file parsing
 - `github.com/mark3labs/mcp-go` — MCP server SDK
+
+
+
+## Specifications
+
+- Always reference `docs/specifications/*` as the source of truth for test plans
+- When an implementation plan conflicts existing specifications, ask the operator to confirm the specification change before implementation
+- Always persist a copy of the current implementation plan in `docs/plans` using a sequenced/hashed name
+
+```
+docs/decisions - important design and implementation decisions from previous sessions
+docs/diary - implementation diary
+docs/plans - archive of all implementation plans
+docs/research - research used in design and implementation
+docs/todos - historical todos
+docs/specifications - specification collection (source of implementation requirements)
+  EDD/ - engineering design document 
+  IG/  - implementation guides for key subsystems
+  PRD.md - the functional/non-functional product requirements 
+```
+
