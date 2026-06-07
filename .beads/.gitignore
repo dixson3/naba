@@ -47,3 +47,15 @@ bd.db
 # They would override fork protection in .git/info/exclude.
 # Config files (metadata.json, config.yaml) are tracked by git by default
 # since no pattern above ignores them.
+
+# Additional required patterns (bd doctor v1.0.5)
+.env
+export-state.json
+embeddeddolt/
+proxieddb/
+dolt-server.activity
+daemon.*
+*.lock
+*.corrupt.backup/
+.beads-credential-key
+proxied_server_client_info.json

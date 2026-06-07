@@ -1,3 +1,15 @@
+---
+name: naba-icon
+description: >
+  Generate app icons via the naba CLI. TRIGGER when: /naba-icon invoked, or the user wants
+  an app icon, logo mark, or symbol, optionally at multiple sizes. SKIP for: general
+  images (/naba-generate), seamless patterns (/naba-pattern), or full brand asset sets
+  (/naba-brand-kit).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Generate Icon
 
 Generate app icons using the naba CLI.
@@ -5,27 +17,22 @@ Generate app icons using the naba CLI.
 ## Usage
 
 ```
-/icon <prompt> [--style <style>] [--size <px>] [--background <bg>] [--corners <type>]
+/naba-icon <prompt> [--style <style>] [--size <px>] [--background <bg>] [--corners <type>]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
+1. **Refine the prompt**: Focus on the **symbol or concept**. Do not describe icon framing or dimensions — naba handles that. Apply the prompt engineering guidance below.
 
-2. **Refine the prompt**: Focus on the **symbol or concept**. Do not describe icon framing or dimensions — naba handles that. Apply the prompt engineering guidance below.
-
-3. **Build and run the command**:
+2. **Build and run the command**:
    ```bash
    naba icon "<refined prompt>" [--style <style>] [--size <px>] [--background <bg>] [--corners <type>]
    ```
    Use `--size` multiple times for multiple icon sizes (e.g., `--size 64 --size 128 --size 256`).
 
-4. **Present the result**: Show the output file path(s). Use the Read tool to display the generated icon.
+3. **Present the result**: Show the output file path(s). Use the Read tool to display the generated icon.
 
-5. **Offer iteration**: Ask if the user wants style or size adjustments.
+4. **Offer iteration**: Ask if the user wants style or size adjustments.
 
 ## Flags
 

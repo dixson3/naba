@@ -1,3 +1,15 @@
+---
+name: naba-edit
+description: >
+  Edit an existing image with text instructions via the naba CLI. TRIGGER when: /naba-edit
+  invoked, or the user wants to modify/change/alter an existing image file (remove
+  background, change colors, add or remove elements). SKIP for: creating a new image
+  (/naba-generate), restoring/enhancing without directed changes (/naba-restore).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Edit Image
 
 Edit an existing image with text instructions using the naba CLI.
@@ -5,31 +17,26 @@ Edit an existing image with text instructions using the naba CLI.
 ## Usage
 
 ```
-/edit <file> <prompt>
+/naba-edit <file> <prompt>
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
-
-2. **Verify the input file exists**:
+1. **Verify the input file exists**:
    ```bash
    ls -la "<file>"
    ```
 
-3. **Craft the edit prompt**: Describe the **desired change**, not the full image. Be specific and surgical.
+2. **Craft the edit prompt**: Describe the **desired change**, not the full image. Be specific and surgical.
 
-4. **Run the command**:
+3. **Run the command**:
    ```bash
    naba edit "<file>" "<edit prompt>"
    ```
 
-5. **Present the result**: Show the output file path. Use the Read tool to display the edited image.
+4. **Present the result**: Show the output file path. Use the Read tool to display the edited image.
 
-6. **Offer iteration**: Ask if the user wants further edits on the result.
+5. **Offer iteration**: Ask if the user wants further edits on the result.
 
 ## Flags
 

@@ -1,3 +1,15 @@
+---
+name: naba-restore
+description: >
+  Restore or enhance an existing image via the naba CLI. TRIGGER when: /naba-restore
+  invoked, or the user wants to enhance/repair/upscale/denoise/color-correct an
+  existing image (prompt optional). SKIP for: directed content changes (/naba-edit),
+  creating a new image (/naba-generate).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Restore Image
 
 Restore or enhance an existing image using the naba CLI.
@@ -5,29 +17,24 @@ Restore or enhance an existing image using the naba CLI.
 ## Usage
 
 ```
-/restore <file> [prompt]
+/naba-restore <file> [prompt]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
-
-2. **Verify the input file exists**:
+1. **Verify the input file exists**:
    ```bash
    ls -la "<file>"
    ```
 
-3. **Run the command**: The prompt is optional — omit it for general restoration.
+2. **Run the command**: The prompt is optional — omit it for general restoration.
    ```bash
    naba restore "<file>" ["<optional refinement prompt>"]
    ```
 
-4. **Present the result**: Show the output file path. Use the Read tool to display the restored image.
+3. **Present the result**: Show the output file path. Use the Read tool to display the restored image.
 
-5. **Offer iteration**: Ask if the user wants further enhancement.
+4. **Offer iteration**: Ask if the user wants further enhancement.
 
 ## Flags
 

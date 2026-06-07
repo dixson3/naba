@@ -18,3 +18,7 @@ icon-*
 # Skill runtime state + local config (bdplan; Surface Convention §6)
 /.bdplan.local.json
 /.state/
+
+# Beads (bd doctor required exclusions)
+.beads-credential-key
+.beads/proxieddb/

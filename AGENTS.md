@@ -1,150 +1,101 @@
-# Agent Instructions
+# naba — Project & Agent Instructions
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+Standalone CLI (plus stdio MCP server) for AI image generation via Google's Gemini API.
+This file is the single source of truth for both human and agent guidance; `CLAUDE.md`
+is a thin `@`-include of it.
 
-## Quick Reference
-
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work atomically
-bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
-```
-
-## Non-Interactive Shell Commands
-
-**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
-
-Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
-
-**Use these forms instead:**
-```bash
-# Force overwrite without prompting
-cp -f source dest           # NOT: cp source dest
-mv -f source dest           # NOT: mv source dest
-rm -f file                  # NOT: rm file
-
-# For recursive operations
-rm -rf directory            # NOT: rm -r directory
-cp -rf source dest          # NOT: cp -r source dest
-```
-
-**Other commands that may prompt:**
-- `scp` - use `-o BatchMode=yes` for non-interactive
-- `ssh` - use `-o BatchMode=yes` to fail instead of prompting
-- `apt-get` - use `-y` flag
-- `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
-
-<!-- BEGIN BEADS INTEGRATION -->
-## Issue Tracking with bd (beads)
-
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
-
-### Why bd?
-
-- Dependency-aware: Track blockers and relationships between issues
-- Version-controlled: Built on Dolt with cell-level merge
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
-
-### Quick Start
-
-**Check for ready work:**
+## Build & Test
 
 ```bash
-bd ready --json
+go build ./...              # build all packages
+go test ./... -count=1      # run all tests
+go test ./internal/cli/...  # test CLI commands only
+go run ./cmd/naba generate "a red apple"  # run locally
+make build                  # build with version ldflags
 ```
 
-**Create new issues:**
+## Architecture
+
+```
+cmd/naba/main.go         # entry point, exit code handling
+internal/cli/             # cobra commands (root, generate, edit, restore, icon, pattern, story, diagram, config, version, mcp)
+internal/mcp/             # MCP server, tool definitions, handlers (stdio-based, exposes 8 tools + resource template)
+internal/gemini/          # API client, types, prompt enrichment
+internal/output/          # file writer, JSON formatter, system preview
+internal/config/          # YAML config (~/.config/naba/config.yaml), auth resolution
+```
+
+All commands follow: resolve API key -> enrich prompt -> call Gemini -> write output -> print result.
+
+## Key Conventions
+
+- **Go standard library only for tests** — no testify, no gomock
+- **httptest.NewServer** for API mocking; `GEMINI_BASE_URL` env var overrides the API base URL
+- **t.TempDir()** for filesystem isolation, **t.Setenv()** for env var isolation
+- **Package-internal tests** (same package, not `_test` suffix)
+- **CLI tests must reset package-level flag vars** between tests — cobra flag state persists across `rootCmd.Execute()` calls. See `resetFlags()` in `internal/cli/cli_test.go`
+- **Semantic exit codes**: 0=ok, 1=general, 2=usage, 3=auth, 4=rate-limit, 5=api, 10=file-io
+- `exitCodeError` type implements `ExitCode() int` for main.go to extract codes
+- `--json` auto-enabled when stdout is piped
+
+## Environment Variables
+
+| Variable          | Purpose                                                      |
+| ----------------- | ------------------------------------------------------------ |
+| `GEMINI_API_KEY`  | API authentication (required for generation commands)        |
+| `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`)        |
+| `NABA_OUTPUT_DIR` | Override output directory for generated images (MCP and CLI) |
+| `GEMINI_BASE_URL` | Override API base URL (used by tests)                        |
+
+**MCP mode**: When no output directory is configured, MCP handlers default to `~/.local/share/naba/images` (not CWD). Tool results return file paths + `ResourceLink` (no inline base64) to stay under Claude Desktop's ~1MB response limit.
+
+## Dependencies
+
+- `github.com/spf13/cobra` — CLI framework
+- `gopkg.in/yaml.v3` — config file parsing
+- `github.com/mark3labs/mcp-go` — MCP server SDK
+
+## Claude Code Skills
+
+The Claude-facing skills live in `skills/naba-*` and are deployed via `./install.sh`
+(frontmatter-driven; see the README "Claude Code Skills" section). There is no
+marketplace plugin. Slash commands are namespaced `/naba-*` (e.g. `/naba-generate`).
+
+## Specifications
+
+- Always reference `docs/specifications/*` as the source of truth for test plans
+- When an implementation plan conflicts existing specifications, ask the operator to confirm the specification change before implementation
+- Always persist a copy of the current implementation plan in `docs/plans` using a sequenced/hashed name
+
+```
+docs/decisions - important design and implementation decisions from previous sessions
+docs/diary - implementation diary
+docs/plans - archive of all implementation plans
+docs/research - research used in design and implementation
+docs/todos - historical todos
+docs/specifications - specification collection (source of implementation requirements)
+  EDD/ - engineering design document
+  IG/  - implementation guides for key subsystems
+  PRD.md - the functional/non-functional product requirements
+```
+
+## Agent Operating Conventions
+
+Issue tracking uses **beads (`bd`)**; the generic bd workflow conventions live in your
+user-scope agent rules and are not duplicated here. naba-specific facts:
+
+- **Local-only beads.** A local Dolt DB with **no remote** — never run `bd dolt push`.
+  `.beads/issues.jsonl` is the git-tracked portable record; open/deferred beads sync to
+  GitHub Issues (`dixson3/naba`) via the `beads-upstream` skill.
+
+### Non-Interactive Shell Commands
+
+**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts (cp/mv/rm may be aliased to `-i`):
 
 ```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+cp -f source dest      # NOT: cp source dest
+mv -f source dest      # NOT: mv source dest
+rm -rf directory       # NOT: rm -r directory
 ```
 
-**Claim and update:**
-
-```bash
-bd update <id> --claim --json
-bd update bd-42 --priority 1 --json
-```
-
-**Complete work:**
-
-```bash
-bd close bd-42 --reason "Completed" --json
-```
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-
-### Auto-Sync
-
-bd automatically syncs with git:
-
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
-
-### Important Rules
-
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-
-For more details, see README.md and docs/QUICKSTART.md.
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-
-<!-- END BEADS INTEGRATION -->
+Also: `scp`/`ssh` → `-o BatchMode=yes`; `apt-get` → `-y`; `brew` → `HOMEBREW_NO_AUTO_UPDATE=1`.

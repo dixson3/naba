@@ -1,3 +1,16 @@
+---
+name: naba-storyboard
+description: >
+  Generate a story sequence then refine individual frames via the naba CLI. TRIGGER
+  when: /naba-storyboard invoked, or the user wants a multi-frame sequence with per-frame
+  edits/feedback. SKIP for: a sequence with no per-frame editing (/naba-story); editing a
+  single image (/naba-edit).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+depends-on-skill: [naba-story, naba-edit]
+allowed-tools: [Bash, Read]
+---
 # Storyboard
 
 Generate a story sequence and then refine individual frames using the naba CLI.
@@ -5,35 +18,30 @@ Generate a story sequence and then refine individual frames using the naba CLI.
 ## Usage
 
 ```
-/storyboard <narrative prompt> [--steps <n>] [--style <style>]
+/naba-storyboard <narrative prompt> [--steps <n>] [--style <style>]
 ```
 
 This is a **composite skill** that runs `naba story` to generate the initial sequence, then uses `naba edit` to refine individual frames based on feedback.
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
-
-2. **Generate the initial sequence**:
+1. **Generate the initial sequence**:
    ```bash
    naba story "<narrative prompt>" --steps <n> --style <style>
    ```
 
-3. **Present all frames**: Show all output file paths in order. Use the Read tool to display each frame.
+2. **Present all frames**: Show all output file paths in order. Use the Read tool to display each frame.
 
-4. **Collect per-frame feedback**: Ask the user which frames need edits and what changes they want.
+3. **Collect per-frame feedback**: Ask the user which frames need edits and what changes they want.
 
-5. **Edit individual frames**: For each frame that needs changes:
+4. **Edit individual frames**: For each frame that needs changes:
    ```bash
    naba edit "<frame-file>" "<edit instructions>"
    ```
 
-6. **Present the updated sequence**: Show the final set of frames (original + edited).
+5. **Present the updated sequence**: Show the final set of frames (original + edited).
 
-7. **Iterate**: Repeat steps 4-6 until the user is satisfied.
+6. **Iterate**: Repeat steps 4-6 until the user is satisfied.
 
 ## Example Session
 
