@@ -14,3 +14,7 @@ icon-*
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Skill runtime state + local config (bdplan; Surface Convention §6)
+/.bdplan.local.json
+/.state/
