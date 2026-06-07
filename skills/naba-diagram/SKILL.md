@@ -1,3 +1,16 @@
+---
+name: naba-diagram
+description: >
+  Generate technical diagram images via the naba CLI (rendered images, not editable
+  d2/mermaid source). TRIGGER when: /naba-diagram invoked, or the user wants a rendered
+  diagram image — flowchart, architecture, network, database, wireframe, mindmap, or
+  sequence. SKIP for: editable diagram source (diagram-authoring or mermaid skills);
+  general images (/naba-generate).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Generate Diagram
 
 Generate technical diagrams using the naba CLI.
@@ -5,26 +18,21 @@ Generate technical diagrams using the naba CLI.
 ## Usage
 
 ```
-/diagram <prompt> [--type <type>] [--style <style>] [--layout <layout>] [--complexity <level>] [--colors <scheme>]
+/naba-diagram <prompt> [--type <type>] [--style <style>] [--layout <layout>] [--complexity <level>] [--colors <scheme>]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
+1. **Refine the prompt**: Describe the **system or process** to visualize, not the visual layout. Apply the prompt engineering guidance below. Include key components, relationships, and data flow.
 
-2. **Refine the prompt**: Describe the **system or process** to visualize, not the visual layout. Apply the prompt engineering guidance below. Include key components, relationships, and data flow.
-
-3. **Build and run the command**:
+2. **Build and run the command**:
    ```bash
    naba diagram "<system description>" [--type <type>] [--style <style>] [--layout <layout>] [--complexity <level>] [--colors <scheme>]
    ```
 
-4. **Present the result**: Show the output file path. Use the Read tool to display the generated diagram.
+3. **Present the result**: Show the output file path. Use the Read tool to display the generated diagram.
 
-5. **Offer iteration**: Ask if the user wants to adjust complexity, layout, or add/remove components.
+4. **Offer iteration**: Ask if the user wants to adjust complexity, layout, or add/remove components.
 
 ## Flags
 

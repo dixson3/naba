@@ -142,6 +142,49 @@ Setting `NABA_OUTPUT_DIR` is recommended — it tells naba where to write genera
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | naba mcp
 ```
 
+## Claude Code Skills
+
+naba ships a set of [Claude Code](https://claude.com/claude-code) skills that wrap the
+CLI as slash commands (`/naba-generate`, `/naba-edit`, `/naba-icon`, …). They are
+deployed with the bundled installer — there is no marketplace plugin.
+
+> **Prerequisite:** the skills shell out to the `naba` CLI, so the **`naba` binary must be
+> installed and on PATH** (see [Install](#install)) and `GEMINI_API_KEY` set (see
+> [Setup](#setup)). The installer will still copy the skills if `naba` is absent, but they
+> are inert until it is present (it prints a warning to that effect).
+
+### Install the skills
+
+```bash
+./install.sh                  # default: user scope -> ~/.claude/skills
+./install.sh --dry-run        # show what would be installed, change nothing
+./install.sh --scope project  # install into <git-root>/.claude/skills instead
+./install.sh --surface agents # install into ~/.agents/skills (agents surface)
+./install.sh --uninstall      # remove the naba-* skills again
+```
+
+`install.sh` is a thin wrapper around `install.py` (run via [`uv`](https://docs.astral.sh/uv/));
+the installer discovers each skill from its `SKILL.md` frontmatter. Pass explicit skill
+names to install a subset (e.g. `./install.sh naba-generate naba-icon`).
+
+### Available skills
+
+| Command | Purpose |
+|---------|---------|
+| `/naba-generate` | Generate an image from a text prompt |
+| `/naba-edit` | Edit an existing image with text instructions |
+| `/naba-restore` | Restore or enhance an existing image |
+| `/naba-icon` | Generate app icons (optionally multi-size) |
+| `/naba-pattern` | Generate seamless patterns and textures |
+| `/naba-story` | Generate a sequential image series |
+| `/naba-diagram` | Generate technical diagram images |
+| `/naba-brand-kit` | Composite: icon + pattern + hero image set |
+| `/naba-storyboard` | Composite: story sequence + per-frame edits |
+| `/naba-batch` | Orchestrate multiple naba calls (icon suites, asset pipelines) |
+
+> **Note:** slash commands are namespaced under `naba-` (e.g. `/naba-generate`, not
+> `/generate`) to avoid collisions with other installed skills.
+
 ## Global Flags
 
 | Flag | Description |

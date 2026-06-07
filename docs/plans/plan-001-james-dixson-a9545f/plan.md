@@ -3,7 +3,7 @@
 **ID:** plan-001-james-dixson-a9545f
 **Author:** james-dixson
 **Created:** 2026-06-07
-**Status:** approved
+**Status:** complete
 **Epic:** naba-mol-9zz
 **Phase log:**
 - 2026-06-07 scoping: initial scope captured
@@ -12,6 +12,8 @@
 - 2026-06-07 review: plan v1 presented
 - 2026-06-07 approved: operator approved
 - 2026-06-07 intake: epic naba-mol-9zz poured
+- 2026-06-07 executing: start gate resolved
+- 2026-06-07 complete: plan complete; drift-check 7/7 pass
 
 ## Objective
 

@@ -1,3 +1,16 @@
+---
+name: naba-generate
+description: >
+  Generate an image from a text prompt via the naba CLI — general-purpose image
+  creation. TRIGGER when: /naba-generate invoked, or the user asks to create/make/generate
+  an image, picture, or artwork from a text description. SKIP for: editing an existing
+  image (/naba-edit), restoring/enhancing one (/naba-restore), app icons (/naba-icon), seamless
+  patterns (/naba-pattern), sequential series (/naba-story), or technical diagrams (/naba-diagram).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Generate Image
 
 Generate an image from a text prompt using the naba CLI.
@@ -5,26 +18,21 @@ Generate an image from a text prompt using the naba CLI.
 ## Usage
 
 ```
-/generate <prompt> [--style <style>] [--count <n>] [--seed <int>] [--variation <type>]
+/naba-generate <prompt> [--style <style>] [--count <n>] [--seed <int>] [--variation <type>]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
+1. **Refine the prompt**: Apply the prompt engineering guidance below. Structure as: subject + composition + style + lighting + details.
 
-2. **Refine the prompt**: Apply the prompt engineering guidance below. Structure as: subject + composition + style + lighting + details.
-
-3. **Build and run the command**:
+2. **Build and run the command**:
    ```bash
    naba generate "<refined prompt>" [--style <style>] [--count <n>] [--seed <int>] [--variation <type>]
    ```
 
-4. **Present the result**: Show the output file path(s) to the user. Use the Read tool to display the generated image if the user wants to preview it.
+3. **Present the result**: Show the output file path(s) to the user. Use the Read tool to display the generated image if the user wants to preview it.
 
-5. **Offer iteration**: Ask if the user wants adjustments — different style, composition changes, or variations.
+4. **Offer iteration**: Ask if the user wants adjustments — different style, composition changes, or variations.
 
 ## Flags
 

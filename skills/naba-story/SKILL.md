@@ -1,3 +1,15 @@
+---
+name: naba-story
+description: >
+  Generate a sequential image series from a narrative prompt via the naba CLI. TRIGGER
+  when: /naba-story invoked, or the user wants a multi-frame sequence, image series, or
+  visual narrative from a story arc. SKIP for: single images (/naba-generate); per-frame
+  editing of a generated sequence (/naba-storyboard).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Generate Story
 
 Generate a sequential image series from a narrative prompt using the naba CLI.
@@ -5,26 +17,21 @@ Generate a sequential image series from a narrative prompt using the naba CLI.
 ## Usage
 
 ```
-/story <prompt> [--steps <n>] [--style <style>] [--transition <type>] [--layout <format>]
+/naba-story <prompt> [--steps <n>] [--style <style>] [--transition <type>] [--layout <format>]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
+1. **Refine the prompt**: Write a **narrative arc**, not individual frame descriptions. Naba automatically splits the story into the requested number of frames. Apply the prompt engineering guidance below.
 
-2. **Refine the prompt**: Write a **narrative arc**, not individual frame descriptions. Naba automatically splits the story into the requested number of frames. Apply the prompt engineering guidance below.
-
-3. **Build and run the command**:
+2. **Build and run the command**:
    ```bash
    naba story "<narrative prompt>" [--steps <n>] [--style <style>] [--transition <type>] [--layout <format>]
    ```
 
-4. **Present the result**: Show all output file paths. Use the Read tool to display the generated frames in sequence.
+3. **Present the result**: Show all output file paths. Use the Read tool to display the generated frames in sequence.
 
-5. **Offer iteration**: Ask if the user wants to adjust pacing, style, or edit individual frames (suggest the `storyboard` skill for per-frame editing).
+4. **Offer iteration**: Ask if the user wants to adjust pacing, style, or edit individual frames (suggest the `naba-storyboard` skill for per-frame editing).
 
 ## Flags
 

@@ -1,3 +1,14 @@
+---
+name: naba-pattern
+description: >
+  Generate seamless patterns and textures via the naba CLI. TRIGGER when: /naba-pattern
+  invoked, or the user wants a repeating/tileable pattern, texture, or background
+  motif. SKIP for: one-off images (/naba-generate), icons (/naba-icon), or diagrams (/naba-diagram).
+user-invocable: true
+skill-group: naba
+depends-on-tool: [naba]
+allowed-tools: [Bash, Read]
+---
 # Generate Pattern
 
 Generate seamless patterns and textures using the naba CLI.
@@ -5,26 +16,21 @@ Generate seamless patterns and textures using the naba CLI.
 ## Usage
 
 ```
-/pattern <prompt> [--style <style>] [--colors <scheme>] [--density <level>] [--tile-size <dim>] [--repeat <method>]
+/naba-pattern <prompt> [--style <style>] [--colors <scheme>] [--density <level>] [--tile-size <dim>] [--repeat <method>]
 ```
 
 ## Workflow
 
-1. **Validate environment**:
-   ```bash
-   command -v naba || echo "ERROR: naba not found on PATH"
-   ```
+1. **Refine the prompt**: Describe the **motif and feel**, not tiling mechanics. Apply the prompt engineering guidance below.
 
-2. **Refine the prompt**: Describe the **motif and feel**, not tiling mechanics. Apply the prompt engineering guidance below.
-
-3. **Build and run the command**:
+2. **Build and run the command**:
    ```bash
    naba pattern "<refined prompt>" [--style <style>] [--colors <scheme>] [--density <level>]
    ```
 
-4. **Present the result**: Show the output file path. Use the Read tool to display the generated pattern.
+3. **Present the result**: Show the output file path. Use the Read tool to display the generated pattern.
 
-5. **Offer iteration**: Ask if the user wants density, color, or style adjustments.
+4. **Offer iteration**: Ask if the user wants density, color, or style adjustments.
 
 ## Flags
 
