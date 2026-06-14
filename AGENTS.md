@@ -1,8 +1,7 @@
 # naba — Project & Agent Instructions
 
 Standalone CLI (plus stdio MCP server) for AI image generation via Google's Gemini API.
-This file is the single source of truth for both human and agent guidance; `CLAUDE.md`
-is a thin `@`-include of it.
+This file is the single source of truth for both human and agent guidance.
 
 ## Build & Test
 
