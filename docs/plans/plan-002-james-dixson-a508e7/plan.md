@@ -3,7 +3,7 @@
 **ID:** plan-002-james-dixson-a508e7
 **Author:** james-dixson
 **Created:** 2026-06-13
-**Status:** approved
+**Status:** complete
 **Epic:** naba-mol-azx
 **Phase log:**
 - 2026-06-13 scoping: initial scope captured
@@ -12,6 +12,8 @@
 - 2026-06-13 review: pass-2 APPROVE (residual N1/N2 folded in)
 - 2026-06-13 approved: operator approved
 - 2026-06-13 intake: epic naba-mol-azx poured
+- 2026-06-13 executing: start gate resolved
+- 2026-06-13 complete: all beads closed; validation passed
 
 ## Objective
 

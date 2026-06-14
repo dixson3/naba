@@ -144,46 +144,58 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 ## Claude Code Skills
 
-naba ships a set of [Claude Code](https://claude.com/claude-code) skills that wrap the
-CLI as slash commands (`/naba-generate`, `/naba-edit`, `/naba-icon`, …). They are
-deployed with the bundled installer — there is no marketplace plugin.
+naba ships a single [Claude Code](https://claude.com/claude-code) skill that wraps the CLI
+as one slash command with subcommands: `/naba <subcommand>` (e.g. `/naba generate`,
+`/naba edit`, `/naba icon`, …). It is deployed with the bundled installer — there is no
+marketplace plugin.
 
-> **Prerequisite:** the skills shell out to the `naba` CLI, so the **`naba` binary must be
+> **Breaking change (plan-002):** the previous 10 separate skills (`/naba-generate`,
+> `/naba-edit`, …) were consolidated into one `/naba <subcommand>` skill. If you installed
+> the old skills, run `./install.sh --uninstall` **before updating** — once the old
+> `skills/naba-*` directories are gone, the installer can no longer discover and remove the
+> stale `/naba-*` commands. Then pull and re-run `./install.sh`.
+
+> **Prerequisite:** the skill shells out to the `naba` CLI, so the **`naba` binary must be
 > installed and on PATH** (see [Install](#install)) and `GEMINI_API_KEY` set (see
-> [Setup](#setup)). The installer will still copy the skills if `naba` is absent, but they
-> are inert until it is present (it prints a warning to that effect).
+> [Setup](#setup)). The installer will still copy the skill if `naba` is absent, but it is
+> inert until it is present (it prints a warning to that effect).
 
-### Install the skills
+### Install the skill
 
 ```bash
 ./install.sh                  # default: user scope -> ~/.claude/skills
 ./install.sh --dry-run        # show what would be installed, change nothing
 ./install.sh --scope project  # install into <git-root>/.claude/skills instead
 ./install.sh --surface agents # install into ~/.agents/skills (agents surface)
-./install.sh --uninstall      # remove the naba-* skills again
+./install.sh --uninstall      # remove the naba skill again
 ```
 
 `install.sh` is a thin wrapper around `install.py` (run via [`uv`](https://docs.astral.sh/uv/));
-the installer discovers each skill from its `SKILL.md` frontmatter. Pass explicit skill
-names to install a subset (e.g. `./install.sh naba-generate naba-icon`).
+the installer discovers the skill from its `SKILL.md` frontmatter and copies the whole
+`skills/naba/` directory (including `commands/`). You can name it explicitly with
+`./install.sh naba`.
 
-### Available skills
+### Subcommands
 
-| Command | Purpose |
-|---------|---------|
-| `/naba-generate` | Generate an image from a text prompt |
-| `/naba-edit` | Edit an existing image with text instructions |
-| `/naba-restore` | Restore or enhance an existing image |
-| `/naba-icon` | Generate app icons (optionally multi-size) |
-| `/naba-pattern` | Generate seamless patterns and textures |
-| `/naba-story` | Generate a sequential image series |
-| `/naba-diagram` | Generate technical diagram images |
-| `/naba-brand-kit` | Composite: icon + pattern + hero image set |
-| `/naba-storyboard` | Composite: story sequence + per-frame edits |
-| `/naba-batch` | Orchestrate multiple naba calls (icon suites, asset pipelines) |
+Invoke as `/naba <subcommand> [args]`; run `/naba help` to print the dispatch table.
 
-> **Note:** slash commands are namespaced under `naba-` (e.g. `/naba-generate`, not
-> `/generate`) to avoid collisions with other installed skills.
+| Subcommand | Purpose |
+|------------|---------|
+| `/naba generate` | Generate an image from a text prompt |
+| `/naba edit` | Edit an existing image with text instructions |
+| `/naba restore` | Restore or enhance an existing image |
+| `/naba icon` | Generate app icons (optionally multi-size) |
+| `/naba pattern` | Generate seamless patterns and textures |
+| `/naba diagram` | Generate technical diagram images |
+| `/naba story` | Generate a sequential image series |
+| `/naba storyboard` | Composite: story sequence + per-frame edits |
+| `/naba batch` | Composite: orchestrate multiple naba calls (icon suites, asset pipelines) |
+| `/naba brand-kit` | Composite: icon + pattern + hero image set |
+
+The seven inline subcommands run a single `naba` CLI call directly; the three composites
+(`storyboard`, `batch`, `brand-kit`) dispatch a subagent that runs the multi-call loop and
+returns a compact summary. Shared prompt guidance, anti-patterns, and the global-flags table
+live once in `skills/naba/SKILL.md`.
 
 ## Global Flags
 
