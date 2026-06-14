@@ -456,9 +456,9 @@ func TestGenerateImage_MultipleCount(t *testing.T) {
 		t.Fatalf("expected 3 API calls, got %d", got)
 	}
 
-	// Should have 3 text + 3 resource link content items = 6 total
-	if len(result.Content) != 6 {
-		t.Fatalf("expected 6 content items, got %d", len(result.Content))
+	// Each image yields 3 content items (path text + format note + resource link).
+	if len(result.Content) != 9 {
+		t.Fatalf("expected 9 content items, got %d", len(result.Content))
 	}
 	assertNoImageContent(t, result)
 }
@@ -492,9 +492,9 @@ func TestGenerateStory_MultipleSteps(t *testing.T) {
 		t.Fatalf("expected 3 API calls for 3 steps, got %d", got)
 	}
 
-	// 3 text + 3 resource link = 6
-	if len(result.Content) != 6 {
-		t.Fatalf("expected 6 content items, got %d", len(result.Content))
+	// Each frame yields 3 content items (path text + format note + resource link).
+	if len(result.Content) != 9 {
+		t.Fatalf("expected 9 content items, got %d", len(result.Content))
 	}
 	assertNoImageContent(t, result)
 }
@@ -528,9 +528,9 @@ func TestGenerateIcon_MultipleSizes(t *testing.T) {
 		t.Fatalf("expected 2 API calls for 2 sizes, got %d", got)
 	}
 
-	// 2 text + 2 resource link = 4
-	if len(result.Content) != 4 {
-		t.Fatalf("expected 4 content items, got %d", len(result.Content))
+	// Each size yields 3 content items (path text + format note + resource link).
+	if len(result.Content) != 6 {
+		t.Fatalf("expected 6 content items, got %d", len(result.Content))
 	}
 	assertNoImageContent(t, result)
 }
@@ -863,5 +863,39 @@ func assertNoImageContent(t *testing.T, result *mcpsdk.CallToolResult) {
 		if _, ok := c.(mcpsdk.ImageContent); ok {
 			t.Fatal("found unexpected ImageContent in result (base64 should be removed)")
 		}
+	}
+}
+
+// TestImageConfigParamsPresent guards Epic 3 MCP parity: the generative tools expose
+// aspect/resolution/quality, and icon exposes quality (model alias) but not imageConfig.
+func TestImageConfigParamsPresent(t *testing.T) {
+	has := func(tool mcpsdk.Tool, param string) bool {
+		_, ok := tool.InputSchema.Properties[param]
+		return ok
+	}
+	generative := []struct {
+		name string
+		tool mcpsdk.Tool
+	}{
+		{"generate_image", generateImageTool()},
+		{"edit_image", editImageTool()},
+		{"restore_image", restoreImageTool()},
+		{"generate_pattern", generatePatternTool()},
+		{"generate_story", generateStoryTool()},
+		{"generate_diagram", generateDiagramTool()},
+	}
+	for _, g := range generative {
+		for _, p := range []string{"aspect", "resolution", "quality"} {
+			if !has(g.tool, p) {
+				t.Errorf("%s missing %q param", g.name, p)
+			}
+		}
+	}
+	icon := generateIconTool()
+	if !has(icon, "quality") {
+		t.Error("generate_icon should expose quality")
+	}
+	if has(icon, "aspect") || has(icon, "resolution") {
+		t.Error("generate_icon must not expose imageConfig params (aspect/resolution)")
 	}
 }

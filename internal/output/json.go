@@ -8,11 +8,17 @@ import (
 
 // Result holds metadata about a generated image for JSON output.
 type Result struct {
-	Path      string            `json:"path"`
-	Command   string            `json:"command"`
-	Prompt    string            `json:"prompt"`
-	ElapsedMs int64             `json:"elapsed_ms"`
-	Params    map[string]any    `json:"params,omitempty"`
+	Path      string         `json:"path"`
+	Command   string         `json:"command"`
+	Prompt    string         `json:"prompt"`
+	ElapsedMs int64          `json:"elapsed_ms"`
+	Params    map[string]any `json:"params,omitempty"`
+	// RequestedFormat / ActualFormat surface an output-extension mismatch so an
+	// operator or LLM can decide whether a post-generation conversion is needed.
+	// RequestedFormat is set only when -o implied a format; ActualFormat reflects the
+	// response mimeType. They differ when the extension was corrected on disk.
+	RequestedFormat string `json:"requested_format,omitempty"`
+	ActualFormat    string `json:"actual_format,omitempty"`
 }
 
 // PrintJSON outputs a Result as formatted JSON to stdout.

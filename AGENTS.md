@@ -56,9 +56,10 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 
 ## Claude Code Skills
 
-The Claude-facing skill lives in `skills/naba` and is deployed via `./install.sh`
-(frontmatter-driven; see the README "Claude Code Skills" section). There is no marketplace
-plugin. It is one skill invoked as `/naba <subcommand>` (e.g. `/naba generate`): seven
+The Claude-facing skill lives in `skills/naba`, is embedded in the binary via `go:embed`
+(repo-root package), and is deployed with `naba skills install` (see the README "Claude
+Code Skills" section). There is no marketplace plugin and no installer script. It is one
+skill invoked as `/naba <subcommand>` (e.g. `/naba generate`): seven
 inline subcommands map 1:1 to cobra commands and three composites (`storyboard`, `batch`,
 `brand-kit`) dispatch a subagent. Shared guidance lives once in `skills/naba/SKILL.md`;
 per-subcommand detail in `skills/naba/commands/*.md`. See

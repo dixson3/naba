@@ -16,9 +16,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "naba",
-	Short: "Nanobanana image generation CLI",
-	Long:  "Generate, edit, and transform images using Google Gemini AI.",
+	Use:           "naba",
+	Short:         "Nanobanana image generation CLI",
+	Long:          "Generate, edit, and transform images using Google Gemini AI.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {

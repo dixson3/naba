@@ -55,14 +55,50 @@ func registerResources(s *mcpserver.MCPServer) {
 	)
 }
 
-// resolveClient creates a Gemini client from config/env.
-func resolveClient() (*gemini.Client, error) {
+// resolveClient creates a Gemini client from config/env. A non-empty modelOverride
+// (resolved from a tool's quality param) wins; otherwise the configured model/quality is
+// used (config model beats config quality), falling back to the built-in default.
+func resolveClient(modelOverride string) (*gemini.Client, error) {
 	apiKey := config.ResolveAPIKey()
 	if apiKey == "" {
 		return nil, fmt.Errorf("GEMINI_API_KEY not set. Set it with: export GEMINI_API_KEY=<your-key> or run: naba config set api_key <your-key>")
 	}
-	cfg, _ := config.Load()
-	return gemini.NewClient(apiKey, cfg.Model), nil
+	model := modelOverride
+	if model == "" {
+		cfg, _ := config.Load()
+		if m, err := cfg.ResolveModel(); err == nil {
+			model = m
+		}
+	}
+	// An empty model lets NewClient apply gemini.DefaultModel.
+	return gemini.NewClient(apiKey, model), nil
+}
+
+// resolveImageParams extracts and validates the aspect/resolution/quality params common
+// to the generative image tools. It returns the model override implied by quality (via
+// ModelForQuality) and the validated imageConfig. An invalid enum yields an error the
+// handler surfaces as a tool error. With count>1 the same imageConfig applies to all calls.
+func resolveImageParams(req mcpsdk.CallToolRequest) (model string, cfg *gemini.ImageConfig, err error) {
+	cfg, err = gemini.NewImageConfig(req.GetString("aspect", ""), req.GetString("resolution", ""))
+	if err != nil {
+		return "", nil, err
+	}
+	if q := req.GetString("quality", ""); q != "" {
+		model, err = gemini.ModelForQuality(q)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	return model, cfg, nil
+}
+
+// resolveQualityModel extracts the quality param (model selector) for tools that take a
+// model choice but no imageConfig (icon: --size is canvas pixels, not imageConfig).
+func resolveQualityModel(req mcpsdk.CallToolRequest) (string, error) {
+	if q := req.GetString("quality", ""); q != "" {
+		return gemini.ModelForQuality(q)
+	}
+	return "", nil
 }
 
 // resolveOutputDirWithDefault returns the configured output directory,
@@ -74,11 +110,15 @@ func resolveOutputDirWithDefault() string {
 	return config.DefaultOutputDir()
 }
 
-// imageResult builds a CallToolResult with a text path and resource link.
-func imageResult(path string, _ []byte, mimeType string) *mcpsdk.CallToolResult {
+// imageResult builds a CallToolResult with a text path, a format note, and a resource
+// link. The format note states the actual response mimeType so a caller knows the
+// written file's true format (the API returns JPEG) — the MCP path is reconciled to the
+// real extension by WriteImage, and MCP does not emit the CLI Result JSON.
+func imageResult(path, mimeType string) *mcpsdk.CallToolResult {
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{
 			mcpsdk.NewTextContent(path),
+			mcpsdk.NewTextContent("Format: " + mimeType),
 			mcpsdk.NewResourceLink(
 				"file://"+path,
 				filepath.Base(path),
@@ -90,11 +130,13 @@ func imageResult(path string, _ []byte, mimeType string) *mcpsdk.CallToolResult 
 }
 
 // multiImageResult builds a CallToolResult from multiple images with resource links.
+// Each text entry notes the actual response mimeType (see imageResult).
 func multiImageResult(paths []string, images []gemini.ImageResult) *mcpsdk.CallToolResult {
 	var content []mcpsdk.Content
 	for i, img := range images {
 		content = append(content,
 			mcpsdk.NewTextContent(paths[i]),
+			mcpsdk.NewTextContent("Format: "+img.MIMEType),
 			mcpsdk.NewResourceLink(
 				"file://"+paths[i],
 				filepath.Base(paths[i]),
@@ -106,14 +148,15 @@ func multiImageResult(paths []string, images []gemini.ImageResult) *mcpsdk.CallT
 	return &mcpsdk.CallToolResult{Content: content}
 }
 
-// generateAndReturn is the common flow for text-only generation tools.
-func generateAndReturn(prompt, command string) (*mcpsdk.CallToolResult, error) {
-	client, err := resolveClient()
+// generateAndReturn is the common flow for text-only generation tools. model selects the
+// client model ("" -> config/default); cfg carries the imageConfig ("" fields -> omitted).
+func generateAndReturn(prompt, command, model string, cfg *gemini.ImageConfig) (*mcpsdk.CallToolResult, error) {
+	client, err := resolveClient(model)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
-	images, err := client.Generate(prompt)
+	images, err := client.GenerateWithConfig(prompt, cfg)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
@@ -129,21 +172,21 @@ func generateAndReturn(prompt, command string) (*mcpsdk.CallToolResult, error) {
 		return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 	}
 
-	return imageResult(path, images[0].Data, images[0].MIMEType), nil
+	return imageResult(path, images[0].MIMEType), nil
 }
 
 // generateWithImageAndReturn is the common flow for image+text generation tools.
-func generateWithImageAndReturn(prompt, imagePath, command string) (*mcpsdk.CallToolResult, error) {
+func generateWithImageAndReturn(prompt, imagePath, command, model string, cfg *gemini.ImageConfig) (*mcpsdk.CallToolResult, error) {
 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
 		return mcpsdk.NewToolResultError(fmt.Sprintf("file not found: %s", imagePath)), nil
 	}
 
-	client, err := resolveClient()
+	client, err := resolveClient(model)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
-	images, err := client.GenerateWithImage(prompt, imagePath)
+	images, err := client.GenerateWithImageConfig(prompt, imagePath, cfg)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
@@ -159,7 +202,7 @@ func generateWithImageAndReturn(prompt, imagePath, command string) (*mcpsdk.Call
 		return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
 	}
 
-	return imageResult(path, images[0].Data, images[0].MIMEType), nil
+	return imageResult(path, images[0].MIMEType), nil
 }
 
 // handleGenerateImage handles the generate_image tool.
@@ -177,25 +220,30 @@ func handleGenerateImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		return mcpsdk.NewToolResultError("count must be between 1 and 8"), nil
 	}
 
-	client, err := resolveClient()
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := resolveClient(model)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
 	enriched := gemini.EnrichGeneratePrompt(prompt, style, variations)
 	outDir := resolveOutputDirWithDefault()
-	outPath := output.OutputPath(outDir, "generate", "image/png")
 
 	var allPaths []string
 	var allImages []gemini.ImageResult
 
 	for i := 0; i < count; i++ {
-		images, err := client.Generate(enriched)
+		images, err := client.GenerateWithConfig(enriched, imgCfg)
 		if err != nil {
 			return mcpsdk.NewToolResultError(err.Error()), nil
 		}
 		for j, img := range images {
 			idx := i*len(images) + j
+			outPath := output.OutputPath(outDir, "generate", img.MIMEType)
 			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "generate", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
@@ -206,7 +254,7 @@ func handleGenerateImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 	}
 
 	if len(allImages) == 1 {
-		return imageResult(allPaths[0], allImages[0].Data, allImages[0].MIMEType), nil
+		return imageResult(allPaths[0], allImages[0].MIMEType), nil
 	}
 	return multiImageResult(allPaths, allImages), nil
 }
@@ -222,8 +270,13 @@ func handleEditImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.Cal
 		return mcpsdk.NewToolResultError("missing required parameter: file"), nil
 	}
 
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
 	enriched := gemini.EnrichEditPrompt(prompt)
-	return generateWithImageAndReturn(enriched, file, "edit")
+	return generateWithImageAndReturn(enriched, file, "edit", model, imgCfg)
 }
 
 // handleRestoreImage handles the restore_image tool.
@@ -233,9 +286,14 @@ func handleRestoreImage(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 		return mcpsdk.NewToolResultError("missing required parameter: file"), nil
 	}
 
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
 	prompt := req.GetString("prompt", "")
 	enriched := gemini.EnrichRestorePrompt(prompt)
-	return generateWithImageAndReturn(enriched, file, "restore")
+	return generateWithImageAndReturn(enriched, file, "restore", model, imgCfg)
 }
 
 // handleGenerateIcon handles the generate_icon tool.
@@ -250,13 +308,17 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 	corners := req.GetString("corners", "rounded")
 	sizes := req.GetIntSlice("sizes", []int{256})
 
-	client, err := resolveClient()
+	model, err := resolveQualityModel(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := resolveClient(model)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
 	outDir := resolveOutputDirWithDefault()
-	outPath := output.OutputPath(outDir, "icon", "image/png")
 
 	var allPaths []string
 	var allImages []gemini.ImageResult
@@ -269,6 +331,7 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 		}
 		for j, img := range images {
 			idx := i*len(images) + j
+			outPath := output.OutputPath(outDir, "icon", img.MIMEType)
 			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "icon", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
@@ -279,7 +342,7 @@ func handleGenerateIcon(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.
 	}
 
 	if len(allImages) == 1 {
-		return imageResult(allPaths[0], allImages[0].Data, allImages[0].MIMEType), nil
+		return imageResult(allPaths[0], allImages[0].MIMEType), nil
 	}
 	return multiImageResult(allPaths, allImages), nil
 }
@@ -297,8 +360,13 @@ func handleGeneratePattern(_ context.Context, req mcpsdk.CallToolRequest) (*mcps
 	size := req.GetString("size", "256x256")
 	repeat := req.GetString("repeat", "tile")
 
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
 	enriched := gemini.EnrichPatternPrompt(prompt, style, colors, density, size, repeat)
-	return generateAndReturn(enriched, "pattern")
+	return generateAndReturn(enriched, "pattern", model, imgCfg)
 }
 
 // handleGenerateStory handles the generate_story tool.
@@ -316,25 +384,30 @@ func handleGenerateStory(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 		return mcpsdk.NewToolResultError("steps must be between 2 and 8"), nil
 	}
 
-	client, err := resolveClient()
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
+	client, err := resolveClient(model)
 	if err != nil {
 		return mcpsdk.NewToolResultError(err.Error()), nil
 	}
 
 	outDir := resolveOutputDirWithDefault()
-	outPath := output.OutputPath(outDir, "story", "image/png")
 
 	var allPaths []string
 	var allImages []gemini.ImageResult
 
 	for i := 1; i <= steps; i++ {
 		enriched := gemini.EnrichStoryPrompt(prompt, i, steps, style, transition)
-		images, err := client.Generate(enriched)
+		images, err := client.GenerateWithConfig(enriched, imgCfg)
 		if err != nil {
 			return mcpsdk.NewToolResultError(err.Error()), nil
 		}
 		for j, img := range images {
 			idx := (i-1)*len(images) + j
+			outPath := output.OutputPath(outDir, "story", img.MIMEType)
 			path, err := output.WriteImage(img.Data, img.MIMEType, outPath, "story", idx)
 			if err != nil {
 				return mcpsdk.NewToolResultError(fmt.Sprintf("write image: %v", err)), nil
@@ -345,7 +418,7 @@ func handleGenerateStory(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk
 	}
 
 	if len(allImages) == 1 {
-		return imageResult(allPaths[0], allImages[0].Data, allImages[0].MIMEType), nil
+		return imageResult(allPaths[0], allImages[0].MIMEType), nil
 	}
 	return multiImageResult(allPaths, allImages), nil
 }
@@ -363,8 +436,13 @@ func handleGenerateDiagram(_ context.Context, req mcpsdk.CallToolRequest) (*mcps
 	complexity := req.GetString("complexity", "detailed")
 	colors := req.GetString("colors", "accent")
 
+	model, imgCfg, err := resolveImageParams(req)
+	if err != nil {
+		return mcpsdk.NewToolResultError(err.Error()), nil
+	}
+
 	enriched := gemini.EnrichDiagramPrompt(prompt, diagramType, style, layout, complexity, colors)
-	return generateAndReturn(enriched, "diagram")
+	return generateAndReturn(enriched, "diagram", model, imgCfg)
 }
 
 // handleListImages lists recently generated images in the output directory.

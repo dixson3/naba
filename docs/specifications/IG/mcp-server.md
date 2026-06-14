@@ -4,7 +4,7 @@
 
 The `naba mcp` subcommand starts a stdio-based Model Context Protocol (MCP) server that exposes all 7 image generation capabilities as MCP tools. This allows AI assistants (Claude Desktop, Cursor, etc.) to invoke naba's generation capabilities directly without CLI flag parsing.
 
-The MCP server reuses the same shared pipeline as CLI commands (DD-001, DD-006): resolve API key -> enrich prompt -> call Gemini -> write output -> return result. The key difference is that MCP tool results include both a text file path and base64 image content, allowing MCP clients to display images inline.
+The MCP server reuses the same shared pipeline as CLI commands (DD-001, DD-006): resolve API key -> enrich prompt -> call Gemini -> write output -> return result. MCP tool results return the file path, a `Format: <mimeType>` note, and a `ResourceLink` to the file (no inline base64, to stay under MCP client response-size limits); the client opens the linked file to display it.
 
 ## 2. Use Cases
 
@@ -33,25 +33,34 @@ func handleToolName(_ context.Context, req mcpsdk.CallToolRequest) (*mcpsdk.Call
     }
     optionalParam := req.GetString("param", "default")
 
-    // 2. Resolve client (API key + model from config)
-    client, err := resolveClient()
+    // 2. Resolve model + imageConfig from the shared params (validated client-side)
+    model, imgCfg, err := resolveImageParams(req)   // aspect/resolution -> imageConfig; quality -> model
     if err != nil {
         return mcpsdk.NewToolResultError(err.Error()), nil
     }
 
-    // 3. Enrich prompt (reuses gemini.Enrich*Prompt functions)
+    // 3. Resolve client with the model override (quality), falling back to config/default
+    client, err := resolveClient(model)
+    if err != nil {
+        return mcpsdk.NewToolResultError(err.Error()), nil
+    }
+
+    // 4. Enrich prompt and call the API with the imageConfig
     enriched := gemini.EnrichXxxPrompt(prompt, ...params)
+    images, err := client.GenerateWithConfig(enriched, imgCfg)
 
-    // 4. Call Gemini API
-    images, err := client.Generate(enriched)
+    // 5. Write to disk; the output path's extension is reconciled to the response mimeType
+    outPath := output.OutputPath(outDir, "command", images[0].MIMEType)
+    path, err := output.WriteImage(images[0].Data, images[0].MIMEType, outPath, "command", 0)
 
-    // 5. Write to disk via output.WriteImage
-    path, err := output.WriteImage(images[0].Data, images[0].MIMEType, "", "command", 0)
-
-    // 6. Return text path + base64 image content
-    return imageResult(path, images[0].Data, images[0].MIMEType), nil
+    // 6. Return text path + a "Format: <mimeType>" note + resource link
+    return imageResult(path, images[0].MIMEType), nil
 }
 ```
+
+`resolveClient` takes a model override and `generateAndReturn`/`generateWithImageAndReturn`
+take `(model, *gemini.ImageConfig)` — threading the per-call model and imageConfig through
+the shared helpers. `icon` uses `resolveQualityModel` (quality/model only, no imageConfig).
 
 ### Error Handling Differences from CLI
 
@@ -71,6 +80,13 @@ Multi-output results interleave text paths and image content in the `Content` ar
 ### Tool Parameter Mapping
 
 MCP tools use the same parameter names and defaults as CLI flags. Required params use `req.RequireString()`, optional params use `req.GetString("key", "default")` / `req.GetInt()` / etc.
+
+The six generative tools (`generate_image`, `edit_image`, `restore_image`,
+`generate_pattern`, `generate_story`, `generate_diagram`) expose `aspect`, `resolution`,
+and `quality` params; `generate_icon` exposes `quality` only (its `sizes` are canvas
+pixels, not imageConfig). When a tool emits more than one image (`count`/`steps`/`sizes` >
+1), the same `imageConfig` applies to every image. Invalid `aspect`/`resolution`/`quality`
+values are rejected as a tool error before any API call.
 
 ### Testing
 

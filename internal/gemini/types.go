@@ -24,18 +24,31 @@ type InlineData struct {
 
 type GenerationConfig struct {
 	ResponseModalities []string `json:"responseModalities"`
+	// ImageConfig carries aspectRatio/imageSize. omitempty keeps a request with no
+	// aspect/resolution byte-identical to the pre-imageConfig shape (verified: a bare
+	// call returns 200 unchanged — see findings/exp-001-model-schema.md).
+	ImageConfig *ImageConfig `json:"imageConfig,omitempty"`
+}
+
+// ImageConfig is the generationConfig.imageConfig block (Schema A, live-verified).
+// The official-docs "responseFormat.image" paraphrase is wrong; this is the shape the
+// API accepts. The API silently ignores invalid enum values, so callers MUST validate
+// aspectRatio/imageSize client-side before sending (see ValidateImageConfig).
+type ImageConfig struct {
+	AspectRatio string `json:"aspectRatio,omitempty"`
+	ImageSize   string `json:"imageSize,omitempty"`
 }
 
 // Response types for Gemini generateContent API.
 
 type GenerateResponse struct {
-	Candidates    []Candidate    `json:"candidates"`
+	Candidates     []Candidate     `json:"candidates"`
 	PromptFeedback *PromptFeedback `json:"promptFeedback,omitempty"`
 }
 
 type Candidate struct {
-	Content      *Content      `json:"content"`
-	FinishReason string        `json:"finishReason,omitempty"`
+	Content       *Content       `json:"content"`
+	FinishReason  string         `json:"finishReason,omitempty"`
 	SafetyRatings []SafetyRating `json:"safetyRatings,omitempty"`
 }
 

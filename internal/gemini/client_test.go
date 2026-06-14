@@ -276,8 +276,24 @@ func TestDetectMIMEType(t *testing.T) {
 
 func TestNewClient_DefaultModel(t *testing.T) {
 	c := NewClient("key", "")
-	if c.Model != "gemini-2.0-flash-exp-image-generation" {
-		t.Errorf("expected default model %q, got %q", "gemini-2.0-flash-exp-image-generation", c.Model)
+	if c.Model != "gemini-3.1-flash-image" {
+		t.Errorf("expected default model %q, got %q", "gemini-3.1-flash-image", c.Model)
+	}
+}
+
+// TestDefaultModelConstant is the regression guard for the dead-default bug class:
+// the previous default (gemini-2.0-flash-exp-image-generation) was retired upstream
+// while still hardcoded here, breaking every fresh install. Pin the constant so a
+// future edit to a non-GA / retired model id fails the build's test gate.
+func TestDefaultModelConstant(t *testing.T) {
+	if DefaultModel != "gemini-3.1-flash-image" {
+		t.Errorf("DefaultModel = %q, want %q", DefaultModel, "gemini-3.1-flash-image")
+	}
+	if FlashModel != "gemini-3.1-flash-image" {
+		t.Errorf("FlashModel = %q, want %q", FlashModel, "gemini-3.1-flash-image")
+	}
+	if ProModel != "gemini-3-pro-image" {
+		t.Errorf("ProModel = %q, want %q", ProModel, "gemini-3-pro-image")
 	}
 }
 

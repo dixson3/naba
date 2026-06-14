@@ -16,14 +16,21 @@ import (
 
 const (
 	defaultBaseURL = "https://generativelanguage.googleapis.com/v1beta"
-	defaultModel   = "gemini-2.0-flash-exp-image-generation"
+	// DefaultModel is the current GA image model. The prior default
+	// (gemini-2.0-flash-exp-image-generation) was shut down 2025-11-14, so a fresh
+	// install with no config override must target a live model.
+	DefaultModel = "gemini-3.1-flash-image"
+	// FlashModel and ProModel back the --quality {fast,high} alias (fast→flash,
+	// high→pro). Both are GA image models verified callable through this client.
+	FlashModel = "gemini-3.1-flash-image"
+	ProModel   = "gemini-3-pro-image"
 
-	ExitGeneral    = 1
-	ExitUsage      = 2
-	ExitAuth       = 3
-	ExitRateLimit  = 4
-	ExitAPI        = 5
-	ExitFileIO     = 10
+	ExitGeneral   = 1
+	ExitUsage     = 2
+	ExitAuth      = 3
+	ExitRateLimit = 4
+	ExitAPI       = 5
+	ExitFileIO    = 10
 )
 
 // Client is a Gemini API client for image generation.
@@ -37,7 +44,7 @@ type Client struct {
 // NewClient creates a new Gemini client with the given API key.
 func NewClient(apiKey, model string) *Client {
 	if model == "" {
-		model = defaultModel
+		model = DefaultModel
 	}
 	baseURL := defaultBaseURL
 	if override := os.Getenv("GEMINI_BASE_URL"); override != "" {
@@ -53,8 +60,15 @@ func NewClient(apiKey, model string) *Client {
 	}
 }
 
-// Generate sends a text prompt and returns generated images.
+// Generate sends a text prompt and returns generated images. The request shape is
+// byte-identical to the pre-imageConfig client (no imageConfig block emitted).
 func (c *Client) Generate(prompt string) ([]ImageResult, error) {
+	return c.GenerateWithConfig(prompt, nil)
+}
+
+// GenerateWithConfig sends a text prompt with an optional imageConfig (aspect/resolution).
+// A nil cfg omits the imageConfig block entirely, keeping the bare request unchanged.
+func (c *Client) GenerateWithConfig(prompt string, cfg *ImageConfig) ([]ImageResult, error) {
 	req := GenerateRequest{
 		Contents: []Content{
 			{
@@ -64,6 +78,7 @@ func (c *Client) Generate(prompt string) ([]ImageResult, error) {
 		},
 		GenerationConfig: GenerationConfig{
 			ResponseModalities: []string{"TEXT", "IMAGE"},
+			ImageConfig:        cfg,
 		},
 	}
 	return c.doRequest(req)
@@ -71,6 +86,12 @@ func (c *Client) Generate(prompt string) ([]ImageResult, error) {
 
 // GenerateWithImage sends a prompt with an input image and returns generated images.
 func (c *Client) GenerateWithImage(prompt, imagePath string) ([]ImageResult, error) {
+	return c.GenerateWithImageConfig(prompt, imagePath, nil)
+}
+
+// GenerateWithImageConfig sends a prompt + input image with an optional imageConfig.
+// A nil cfg omits the imageConfig block, keeping the bare request unchanged.
+func (c *Client) GenerateWithImageConfig(prompt, imagePath string, cfg *ImageConfig) ([]ImageResult, error) {
 	imageData, mimeType, err := readImageFile(imagePath)
 	if err != nil {
 		return nil, err
@@ -91,6 +112,7 @@ func (c *Client) GenerateWithImage(prompt, imagePath string) ([]ImageResult, err
 		},
 		GenerationConfig: GenerationConfig{
 			ResponseModalities: []string{"TEXT", "IMAGE"},
+			ImageConfig:        cfg,
 		},
 	}
 	return c.doRequest(req)
