@@ -2,10 +2,38 @@ package mcp
 
 import (
 	mcpsdk "github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/dixson3/naba/internal/gemini"
 )
 
+// imageConfigOpts returns the shared aspect/resolution/quality tool params for the
+// generative image tools. aspect/resolution map to generationConfig.imageConfig; quality
+// is a model alias (fast→flash, high→pro). The same imageConfig applies to every image
+// when a tool generates more than one (count/steps/sizes>1).
+func imageConfigOpts() []mcpsdk.ToolOption {
+	return []mcpsdk.ToolOption{
+		mcpsdk.WithString("aspect",
+			mcpsdk.Description("Aspect ratio (generationConfig.imageConfig.aspectRatio)"),
+			mcpsdk.Enum(gemini.ValidAspectRatios...),
+		),
+		mcpsdk.WithString("resolution",
+			mcpsdk.Description("Image resolution (generationConfig.imageConfig.imageSize)"),
+			mcpsdk.Enum(gemini.ValidImageSizes...),
+		),
+		qualityOpt(),
+	}
+}
+
+// qualityOpt returns the quality (model alias) tool param.
+func qualityOpt() mcpsdk.ToolOption {
+	return mcpsdk.WithString("quality",
+		mcpsdk.Description("Quality tier: fast (gemini-3.1-flash-image) or high (gemini-3-pro-image)"),
+		mcpsdk.Enum("fast", "high"),
+	)
+}
+
 func generateImageTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("generate_image",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Generate an image from a text prompt"),
 		mcpsdk.WithString("prompt",
 			mcpsdk.Required(),
@@ -30,11 +58,13 @@ func generateImageTool() mcpsdk.Tool {
 		mcpsdk.WithNumber("seed",
 			mcpsdk.Description("Seed for reproducible output"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("generate_image", opts...)
 }
 
 func editImageTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("edit_image",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Edit an existing image based on a text prompt"),
 		mcpsdk.WithString("prompt",
 			mcpsdk.Required(),
@@ -44,11 +74,13 @@ func editImageTool() mcpsdk.Tool {
 			mcpsdk.Required(),
 			mcpsdk.Description("The file path of the input image to edit"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("edit_image", opts...)
 }
 
 func restoreImageTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("restore_image",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Restore or enhance an existing image"),
 		mcpsdk.WithString("file",
 			mcpsdk.Required(),
@@ -57,7 +89,9 @@ func restoreImageTool() mcpsdk.Tool {
 		mcpsdk.WithString("prompt",
 			mcpsdk.Description("The text prompt describing the restoration to perform"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("restore_image", opts...)
 }
 
 func generateIconTool() mcpsdk.Tool {
@@ -93,11 +127,14 @@ func generateIconTool() mcpsdk.Tool {
 			mcpsdk.DefaultString("png"),
 			mcpsdk.Enum("png", "jpeg"),
 		),
+		// icon takes the model-selecting quality param but no imageConfig: --size is
+		// canvas pixels, a different concept from imageConfig.imageSize.
+		qualityOpt(),
 	)
 }
 
 func generatePatternTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("generate_pattern",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Generate seamless patterns and textures"),
 		mcpsdk.WithString("prompt",
 			mcpsdk.Required(),
@@ -127,11 +164,13 @@ func generatePatternTool() mcpsdk.Tool {
 			mcpsdk.DefaultString("tile"),
 			mcpsdk.Enum("tile", "mirror"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("generate_pattern", opts...)
 }
 
 func generateStoryTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("generate_story",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Generate a sequence of images that tell a visual story"),
 		mcpsdk.WithString("prompt",
 			mcpsdk.Required(),
@@ -158,7 +197,9 @@ func generateStoryTool() mcpsdk.Tool {
 			mcpsdk.DefaultString("separate"),
 			mcpsdk.Enum("separate", "grid", "comic"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("generate_story", opts...)
 }
 
 func listImagesTool() mcpsdk.Tool {
@@ -172,7 +213,7 @@ func listImagesTool() mcpsdk.Tool {
 }
 
 func generateDiagramTool() mcpsdk.Tool {
-	return mcpsdk.NewTool("generate_diagram",
+	opts := []mcpsdk.ToolOption{
 		mcpsdk.WithDescription("Generate technical diagrams and flowcharts"),
 		mcpsdk.WithString("prompt",
 			mcpsdk.Required(),
@@ -203,5 +244,7 @@ func generateDiagramTool() mcpsdk.Tool {
 			mcpsdk.DefaultString("accent"),
 			mcpsdk.Enum("mono", "accent", "categorical"),
 		),
-	)
+	}
+	opts = append(opts, imageConfigOpts()...)
+	return mcpsdk.NewTool("generate_diagram", opts...)
 }

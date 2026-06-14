@@ -27,6 +27,8 @@ func init() {
 	diagramCmd.Flags().StringVar(&diagramComplexity, "complexity", "detailed", "Detail level (simple, detailed, comprehensive)")
 	diagramCmd.Flags().StringVar(&diagramColors, "colors", "accent", "Color scheme (mono, accent, categorical)")
 	diagramCmd.Flags().BoolVar(&diagramPreview, "preview", false, "Open result in system viewer")
+	addImageConfigFlags(diagramCmd)
+	addQualityFlag(diagramCmd)
 	rootCmd.AddCommand(diagramCmd)
 }
 
@@ -46,10 +48,15 @@ func runDiagram(cmd *cobra.Command, args []string) error {
 		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: naba config set api_key <your-key>")
 	}
 
-	model := flagModel
-	if model == "" {
-		cfg, _ := config.Load()
-		model = cfg.Model
+	cfg, _ := config.Load()
+	model, err := resolveModel(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
+	}
+
+	imgCfg, err := resolveImageConfig(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
 	}
 
 	client := gemini.NewClient(apiKey, model)
@@ -59,19 +66,21 @@ func runDiagram(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "Generating diagram...")
 	}
 
-	images, err := client.Generate(enrichedPrompt)
+	images, err := client.GenerateWithConfig(enrichedPrompt, imgCfg)
 	if err != nil {
 		return handleAPIError(err)
 	}
 
 	var allResults []output.Result
 	for i, img := range images {
-		path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "diagram", i)
+		w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "diagram", i)
 		if err != nil {
-			return exitError(gemini.ExitFileIO, err.Error())
+			return err
 		}
+		path := w.Path
 
 		result := output.NewResult(path, "diagram", prompt, start)
+		applyFormat(&result, w)
 		result.Params = map[string]any{
 			"type":       diagramType,
 			"style":      diagramStyle,
@@ -79,6 +88,7 @@ func runDiagram(cmd *cobra.Command, args []string) error {
 			"complexity": diagramComplexity,
 			"colors":     diagramColors,
 		}
+		applyImageConfigParams(result.Params, imgCfg)
 		allResults = append(allResults, result)
 
 		if !flagJSON && !flagQuiet {

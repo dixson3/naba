@@ -15,6 +15,8 @@ var restorePreview bool
 
 func init() {
 	restoreCmd.Flags().BoolVar(&restorePreview, "preview", false, "Open result in system viewer")
+	addImageConfigFlags(restoreCmd)
+	addQualityFlag(restoreCmd)
 	rootCmd.AddCommand(restoreCmd)
 }
 
@@ -42,10 +44,15 @@ func runRestore(cmd *cobra.Command, args []string) error {
 		return exitError(gemini.ExitFileIO, fmt.Sprintf("input file not found: %s", imagePath))
 	}
 
-	model := flagModel
-	if model == "" {
-		cfg, _ := config.Load()
-		model = cfg.Model
+	cfg, _ := config.Load()
+	model, err := resolveModel(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
+	}
+
+	imgCfg, err := resolveImageConfig(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
 	}
 
 	client := gemini.NewClient(apiKey, model)
@@ -55,20 +62,23 @@ func runRestore(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "Restoring image...")
 	}
 
-	images, err := client.GenerateWithImage(enrichedPrompt, imagePath)
+	images, err := client.GenerateWithImageConfig(enrichedPrompt, imagePath, imgCfg)
 	if err != nil {
 		return handleAPIError(err)
 	}
 
 	var allResults []output.Result
 	for i, img := range images {
-		path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "restore", i)
+		w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "restore", i)
 		if err != nil {
-			return exitError(gemini.ExitFileIO, err.Error())
+			return err
 		}
+		path := w.Path
 
 		result := output.NewResult(path, "restore", prompt, start)
+		applyFormat(&result, w)
 		result.Params = map[string]any{"input": imagePath}
+		applyImageConfigParams(result.Params, imgCfg)
 		allResults = append(allResults, result)
 
 		if !flagJSON && !flagQuiet {

@@ -127,6 +127,9 @@ func TestConfig_Get(t *testing.T) {
 		APIKey:           "my-key",
 		Model:            "gemini-pro",
 		DefaultOutputDir: "/out",
+		Aspect:           "16:9",
+		Resolution:       "2K",
+		Quality:          "high",
 	}
 
 	tests := []struct {
@@ -136,6 +139,9 @@ func TestConfig_Get(t *testing.T) {
 		{"api_key", "my-key"},
 		{"model", "gemini-pro"},
 		{"default_output_dir", "/out"},
+		{"aspect", "16:9"},
+		{"resolution", "2K"},
+		{"quality", "high"},
 		{"unknown", ""},
 	}
 
@@ -178,7 +184,7 @@ func TestConfig_Set(t *testing.T) {
 }
 
 func TestValidKeys(t *testing.T) {
-	want := []string{"api_key", "model", "default_output_dir"}
+	want := []string{"api_key", "model", "default_output_dir", "aspect", "resolution", "quality"}
 	got := ValidKeys()
 	if len(got) != len(want) {
 		t.Fatalf("ValidKeys() returned %d keys, want %d", len(got), len(want))
@@ -187,6 +193,33 @@ func TestValidKeys(t *testing.T) {
 		if got[i] != k {
 			t.Errorf("ValidKeys()[%d] = %q, want %q", i, got[i], k)
 		}
+	}
+}
+
+func TestConfig_ResolveModel(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     Config
+		want    string
+		wantErr bool
+	}{
+		{"empty", Config{}, "", false},
+		{"model only", Config{Model: "gemini-2.5-flash-image"}, "gemini-2.5-flash-image", false},
+		{"quality fast", Config{Quality: "fast"}, "gemini-3.1-flash-image", false},
+		{"quality high", Config{Quality: "high"}, "gemini-3-pro-image", false},
+		{"model beats quality", Config{Model: "gemini-2.5-flash-image", Quality: "high"}, "gemini-2.5-flash-image", false},
+		{"invalid quality", Config{Quality: "ultra"}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.cfg.ResolveModel()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ResolveModel() err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("ResolveModel() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

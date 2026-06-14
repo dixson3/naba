@@ -149,8 +149,8 @@ internal/cli/                  Cobra command tree
     |     prompt.go            7 enrichment functions (pure, no side effects)
     |
     +-- internal/output/       Output layer
-          writer.go            WriteImage, filename generation, dedup
-          json.go              Result struct, PrintJSON, PrintJSONMulti
+          writer.go            WriteImage/WriteImageResult (ext reconciliation), filename, dedup
+          json.go              Result struct (+requested_format/actual_format), PrintJSON
           preview.go           System viewer launch (open/xdg-open)
 ```
 
@@ -158,13 +158,23 @@ internal/cli/                  Cobra command tree
 
 **Endpoint:** `POST {baseURL}/models/{model}:generateContent`
 
-**Default model:** `gemini-2.0-flash-exp-image-generation`
+**Default model:** `gemini-3.1-flash-image` (the `DefaultModel` constant in
+`internal/gemini/client.go`; `gemini-3-pro-image` is the higher-quality tier). The prior
+default `gemini-2.0-flash-exp-image-generation` was retired upstream (2025-11-14).
 
 **Authentication:** `x-goog-api-key` header
 
-**Request body:** JSON with `contents` (parts array with text and optional inlineData) and `generationConfig` (responseModalities: ["TEXT", "IMAGE"])
+**Request body:** JSON with `contents` (parts array with text and optional inlineData) and
+`generationConfig` (`responseModalities: ["TEXT", "IMAGE"]`, plus an optional
+`imageConfig{aspectRatio, imageSize}` — omitted when no `--aspect`/`--resolution` is set,
+keeping bare requests byte-identical)
 
-**Response parsing:** Extract `candidates[*].content.parts[*].inlineData.data` (base64), decode to bytes, write to file
+**Models listing:** `GET {baseURL}/models` (used by `naba doctor` for a no-cost live key
+check and model-reachability test)
+
+**Response parsing:** Extract `candidates[*].content.parts[*].inlineData.data` (base64),
+decode to bytes, write to file. Responses are `image/jpeg`; the output extension is
+reconciled to the response mimeType (see [output-handling.md](../IG/output-handling.md))
 
 **Error mapping:**
 - HTTP 401/403 -> ExitAuth (3) with auth fix suggestion
