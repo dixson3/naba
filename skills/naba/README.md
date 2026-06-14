@@ -38,6 +38,7 @@ it is absent the skill installs but is inert.
 
 ## Install
 
-Deployed by the repo-level `install.{sh,py}`, which auto-discovers `skills/naba/SKILL.md`
-via its frontmatter and copies the whole skill directory (including `commands/`). See the
-repository README for install scopes and flags.
+Deployed with `naba skills install`, which writes the binary-embedded copy of this skill
+directory (including `commands/`) to the resolved destination. See the repository README
+for install scopes and flags (`--scope`/`--surface`/`--target`), and `naba skills
+upgrade`/`remove`/`status`.

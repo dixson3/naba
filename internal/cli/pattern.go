@@ -27,6 +27,8 @@ func init() {
 	patternCmd.Flags().StringVar(&patternTileSize, "tile-size", "256x256", "Pattern tile size")
 	patternCmd.Flags().StringVar(&patternRepeat, "repeat", "tile", "Tiling method (tile, mirror)")
 	patternCmd.Flags().BoolVar(&patternPreview, "preview", false, "Open result in system viewer")
+	addImageConfigFlags(patternCmd)
+	addQualityFlag(patternCmd)
 	rootCmd.AddCommand(patternCmd)
 }
 
@@ -46,10 +48,15 @@ func runPattern(cmd *cobra.Command, args []string) error {
 		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: naba config set api_key <your-key>")
 	}
 
-	model := flagModel
-	if model == "" {
-		cfg, _ := config.Load()
-		model = cfg.Model
+	cfg, _ := config.Load()
+	model, err := resolveModel(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
+	}
+
+	imgCfg, err := resolveImageConfig(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
 	}
 
 	client := gemini.NewClient(apiKey, model)
@@ -59,19 +66,21 @@ func runPattern(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr, "Generating pattern...")
 	}
 
-	images, err := client.Generate(enrichedPrompt)
+	images, err := client.GenerateWithConfig(enrichedPrompt, imgCfg)
 	if err != nil {
 		return handleAPIError(err)
 	}
 
 	var allResults []output.Result
 	for i, img := range images {
-		path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "pattern", i)
+		w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "pattern", i)
 		if err != nil {
-			return exitError(gemini.ExitFileIO, err.Error())
+			return err
 		}
+		path := w.Path
 
 		result := output.NewResult(path, "pattern", prompt, start)
+		applyFormat(&result, w)
 		result.Params = map[string]any{
 			"style":     patternStyle,
 			"colors":    patternColors,
@@ -79,6 +88,7 @@ func runPattern(cmd *cobra.Command, args []string) error {
 			"tile_size": patternTileSize,
 			"repeat":    patternRepeat,
 		}
+		applyImageConfigParams(result.Params, imgCfg)
 		allResults = append(allResults, result)
 
 		if !flagJSON && !flagQuiet {

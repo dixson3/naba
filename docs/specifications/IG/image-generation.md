@@ -35,28 +35,29 @@ func runCommand(cmd *cobra.Command, args []string) error {
         return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set...")
     }
 
-    // 3. Resolve model (flag > config > default)
-    model := flagModel
-    if model == "" {
-        cfg, _ := config.Load()
-        model = cfg.Model
-    }
+    // 3. Resolve model and imageConfig (helpers in internal/cli/imageopts.go)
+    cfg, _ := config.Load()
+    model, err := resolveModel(cmd, cfg)        // --model > --quality > config model > config quality > default
+    if err != nil { return handleAPIError(err) }
+    imgCfg, err := resolveImageConfig(cmd, cfg)  // --aspect/--resolution > config; validated client-side
+    if err != nil { return handleAPIError(err) }
 
     // 4. Create client and enrich prompt
     client := gemini.NewClient(apiKey, model)
     enrichedPrompt := gemini.EnrichXxxPrompt(prompt, ...flags)
 
-    // 5. Call API
-    images, err := client.Generate(enrichedPrompt)
+    // 5. Call API (nil imgCfg omits imageConfig -> byte-identical bare request)
+    images, err := client.GenerateWithConfig(enrichedPrompt, imgCfg)
     if err != nil {
         return handleAPIError(err)
     }
 
-    // 6. Write results and collect metadata
+    // 6. Write results (extension reconciled to response mimeType) and collect metadata
     for i, img := range images {
-        path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "command", i)
-        result := output.NewResult(path, "command", prompt, start)
-        // ... set result.Params
+        w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "command", i)
+        result := output.NewResult(w.Path, "command", prompt, start)
+        applyFormat(&result, w)   // requested_format / actual_format
+        // ... set result.Params (incl. aspect/resolution via applyImageConfigParams)
     }
 
     // 7. Print JSON or human output
@@ -76,7 +77,30 @@ func runCommand(cmd *cobra.Command, args []string) error {
 
 ### Image Input Commands
 
-`edit` and `restore` validate input file existence before API call, then use `client.GenerateWithImage()` which reads the file, base64-encodes it, and includes it as `inlineData` in the request.
+`edit` and `restore` validate input file existence before API call, then use
+`client.GenerateWithImageConfig()` (a nil imageConfig delegates to the byte-identical bare
+path) which reads the file, base64-encodes it, and includes it as `inlineData`.
+
+### Models & imageConfig
+
+**Model lineup** (all require a paid/billing-enabled tier — none are free):
+
+| Selector | Model | Notes |
+|----------|-------|-------|
+| default / `--quality fast` | `gemini-3.1-flash-image` | GA, cost/latency-optimal default |
+| `--quality high` | `gemini-3-pro-image` | higher quality; ~2–3.5× flash cost |
+| `--model <id>` | any reachable id | raw override, highest precedence |
+
+**imageConfig** maps `--aspect`/`--resolution` to `generationConfig.imageConfig`
+(`aspectRatio`/`imageSize`) on all generative commands. `icon --size` is canvas pixels — a
+separate concept, not `imageConfig.imageSize`. Valid values:
+
+- `aspectRatio`: `1:1, 1:4, 1:8, 2:3, 3:2, 3:4, 4:1, 4:3, 4:5, 5:4, 8:1, 9:16, 16:9, 21:9`
+- `imageSize`: `512, 1K, 2K, 4K` (uppercase `K`)
+
+The API **silently ignores** invalid imageConfig values (returns HTTP 200 with a
+default-size image), so naba validates `--aspect`/`--resolution` client-side and rejects
+bad input with `ExitUsage` before the call (`gemini.NewImageConfig`).
 
 ### Testing Pattern
 

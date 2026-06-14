@@ -25,6 +25,8 @@ func init() {
 	storyCmd.Flags().StringVar(&storyTransition, "transition", "smooth", "Transition style (smooth, dramatic, fade)")
 	storyCmd.Flags().StringVar(&storyLayout, "layout", "separate", "Output layout (separate, grid, comic)")
 	storyCmd.Flags().BoolVar(&storyPreview, "preview", false, "Open results in system viewer")
+	addImageConfigFlags(storyCmd)
+	addQualityFlag(storyCmd)
 	rootCmd.AddCommand(storyCmd)
 }
 
@@ -48,10 +50,15 @@ func runStory(cmd *cobra.Command, args []string) error {
 		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: naba config set api_key <your-key>")
 	}
 
-	model := flagModel
-	if model == "" {
-		cfg, _ := config.Load()
-		model = cfg.Model
+	cfg, _ := config.Load()
+	model, err := resolveModel(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
+	}
+
+	imgCfg, err := resolveImageConfig(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
 	}
 
 	client := gemini.NewClient(apiKey, model)
@@ -65,18 +72,20 @@ func runStory(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "Generating frame %d/%d...\n", step, storySteps)
 		}
 
-		images, err := client.Generate(enrichedPrompt)
+		images, err := client.GenerateWithConfig(enrichedPrompt, imgCfg)
 		if err != nil {
 			return handleAPIError(err)
 		}
 
 		for _, img := range images {
-			path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "story", step-1)
+			w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "story", step-1)
 			if err != nil {
-				return exitError(gemini.ExitFileIO, err.Error())
+				return err
 			}
+			path := w.Path
 
 			result := output.NewResult(path, "story", prompt, start)
+			applyFormat(&result, w)
 			result.Params = map[string]any{
 				"step":       step,
 				"total":      storySteps,
@@ -84,6 +93,7 @@ func runStory(cmd *cobra.Command, args []string) error {
 				"transition": storyTransition,
 				"layout":     storyLayout,
 			}
+			applyImageConfigParams(result.Params, imgCfg)
 			allResults = append(allResults, result)
 
 			if !flagJSON && !flagQuiet {

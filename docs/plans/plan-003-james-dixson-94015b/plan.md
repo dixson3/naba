@@ -3,7 +3,7 @@
 **ID:** plan-003-james-dixson-94015b
 **Author:** james-dixson
 **Created:** 2026-06-14
-**Status:** approved
+**Status:** complete
 **Epic:** naba-mol-mdw
 **Phase log:**
 - 2026-06-14 scoping: initial scope captured
@@ -16,6 +16,9 @@
 - 2026-06-14 review: red-team pass-4 APPROVE (marker sound; 2 low notes folded)
 - 2026-06-14 approved: operator approved (4 red-team passes; pass-4 APPROVE)
 - 2026-06-14 intake: epic naba-mol-mdw poured
+- 2026-06-14 executing: start gate resolved
+- 2026-06-14 reconciling: all execution beads closed
+- 2026-06-14 complete: plan complete
 
 ## Objective
 Modernize naba on two axes: (1) **Gemini model/API** — replace the dead default
