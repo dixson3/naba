@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -15,6 +16,12 @@ type Config struct {
 	APIKey           string `yaml:"api_key,omitempty"`
 	Model            string `yaml:"model,omitempty"`
 	DefaultOutputDir string `yaml:"default_output_dir,omitempty"`
+	// Aspect / Resolution are imageConfig defaults; per-call flags override them.
+	Aspect     string `yaml:"aspect,omitempty"`
+	Resolution string `yaml:"resolution,omitempty"`
+	// Quality is a model alias (fast/high). The model key takes precedence over it
+	// (see ResolveModel), mirroring the flag precedence --model > --quality.
+	Quality string `yaml:"quality,omitempty"`
 }
 
 // ConfigDir returns the configuration directory path.
@@ -69,6 +76,12 @@ func (c *Config) Get(key string) string {
 		return c.Model
 	case "default_output_dir":
 		return c.DefaultOutputDir
+	case "aspect":
+		return c.Aspect
+	case "resolution":
+		return c.Resolution
+	case "quality":
+		return c.Quality
 	default:
 		return ""
 	}
@@ -83,6 +96,12 @@ func (c *Config) Set(key, value string) bool {
 		c.Model = value
 	case "default_output_dir":
 		c.DefaultOutputDir = value
+	case "aspect":
+		c.Aspect = value
+	case "resolution":
+		c.Resolution = value
+	case "quality":
+		c.Quality = value
 	default:
 		return false
 	}
@@ -91,5 +110,32 @@ func (c *Config) Set(key, value string) bool {
 
 // ValidKeys returns the list of valid config keys.
 func ValidKeys() []string {
-	return []string{"api_key", "model", "default_output_dir"}
+	return []string{"api_key", "model", "default_output_dir", "aspect", "resolution", "quality"}
+}
+
+// ResolveModel returns the model id implied by config, applying the intra-config
+// tiebreak: an explicit `model` key beats the `quality` alias (mirroring the flag
+// precedence --model > --quality). Returns "" when neither is set (caller falls back to
+// the built-in default). An invalid `quality` value yields an error.
+func (c *Config) ResolveModel() (string, error) {
+	if c.Model != "" {
+		return c.Model, nil
+	}
+	if c.Quality != "" {
+		return modelForQuality(c.Quality)
+	}
+	return "", nil
+}
+
+// modelForQuality mirrors gemini.ModelForQuality without importing gemini (config is a
+// lower layer). Kept in lockstep with gemini's model constants.
+func modelForQuality(quality string) (string, error) {
+	switch quality {
+	case "fast":
+		return "gemini-3.1-flash-image", nil
+	case "high":
+		return "gemini-3-pro-image", nil
+	default:
+		return "", fmt.Errorf("invalid quality %q in config (valid: fast, high)", quality)
+	}
 }

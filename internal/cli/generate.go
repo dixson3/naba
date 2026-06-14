@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/dixson3/naba/internal/config"
@@ -27,6 +28,8 @@ func init() {
 	generateCmd.Flags().StringVar(&genFormat, "format", "separate", "Output format (grid, separate)")
 	generateCmd.Flags().StringSliceVarP(&genVariations, "variation", "v", nil, "Variation types (lighting, angle, color-palette, composition, mood, season, time-of-day)")
 	generateCmd.Flags().BoolVar(&genPreview, "preview", false, "Open result in system viewer")
+	addImageConfigFlags(generateCmd)
+	addQualityFlag(generateCmd)
 	rootCmd.AddCommand(generateCmd)
 }
 
@@ -46,10 +49,15 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		return exitError(gemini.ExitAuth, "GEMINI_API_KEY not set.\n\nSet it with: export GEMINI_API_KEY=<your-key>\nOr run: naba config set api_key <your-key>")
 	}
 
-	model := flagModel
-	if model == "" {
-		cfg, _ := config.Load()
-		model = cfg.Model
+	cfg, _ := config.Load()
+	model, err := resolveModel(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
+	}
+
+	imgCfg, err := resolveImageConfig(cmd, cfg)
+	if err != nil {
+		return handleAPIError(err)
 	}
 
 	client := gemini.NewClient(apiKey, model)
@@ -66,20 +74,23 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		images, err := client.Generate(enrichedPrompt)
+		images, err := client.GenerateWithConfig(enrichedPrompt, imgCfg)
 		if err != nil {
 			return handleAPIError(err)
 		}
 
 		for j, img := range images {
 			idx := i*len(images) + j
-			path, err := output.WriteImage(img.Data, img.MIMEType, flagOutput, "generate", idx)
+			w, err := writeAndReport(img.Data, img.MIMEType, flagOutput, "generate", idx)
 			if err != nil {
-				return exitError(gemini.ExitFileIO, err.Error())
+				return err
 			}
+			path := w.Path
 
 			result := output.NewResult(path, "generate", prompt, start)
+			applyFormat(&result, w)
 			result.Params = map[string]any{}
+			applyImageConfigParams(result.Params, imgCfg)
 			if genStyle != "" {
 				result.Params["style"] = genStyle
 			}
@@ -114,6 +125,28 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 func resolveAPIKey() string {
 	return config.ResolveAPIKey()
+}
+
+// writeAndReport writes an image and emits a stderr warning when the on-disk extension
+// was corrected to match the API's response mimeType (the API returns JPEG). On a file
+// error it returns an ExitFileIO exitCodeError. Callers copy the returned format fields
+// onto their output.Result so the JSON reports requested-vs-actual format.
+func writeAndReport(data []byte, mimeType, outputPath, command string, index int) (output.WriteResult, error) {
+	res, err := output.WriteImageResult(data, mimeType, outputPath, command, index)
+	if err != nil {
+		return res, exitError(gemini.ExitFileIO, err.Error())
+	}
+	if res.Corrected && !flagQuiet {
+		fmt.Fprintf(os.Stderr, "Note: requested .%s output but API returned %s; saved as %s\n",
+			res.RequestedFormat, res.ActualFormat, filepath.Base(res.Path))
+	}
+	return res, nil
+}
+
+// applyFormat copies the requested/actual format fields from a WriteResult onto a Result.
+func applyFormat(r *output.Result, w output.WriteResult) {
+	r.RequestedFormat = w.RequestedFormat
+	r.ActualFormat = w.ActualFormat
 }
 
 func handleAPIError(err error) error {

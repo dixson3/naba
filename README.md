@@ -38,6 +38,27 @@ Or save it to config:
 naba config set api_key <your-key>
 ```
 
+## Models & pricing
+
+naba defaults to **`gemini-3.1-flash-image`** (Nano Banana 2) — the current GA image
+model, optimized for cost and latency. A higher-quality tier, **`gemini-3-pro-image`**
+(Nano Banana Pro), is available for final/hero assets.
+
+> **All Gemini image models require a paid (billing-enabled) tier — none work on the free
+> tier.** Pro costs roughly 2–3.5× flash per image, so flash is the default; opt into pro
+> only when you need its quality.
+
+Select the model per call or in config:
+
+```bash
+naba generate "hero banner" --quality high     # alias: high -> gemini-3-pro-image
+naba generate "hero banner" --quality fast      # alias: fast -> gemini-3.1-flash-image (default)
+naba generate "hero banner" --model gemini-3-pro-image   # raw model id (highest precedence)
+```
+
+Model precedence is `--model` > `--quality` > config `model` > config `quality` > built-in
+default. Existing configs (e.g. `model: gemini-2.5-flash-image`) keep working unchanged.
+
 ## Usage
 
 ### Generate images
@@ -47,7 +68,15 @@ naba generate "a red apple on a white background"
 naba generate "mountain landscape" --style watercolor
 naba generate "city skyline" -n 4 --style pixel-art
 naba generate "abstract art" -v lighting -v color-palette -o art.png
+naba generate "wide vista" --aspect 16:9 --resolution 2K
 ```
+
+**Aspect ratio & resolution.** `--aspect` and `--resolution` set the Gemini
+`imageConfig` and are available on all generative commands (`generate`, `edit`, `restore`,
+`pattern`, `diagram`, `story`). Valid `--aspect`: `1:1, 1:4, 1:8, 2:3, 3:2, 3:4, 4:1, 4:3,
+4:5, 5:4, 8:1, 9:16, 16:9, 21:9`. Valid `--resolution`: `512, 1K, 2K, 4K` (uppercase `K`).
+Invalid values are rejected before the API call. `icon --size` is **canvas pixels** — a
+separate concept from `imageConfig`'s `imageSize` — and is unchanged.
 
 ### Edit images
 
@@ -96,9 +125,14 @@ naba diagram "database schema for blog" --type database --style clean
 
 ```bash
 naba config set api_key <key>
-naba config set model gemini-2.0-flash-exp
+naba config set model gemini-3-pro-image    # or use: naba config set quality high
+naba config set aspect 16:9                  # default imageConfig aspect ratio
+naba config set resolution 2K                # default imageConfig resolution
 naba config get model
 ```
+
+Config keys: `api_key`, `model`, `default_output_dir`, `aspect`, `resolution`, `quality`.
+Per-call flags override config; within config, `model` beats `quality`.
 
 ### MCP Server
 
@@ -136,6 +170,10 @@ Setting `NABA_OUTPUT_DIR` is recommended — it tells naba where to write genera
 | `generate_diagram` | Generate technical diagrams and flowcharts |
 | `list_images` | List recently generated images in the output directory |
 
+The generative tools accept `aspect`, `resolution`, and `quality` params (matching the
+CLI); `generate_icon` accepts `quality`. With `count`/`steps`/`sizes` > 1 the same
+`imageConfig` applies to every image in the call.
+
 **Manual test** — verify the server responds to the MCP initialize handshake:
 
 ```bash
@@ -146,34 +184,60 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 naba ships a single [Claude Code](https://claude.com/claude-code) skill that wraps the CLI
 as one slash command with subcommands: `/naba <subcommand>` (e.g. `/naba generate`,
-`/naba edit`, `/naba icon`, …). It is deployed with the bundled installer — there is no
-marketplace plugin.
-
-> **Breaking change (plan-002):** the previous 10 separate skills (`/naba-generate`,
-> `/naba-edit`, …) were consolidated into one `/naba <subcommand>` skill. If you installed
-> the old skills, run `./install.sh --uninstall` **before updating** — once the old
-> `skills/naba-*` directories are gone, the installer can no longer discover and remove the
-> stale `/naba-*` commands. Then pull and re-run `./install.sh`.
+`/naba edit`, `/naba icon`, …). The skill files are **embedded in the `naba` binary** and
+installed with `naba skills install` (offline, version-matched) — there is no marketplace
+plugin and no separate installer script.
 
 > **Prerequisite:** the skill shells out to the `naba` CLI, so the **`naba` binary must be
 > installed and on PATH** (see [Install](#install)) and `GEMINI_API_KEY` set (see
-> [Setup](#setup)). The installer will still copy the skill if `naba` is absent, but it is
-> inert until it is present (it prints a warning to that effect).
+> [Setup](#setup)). `naba skills install` always writes the skill files; the skill is inert
+> until the binary is on PATH.
+
+> **Breaking change (plan-002 → plan-003):** the previous 10 separate skills
+> (`/naba-generate`, `/naba-edit`, …) were consolidated into one `/naba <subcommand>` skill,
+> and the old shell/python installer scripts were replaced by `naba skills`. Those old
+> per-command skills are **not** embedded in the binary, so `naba skills` cannot remove
+> them. If you installed them under a prior version, delete them manually first:
+>
+> ```bash
+> rm -rf ~/.claude/skills/naba-*   # user/claude scope; adjust path for --surface agents or project scope
+> ```
+>
+> Then install the consolidated skill with `naba skills install`.
 
 ### Install the skill
 
 ```bash
-./install.sh                  # default: user scope -> ~/.claude/skills
-./install.sh --dry-run        # show what would be installed, change nothing
-./install.sh --scope project  # install into <git-root>/.claude/skills instead
-./install.sh --surface agents # install into ~/.agents/skills (agents surface)
-./install.sh --uninstall      # remove the naba skill again
+naba skills install                  # default: user scope -> ~/.claude/skills
+naba skills install --dry-run        # show what would be written, change nothing
+naba skills install --scope project  # install into <git-root>/.claude/skills instead
+naba skills install --surface agents # install into ~/.agents/skills (agents surface)
+naba skills install --target DIR     # install into an explicit directory
+naba skills upgrade                  # rewrite from the embedded tree, pruning stale files
+naba skills remove                   # remove the naba skill again
+naba skills status                   # report up-to-date / complete / unmodified
 ```
 
-`install.sh` is a thin wrapper around `install.py` (run via [`uv`](https://docs.astral.sh/uv/));
-the installer discovers the skill from its `SKILL.md` frontmatter and copies the whole
-`skills/naba/` directory (including `commands/`). You can name it explicitly with
-`./install.sh naba`.
+The skill tree is embedded via `go:embed`, so `naba skills` works offline and always
+matches the binary's version. On `install`/`upgrade` it writes a hidden integrity marker
+into the deployed `SKILL.md` (`<!-- naba-skills: v=<version> tree=<sha256> -->`); `status`
+and `naba doctor` use that marker to confirm the install is current, complete, and
+unmodified. The repository source `skills/naba/SKILL.md` stays marker-free.
+
+### Health check
+
+`naba doctor` validates your environment and exits non-zero if any check fails:
+
+```bash
+naba doctor                  # checks skills install, API key, model, config
+naba doctor --json           # structured output
+naba doctor --surface agents # check the agents-surface install instead
+```
+
+It reports: skills installed and matching this binary (integrity marker present,
+up-to-date, complete, unmodified); `GEMINI_API_KEY` present; the key live-valid (a cheap
+`models.list` call, no image cost); the configured model reachable; config parseable; and
+the binary version.
 
 ### Subcommands
 
@@ -207,21 +271,39 @@ live once in `skills/naba/SKILL.md`.
 | `-m, --model` | Override Gemini model |
 | `--no-input` | Disable interactive prompts |
 
+The generative commands also accept `--aspect`, `--resolution` (imageConfig), and
+`--quality` (`fast`/`high` model alias); see [Models & pricing](#models--pricing) and the
+[Generate images](#generate-images) section.
+
+## Output format
+
+The Gemini image API returns **JPEG**. naba writes the file with the matching extension:
+if your `-o` path uses a different extension (e.g. `-o hero.png`), naba corrects it on disk
+(`hero.jpg`), warns on stderr, and reports both formats in JSON (`requested_format` /
+`actual_format`) so you can decide whether a post-generation conversion is needed.
+
 ## JSON Output
 
 When `--json` is used (or stdout is piped), output includes:
 
 ```json
 {
-  "path": "/absolute/path/to/image.png",
+  "path": "/absolute/path/to/image.jpg",
   "command": "generate",
   "prompt": "a red apple",
   "elapsed_ms": 3200,
   "params": {
-    "style": "watercolor"
-  }
+    "style": "watercolor",
+    "aspect": "16:9",
+    "resolution": "2K"
+  },
+  "requested_format": "png",
+  "actual_format": "jpeg"
 }
 ```
+
+`requested_format` appears only when `-o` implied a format; `actual_format` reflects the
+response mimeType. They differ when the extension was corrected.
 
 ## Exit Codes
 

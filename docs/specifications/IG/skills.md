@@ -82,7 +82,57 @@ same rules. Each `commands/<sub>.md` carries only per-command specifics — usag
 command's own flag table, command-specific prompt nuance, and examples — and never repeats
 the shared guidance.
 
-## 7. Drift contract
+## 7. Deployment lifecycle (`naba skills`)
+
+The skill files ship **embedded in the `naba` binary** via `go:embed` (a repo-root package
+embeds `skills/`, because a `//go:embed` directive cannot reference a parent directory from
+`cmd/naba`). The `naba skills` command group is the canonical installer; it supersedes the
+former `install.sh`/`install.py` (removed in plan-003).
+
+| Verb | Behavior |
+| :--- | :------- |
+| `install` | Write the embedded skill tree to the resolved destination, injecting the integrity marker into the deployed `SKILL.md`. |
+| `upgrade` | Rewrite each dest file from the (marker-free) embed, inject a fresh marker (idempotent — strips any existing marker first), and **prune** dest files absent from the embed (`rsync --delete` parity). |
+| `remove` | Delete the deployed skill directory. |
+| `status` | Read the marker and report **up-to-date** / **complete** / **unmodified**. |
+
+Destination resolution mirrors the former installer: an explicit `--target` wins; otherwise
+the anchor is `$HOME` (`--scope user`, default) or the git root / cwd (`--scope project`),
+joined with `.<surface>/skills` (`--surface claude` default, or `agents`). `--dry-run`
+prints actions and changes nothing.
+
+### Integrity marker
+
+On `install`/`upgrade`, a single hidden HTML-comment marker is injected into the deployed
+`SKILL.md`, immediately after the YAML frontmatter (so it never breaks the frontmatter
+parse):
+
+```
+<!-- naba-skills: v=<naba-version> tree=<sha256> -->
+```
+
+- `<sha256>` is the **canonical tree hash**: sha256 over, for each file sorted by relative
+  path, the relative-path bytes then the file bytes — raw, with no line-ending or
+  trailing-newline normalization. The `SKILL.md` marker line is stripped before hashing, so
+  a deployed (marked) tree hashes identically to the marker-free embed.
+- The binary hashes its own `embed.FS` at runtime (deterministic, no build step).
+- The **repo source `skills/naba/SKILL.md` stays marker-free**; the marker exists only in a
+  deployed copy.
+- `status` reports **up-to-date** (deployed marker `tree` == this binary's embedded hash),
+  **complete** (every embedded file present), and **unmodified** (recomputed deployed hash,
+  marker stripped, == embedded hash).
+
+### `naba doctor` skill-match check
+
+`naba doctor` reuses `SkillStatus` against the default user/claude destination (unless
+`--scope`/`--surface`/`--target` are given) and reports a **fail** when the skill is not
+installed, the marker is missing, the marker `tree` hash ≠ the binary's embedded hash
+(outdated), or the install is incomplete/modified. doctor's other checks (API key present,
+live `models.list` key validation, configured-model reachability, config parseable,
+version) are covered in [configuration.md](configuration.md) and
+[image-generation.md](image-generation.md).
+
+## 8. Drift contract
 
 `DRIFT-CHECK.md` enforces agreement between this guide and the skill:
 
