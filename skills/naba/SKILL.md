@@ -113,6 +113,15 @@ relevant narrowing.
 - **Avoid generic prompts** ("a beautiful landscape") — add specifics ("a misty fjord at
   dawn with a lone fishing boat").
 
+### Output location
+
+By default do **not** pass `-o` — naba writes to the **current working directory** (the
+project you invoke `/naba` from). Override only when context calls for it: a path the user
+names, or a sensible subdir for organization. Multi-file composites write each item to an
+explicit `-o "<dir>/<name>.png"` rooted at the CWD (e.g. `./<set-name>/`) so files don't
+collide. Never inject a global or home-dir output path (`~/Downloads`, etc.); let the CWD
+default stand unless the user or context specifies otherwise.
+
 ### Global flags
 
 Available on every `naba` subcommand:
