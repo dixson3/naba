@@ -1,0 +1,35 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Restore and enhance this image. Improve quality, fix artifacts, and sharpen details."
+            },
+            {
+              "inlineData": {
+                "data": "<IMAGE_DATA>",
+                "mimeType": "image/png"
+              }
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  }
+]

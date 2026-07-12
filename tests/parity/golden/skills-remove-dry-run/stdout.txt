@@ -1,0 +1,1 @@
+(dry run) would remove <SKILLS_DEST>/naba

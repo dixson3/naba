@@ -1,0 +1,23 @@
+[project]
+name = "naba-parity"
+version = "0.1.0"
+description = "Black-box parity regression harness for the naba Go->Rust port"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=8.0",
+    "pytest-httpserver>=1.1",
+    "pyyaml>=6.0",
+    # mcp SDK is used by the MCP parity cases (Issue 1.4); included now so the venv is
+    # ready. Harmless to the CLI smoke tests.
+    "mcp>=1.0",
+]
+
+[tool.pytest.ini_options]
+# `rootdir` is this directory; tests and the `harness` package both live here, so an
+# empty `pythonpath = "."` puts `harness` on sys.path without an install step.
+pythonpath = ["."]
+testpaths = ["."]
+addopts = "-ra"
+
+[tool.uv]
+package = false

@@ -1,0 +1,3 @@
+unknown key "bogus"
+
+Valid keys: api_key, model, provider, default_output_dir, aspect, resolution, quality

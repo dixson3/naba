@@ -1,0 +1,11 @@
+{
+  "path": "<CWD>/naba-edit-<TIMESTAMP>.png",
+  "command": "edit",
+  "prompt": "make it red",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "aspect": "1:1",
+    "input": "input.png"
+  },
+  "actual_format": "png"
+}

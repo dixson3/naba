@@ -1,0 +1,15 @@
+# mcp command group (SPEC-MCP-CLI, §3.10). CLI-LEVEL SMOKE ONLY.
+#
+# The MCP stdio-protocol harness is Issue 1.4. Here we only assert the `mcp` subcommand
+# EXISTS with its pinned metadata, via `--help` (which never starts the blocking server).
+# The exact help layout is cobra->clap divergence (SPEC-DIVERGE-001), so we assert only a
+# substring of the pinned Long string, not a byte-golden.
+cases:
+  - id: mcp-help-smoke
+    spec: [SPEC-MCP-CLI-001, SPEC-INV-001]
+    argv: ["mcp", "--help"]
+    provider_mock: false
+    exit_code: 0
+    golden: none
+    stdout_contains:
+      - "Model Context Protocol"

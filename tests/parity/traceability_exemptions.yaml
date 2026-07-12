@@ -1,0 +1,56 @@
+# SPEC<->test traceability exemptions (plan-004, Issue 5.3).
+#
+# Consumed by check_traceability.py. Each key is a SPEC clause id that is NOT
+# referenced by a cases/*.yaml `spec:` field NOR cited by a pytest module, but is
+# nonetheless covered — by test_mcp.py's structural (non-id-citing) asserts, by
+# cargo unit tests, or is a help-prose / [DIVERGENCE] clause pinned only at the
+# semantics level. Every entry MUST carry a concrete reason; the checker rejects a
+# blank reason and rejects any key that is not a real clause.
+#
+# This reflects the coverage the suite actually has as of Issues 1.3/1.4/4.5:
+# 106 clauses covered by parity cases, the MCP surface by test_mcp.py, and the
+# clauses below by cargo tests / semantics-level pins.
+exemptions:
+  # --- MCP tool clauses covered by test_mcp.py structural asserts (not by a
+  #     literal SPEC-id in the source). tools/list is asserted per-tool
+  #     (inventory, enums, defaults, bounds) + golden/mcp/tools.json snapshot. ---
+  SPEC-MCP-007: "generate_icon tool schema asserted structurally by test_mcp.py (tools/list per-tool checks + golden/mcp/tools.json), no literal id cite."
+  SPEC-MCP-008: "generate_pattern tool schema asserted structurally by test_mcp.py (tools/list + tools.json golden)."
+  SPEC-MCP-009: "generate_story tool schema + steps 2..8 validation asserted by test_mcp.py (tools/list + validation-error-results test)."
+  SPEC-MCP-010: "generate_diagram tool schema asserted structurally by test_mcp.py (tools/list + tools.json golden)."
+
+  # --- Help-prose clauses: help layout/wording is [SPEC-DIVERGE-001] (cobra->clap
+  #     rewording); the suite pins flag inventory / enum membership, not full help
+  #     snapshots. These clauses are string-for-string help prose only. ---
+  SPEC-INV-003: "Root Use/Short/Long help prose; Long is [DIVERGENCE] (multi-provider reword). Help snapshots are out of parity scope per SPEC-DIVERGE-001; command inventory is pinned by inventory.yaml/mcp.yaml (SPEC-INV-001)."
+  SPEC-CONFIG-001: "config parent Short/Long help prose; the valid-keys list is [DIVERGENCE] (gains `provider`). Prose is not snapshotted (SPEC-DIVERGE-001); the key set is pinned via config.yaml cases (SPEC-CFGSCHEMA-001)."
+  SPEC-GLOBAL-002: "[NEW] --provider global flag. Its help string is [DIVERGENCE]; the flag's behavior is exercised throughout precedence.yaml / generate.yaml (`--provider gemini|openrouter`) and select.rs cargo tests. Only the help-inventory line is unpinned."
+
+  # --- MCP-only output-dir precedence, exercised by test_mcp.py (images asserted
+  #     written under NABA_OUTPUT_DIR; list_images output-dir resolution). ---
+  SPEC-CFGSCHEMA-004: "Output-dir precedence (NABA_OUTPUT_DIR > config > XDG) is MCP-side; test_mcp.py sets NABA_OUTPUT_DIR and asserts images/list_images resolve under it. The CLI-vs-MCP asymmetry (SPEC-CFGSCHEMA-005) is pinned by generate.yaml."
+
+  # --- Config-migration clauses: Rust-only machinery (no Go counterpart), covered
+  #     by cargo unit tests in src/config.rs (migrate-byte-identical, migrate-
+  #     comments, migrate-structural + .bak). Not observable via the black-box CLI
+  #     surface (zero-rewrite default = no observable behavior). ---
+  SPEC-MIGRATE-001: "[NEW] additive-optional schema / zero-rewrite default. cargo test config::tests::migrate-byte-identical (bytes + comments unchanged, no .bak)."
+  SPEC-MIGRATE-002: "[NEW] .bak-backed idempotent structural rewrite. cargo test config::tests::migrate-structural."
+  SPEC-MIGRATE-003: "[NEW/ACCEPTED] structural rewrite loses YAML comments. cargo test config::tests::migrate-comments documents the accepted loss + .bak mitigation."
+  SPEC-MIGRATE-004: "[NEW] serde_norway required, serde_yml forbidden (RUSTSEC-2025-0068). Enforced at the Cargo.toml dependency level (compile-time), not a runtime behavior."
+
+  # --- Provider-layer [NEW] clauses covered by cargo unit tests (src/provider). ---
+  SPEC-PROVIDER-001: "[NEW] umbrella: two providers, every image path routes through the selected one. Covered transitively by every provider-tagged parity case + gemini.rs/openrouter.rs/select.rs cargo tests; no standalone observable behavior of its own."
+  SPEC-PROVIDER-006: "[NEW] openrouter/auto rejected for image paths (exit 2, pre-HTTP). cargo tests in src/provider/openrouter.rs (auto-guard) + select.rs; the early guard means no request is ever made, so it is not a mock-observable parity case."
+  SPEC-PROVIDER-008: "[NEW/INTENTIONAL] multi-key -> OpenRouter reroute precedence. cargo tests select.rs::autodetect_both_keys_no_config_is_openrouter_default_slug + config-gemini-beats-openrouter-env mitigation. Documented in README/SPEC-DIVERGE-005."
+
+  # --- [NEW] OpenRouter moderation error mapping: mock-validated, not a stable
+  #     parity golden (live-key smoke resolved it to exit 5). ---
+  SPEC-ERR-017: "[NEW] OpenRouter moderation/content-policy 403 -> exit 3-or-5. cargo tests in src/provider/openrouter.rs (moderation-403 mapping); the Go baseline has no OpenRouter path so it cannot be a both-target parity case."
+
+  # --- [DIVERGENCE] clauses: sanctioned intentional differences. The suite pins
+  #     the semantics/inventory, not a byte-identical snapshot, so these carry no
+  #     dedicated `spec:` case; the semantics are exercised where noted. ---
+  SPEC-DOCTOR-006: "[DIVERGENCE] provider-aware api_key/api_live/model_reachable checks. doctor.yaml pins doctor envelope shape + status semantics (SPEC-DOCTOR-003/005); the exact provider-named detail strings are intentionally unpinned."
+  SPEC-EMBED-004: "[DIVERGENCE] Rust embed hash may differ from Go's (one-time post-cutover `naba skills upgrade`). skills.yaml pins the up-to-date/complete/unmodified flag semantics against a freshly-installed tree, not the hash literal."
+  SPEC-VERSION-BUILD-001: "[DIVERGENCE] build.rs version injection replaces Go ldflags. version.yaml + the normalizer (SPEC-JSON-005) pin the output format with Version/Commit/Date normalized; the concrete build values are intentionally unpinned."

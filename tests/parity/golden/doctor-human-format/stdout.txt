@@ -1,0 +1,7 @@
+[✓] version: naba <VERSION> (commit <COMMIT>, built <DATE>)
+[✓] config: parseable (<CONFIG_DIR>/config.yaml)
+[✗] api_key: GEMINI_API_KEY not set (env or config); generation will fail
+[✗] skills:naba: not installed at <SKILLS_DEST> (run: naba skills install)
+
+2 check(s) failed.
+doctor: 2 check(s) failed

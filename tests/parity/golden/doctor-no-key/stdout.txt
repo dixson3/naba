@@ -1,0 +1,26 @@
+{
+  "ok": false,
+  "failed": 2,
+  "checks": [
+    {
+      "name": "version",
+      "status": "pass",
+      "detail": "naba <VERSION> (commit <COMMIT>, built <DATE>)"
+    },
+    {
+      "name": "config",
+      "status": "pass",
+      "detail": "parseable (<CONFIG_DIR>/config.yaml)"
+    },
+    {
+      "name": "api_key",
+      "status": "fail",
+      "detail": "GEMINI_API_KEY not set (env or config); generation will fail"
+    },
+    {
+      "name": "skills:naba",
+      "status": "fail",
+      "detail": "not installed at <SKILLS_DEST> (run: naba skills install)"
+    }
+  ]
+}

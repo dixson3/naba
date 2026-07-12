@@ -1,0 +1,14 @@
+{
+  "path": "<CWD>/naba-pattern-<TIMESTAMP>.png",
+  "command": "pattern",
+  "prompt": "leaves",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "colors": "mono",
+    "density": "dense",
+    "repeat": "tile",
+    "style": "geometric",
+    "tile_size": "512x512"
+  },
+  "actual_format": "png"
+}

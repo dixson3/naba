@@ -1,0 +1,8 @@
+{
+  "path": "<CWD>/hero.png",
+  "command": "generate",
+  "prompt": "an apple",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "requested_format": "png",
+  "actual_format": "png"
+}

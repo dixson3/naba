@@ -1,0 +1,4 @@
+Generating image...
+Gemini server error: boom
+
+This is a temporary issue. Try again shortly.

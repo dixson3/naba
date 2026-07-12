@@ -1,0 +1,30 @@
+[
+  {
+    "path": "<CWD>/naba-story-<TIMESTAMP>.png",
+    "command": "story",
+    "prompt": "a hero",
+    "elapsed_ms": "<ELAPSED_MS>",
+    "params": {
+      "layout": "grid",
+      "step": 1,
+      "style": "consistent",
+      "total": 2,
+      "transition": "smooth"
+    },
+    "actual_format": "png"
+  },
+  {
+    "path": "<CWD>/naba-story-<TIMESTAMP>.png",
+    "command": "story",
+    "prompt": "a hero",
+    "elapsed_ms": "<ELAPSED_MS>",
+    "params": {
+      "layout": "grid",
+      "step": 2,
+      "style": "consistent",
+      "total": 2,
+      "transition": "smooth"
+    },
+    "actual_format": "png"
+  }
+]

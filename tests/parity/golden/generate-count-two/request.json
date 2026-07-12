@@ -1,0 +1,56 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "an apple"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  },
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "an apple"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  }
+]

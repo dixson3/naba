@@ -1,0 +1,7 @@
+{
+  "path": "<CWD>/naba-generate-<TIMESTAMP>.png",
+  "command": "generate",
+  "prompt": "an apple",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "actual_format": "png"
+}

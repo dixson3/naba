@@ -1,0 +1,120 @@
+# Precedence matrices (SPEC §6). Model precedence --model > --quality > config > default;
+# imageConfig precedence flag > config > unset; per-provider quality (SPEC-PROVIDER-005).
+# These pin the OUTGOING request (model path segment / imageConfig block), so each uses a
+# request golden.
+cases:
+  # --- model precedence: --model > --quality (SPEC-CFGSCHEMA-006) ------------------
+  # SPEC-ERR-016 / SPEC-DIVERGE-004: under the multi-provider contract a CLI `--model`
+  # requires an explicit `--provider` (a bare model name is ambiguous across providers).
+  # The Go capture used `--model` alone; adding `--provider gemini` preserves the original
+  # intent (model-over-quality precedence) and gates the case to the Rust binary.
+  - id: prec-model-over-quality
+    spec: [SPEC-CFGSCHEMA-006, SPEC-IMG-004, SPEC-ERR-016, SPEC-DIVERGE-004]
+    argv: ["generate", "an apple", "--provider", "gemini", "--model", "my-custom-model", "--quality", "high"]
+    gemini_key: smoke-key
+    requires: [provider]
+    golden: none
+    request: {}
+
+  # --- --quality high -> ProModel (gemini) (SPEC-PROVIDER-005) ---------------------
+  - id: prec-quality-high-gemini-pro
+    spec: [SPEC-PROVIDER-005, SPEC-PROVIDER-003, SPEC-CFGSCHEMA-006]
+    argv: ["generate", "an apple", "--quality", "high"]
+    gemini_key: smoke-key
+    golden: none
+    request: {}
+
+  - id: prec-quality-fast-gemini-flash
+    spec: [SPEC-PROVIDER-005, SPEC-PROVIDER-003]
+    argv: ["generate", "an apple", "--quality", "fast"]
+    gemini_key: smoke-key
+    golden: none
+    request: {}
+
+  # --- config model > default (SPEC-CFGSCHEMA-006) --------------------------------
+  - id: prec-config-model
+    spec: [SPEC-CFGSCHEMA-006]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    config:
+      model: cfg-model
+    golden: none
+    request: {}
+
+  # --- config quality -> model (SPEC-CFGSCHEMA-006) -------------------------------
+  - id: prec-config-quality
+    spec: [SPEC-CFGSCHEMA-006]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    config:
+      quality: high
+    golden: none
+    request: {}
+
+  # --- flag --quality beats config model (SPEC-CFGSCHEMA-006) ---------------------
+  - id: prec-flag-quality-over-config-model
+    spec: [SPEC-CFGSCHEMA-006]
+    argv: ["generate", "an apple", "--quality", "high"]
+    gemini_key: smoke-key
+    config:
+      model: cfg-model
+    golden: none
+    request: {}
+
+  # --- imageConfig: flag > config, model-aware size rejection --------------------
+  # SPEC-IMG-007 (naba-a3a fix): the config supplies resolution "512", which the default
+  # gemini flash model does NOT support -- the model-aware validator rejects it with an
+  # exit-2 usage error BEFORE the request is sent. The Go golden let this through (the
+  # naba-a3a bug); the Rust rejection is the FIX being validated, not a regression. This
+  # still exercises config-resolution flow-through (config `resolution` is consulted).
+  - id: prec-imageconfig-flag-over-config
+    spec: [SPEC-IMG-006, SPEC-IMG-007]
+    # SPEC-IMG-007 (naba-a3a fix): the Rust port rejects the model-unsupported `512`
+    # image size with exit 2 BEFORE the request; the Go baseline accepts `512` and sends
+    # it (exit 0). Gate to the Rust port (skips on the Go baseline).
+    requires: [provider]
+    argv: ["generate", "an apple", "--aspect", "16:9"]
+    gemini_key: smoke-key
+    config:
+      aspect: "1:1"
+      resolution: "512"
+    exit_code: 2
+    golden: stderr
+
+  - id: prec-imageconfig-config-only
+    spec: [SPEC-IMG-006]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    config:
+      resolution: "2K"
+    golden: none
+    request: {}
+
+  # --- API-key precedence: GEMINI_API_KEY env > config api_key (SPEC-CFGSCHEMA-003) -
+  - id: prec-apikey-env-over-config
+    spec: [SPEC-CFGSCHEMA-003]
+    argv: ["generate", "an apple"]
+    gemini_key: env-key-wins
+    config:
+      api_key: config-key-loses
+    golden: none
+    request: {}
+
+  - id: prec-apikey-config-fallback
+    # No env key -> the config api_key is used (header carries it).
+    spec: [SPEC-CFGSCHEMA-003]
+    argv: ["generate", "an apple"]
+    config:
+      api_key: config-key-used
+    golden: none
+    request: {}
+
+  # --- per-provider quality: OpenRouter native `quality`, model slug unchanged -----
+  # SPEC-PROVIDER-005 (openrouter). Requires --provider (rust-only; skipped on Go).
+  - id: prec-openrouter-quality-native
+    spec: [SPEC-PROVIDER-004, SPEC-PROVIDER-005]
+    argv: ["generate", "an apple", "--provider", "openrouter", "--quality", "high"]
+    openrouter_key: smoke-key
+    requires: [provider]
+    golden: none
+    request: {}

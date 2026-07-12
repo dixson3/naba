@@ -1,0 +1,8 @@
+# version command group (SPEC-VERSION, §3.12).
+cases:
+  - id: version
+    # SPEC-VERSION-001: "naba <v> (commit: <c>, built: <d>)" -- normalized fields.
+    spec: [SPEC-VERSION-001, SPEC-JSON-005]
+    argv: ["version"]
+    provider_mock: false
+    golden: stdout

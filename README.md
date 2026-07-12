@@ -1,6 +1,8 @@
 # naba
 
-A standalone CLI for AI image generation using Google Gemini. Generate, edit, and transform images from the command line.
+A standalone CLI (a single Rust binary) for AI image generation with multiple
+providers — **Google Gemini** and **OpenRouter**. Generate, edit, and transform images
+from the command line.
 
 ## Install
 
@@ -10,10 +12,10 @@ A standalone CLI for AI image generation using Google Gemini. Generate, edit, an
 brew install dixson3/tap/naba
 ```
 
-### Go
+### Cargo
 
 ```bash
-go install github.com/dixson3/naba/cmd/naba@latest
+cargo install --git https://github.com/dixson3/naba
 ```
 
 ### Build from source
@@ -21,26 +23,87 @@ go install github.com/dixson3/naba/cmd/naba@latest
 ```bash
 git clone https://github.com/dixson3/naba.git
 cd naba
-make build
+cargo build --release   # binary at target/release/naba
 ```
 
 ## Setup
 
-Set your Gemini API key:
+Set the API key for whichever provider(s) you use:
 
 ```bash
-export GEMINI_API_KEY=<your-key>
+export GEMINI_API_KEY=<your-key>        # Google Gemini
+export OPENROUTER_API_KEY=<your-key>    # OpenRouter
 ```
 
-Or save it to config:
+You can save the **Gemini** key to config (there is no config key for the OpenRouter key —
+it stays env-only):
 
 ```bash
 naba config set api_key <your-key>
 ```
 
+For Gemini, the key precedence is `GEMINI_API_KEY` env > config `api_key`.
+
+See [Providers](#providers) for how naba picks a provider when one or both keys are present.
+
+## Providers
+
+naba routes every image command (`generate`, `edit`, `restore`, and the composites)
+through one of two providers:
+
+| Provider | API key | Default model | Endpoint |
+|:---------|:--------|:--------------|:---------|
+| `gemini` | `GEMINI_API_KEY` | `gemini-3.1-flash-image` | `{base}/models/{model}:generateContent` |
+| `openrouter` | `OPENROUTER_API_KEY` | `google/gemini-3.1-flash-image-preview` | `POST /api/v1/images` |
+
+Select the provider with the global `--provider` flag or the `provider` config key:
+
+```bash
+naba generate "a red apple" --provider gemini
+naba generate "a red apple" --provider openrouter
+naba config set provider gemini      # pin a default provider
+```
+
+### Provider resolution precedence
+
+When you don't pass `--provider`, naba resolves the provider in this order:
+
+1. **CLI** `--provider`
+2. **Config** `provider` key
+3. **Env-key autodetect** — only `GEMINI_API_KEY` set → gemini; only `OPENROUTER_API_KEY`
+   set → openrouter
+4. **Built-in fallback** — gemini (the missing-key error surfaces at call time)
+
+### Multi-key reroute (intentional behavior)
+
+If **both** `GEMINI_API_KEY` and `OPENROUTER_API_KEY` are set **and** no `provider` is
+configured (CLI or config), autodetect resolves to **OpenRouter** (with the default slug
+`google/gemini-3.1-flash-image-preview`). This is an intentional precedence outcome, not a
+bug: a user who already had `GEMINI_API_KEY` and later adds `OPENROUTER_API_KEY` is
+rerouted to OpenRouter.
+
+> **To stay on Gemini when both keys are set, pin the provider in config** — config beats
+> autodetect:
+>
+> ```bash
+> naba config set provider gemini
+> ```
+
+### `--model` requires `--provider`
+
+A bare `--model` on the CLI is ambiguous across providers, so `--model` **without**
+`--provider` is a usage error (exit 2). Always pair them:
+
+```bash
+naba generate "hero" --provider openrouter --model google/gemini-3.1-flash-image-preview
+```
+
+This rule is **CLI-flags-only**: a config `model` **without** a config `provider` is fine —
+the config model is scoped by whatever provider autodetect/config resolves.
+
 ## Models & pricing
 
-naba defaults to **`gemini-3.1-flash-image`** (Nano Banana 2) — the current GA image
+**Gemini** defaults to **`gemini-3.1-flash-image`** (Nano Banana 2) — the current GA image
 model, optimized for cost and latency. A higher-quality tier, **`gemini-3-pro-image`**
 (Nano Banana Pro), is available for final/hero assets.
 
@@ -53,11 +116,28 @@ Select the model per call or in config:
 ```bash
 naba generate "hero banner" --quality high     # alias: high -> gemini-3-pro-image
 naba generate "hero banner" --quality fast      # alias: fast -> gemini-3.1-flash-image (default)
-naba generate "hero banner" --model gemini-3-pro-image   # raw model id (highest precedence)
+naba generate "hero banner" --provider gemini --model gemini-3-pro-image   # raw model id (highest precedence)
 ```
 
-Model precedence is `--model` > `--quality` > config `model` > config `quality` > built-in
-default. Existing configs (e.g. `model: gemini-2.5-flash-image`) keep working unchanged.
+For Gemini, model precedence is `--model` > `--quality` > config `model` > config `quality`
+> built-in default. Existing configs (e.g. `model: gemini-2.5-flash-image`) keep working
+unchanged.
+
+### `--quality` semantics differ per provider
+
+The `fast`/`high` vocabulary is the cross-provider surface, but each provider interprets it
+differently:
+
+- **Gemini** — `--quality` selects a **model tier**: `fast` → `gemini-3.1-flash-image`,
+  `high` → `gemini-3-pro-image`. Any other value is a usage error. An explicit `--model`
+  overrides `--quality`.
+- **OpenRouter** — `--quality` is passed through as the **native `quality` request
+  parameter** on `POST /api/v1/images`; it does **not** swap the model. The OpenRouter model
+  slug is chosen independently (`--model` / config `model` / the default slug). So
+  `--provider openrouter --quality high` keeps the resolved slug and sends `quality: high`.
+
+`openrouter/auto` (and bare `auto`) is a text-only router and **cannot** generate images —
+naba rejects it early with a usage error.
 
 ## Usage
 
@@ -125,14 +205,25 @@ naba diagram "database schema for blog" --type database --style clean
 
 ```bash
 naba config set api_key <key>
+naba config set provider gemini              # default provider (gemini or openrouter)
 naba config set model gemini-3-pro-image    # or use: naba config set quality high
 naba config set aspect 16:9                  # default imageConfig aspect ratio
 naba config set resolution 2K                # default imageConfig resolution
 naba config get model
 ```
 
-Config keys: `api_key`, `model`, `default_output_dir`, `aspect`, `resolution`, `quality`.
-Per-call flags override config; within config, `model` beats `quality`.
+Config keys: `api_key`, `model`, `provider`, `default_output_dir`, `aspect`, `resolution`,
+`quality`. Per-call flags override config; within config, `model` beats `quality`, and
+`provider` beats env-key autodetect (see [Providers](#providers)). The `api_key` config key
+holds the **Gemini** key only; the OpenRouter key is env-only (`OPENROUTER_API_KEY`).
+
+**Config auto-migration.** The `provider` key is additive-optional, so the schema change is
+**zero-rewrite by default**: absent keys resolve to defaults on read and your hand-edited
+`config.yaml` (comments included) is left untouched. A file rewrite happens **only** if a
+genuine structural migration is ever required; when it does, naba writes a `.bak` backup
+first, is idempotent, and is graceful on empty/missing/malformed inputs. A structural
+rewrite is a serde round-trip and would drop YAML comments — mitigated by the `.bak` backup
+and the zero-rewrite default.
 
 ### MCP Server
 
@@ -148,6 +239,7 @@ Per-call flags override config; within config, `model` beats `quality`.
       "args": ["mcp"],
       "env": {
         "GEMINI_API_KEY": "<your-key>",
+        "OPENROUTER_API_KEY": "<your-key>",
         "NABA_OUTPUT_DIR": "/path/to/output"
       }
     }
@@ -160,7 +252,7 @@ Setting `NABA_OUTPUT_DIR` is recommended — it tells naba where to write genera
 **Available tools:**
 
 | Tool | Description |
-|------|-------------|
+|:-----|:------------|
 | `generate_image` | Generate an image from a text prompt |
 | `edit_image` | Edit an existing image based on a text prompt |
 | `restore_image` | Restore or enhance an existing image |
@@ -189,9 +281,10 @@ installed with `naba skills install` (offline, version-matched) — there is no 
 plugin and no separate installer script.
 
 > **Prerequisite:** the skill shells out to the `naba` CLI, so the **`naba` binary must be
-> installed and on PATH** (see [Install](#install)) and `GEMINI_API_KEY` set (see
-> [Setup](#setup)). `naba skills install` always writes the skill files; the skill is inert
-> until the binary is on PATH.
+> installed and on PATH** (see [Install](#install)) and a provider API key set —
+> `GEMINI_API_KEY` and/or `OPENROUTER_API_KEY` (see [Setup](#setup) and
+> [Providers](#providers)). `naba skills install` always writes the skill files; the skill is
+> inert until the binary is on PATH.
 
 > **Breaking change (plan-002 → plan-003):** the previous 10 separate skills
 > (`/naba-generate`, `/naba-edit`, …) were consolidated into one `/naba <subcommand>` skill,
@@ -204,6 +297,22 @@ plugin and no separate installer script.
 > ```
 >
 > Then install the consolidated skill with `naba skills install`.
+
+> **Upgrading from the Go build (post-cutover):** `naba` is now a single **Rust** binary
+> (plan-004). The embedded skill content changed in the cutover, so the integrity hash the
+> binary computes differs from the one written by any previously installed (Go-built) `naba`.
+> After installing the Rust binary, run **`naba skills upgrade`** once to rewrite the
+> installed skill tree from the new embedded content:
+>
+> ```bash
+> naba skills upgrade
+> ```
+>
+> Until you do, `naba skills status` and `naba doctor` will report the installed copy as
+> **outdated** (`installed copy is outdated vs this binary (run: naba skills upgrade)`) —
+> that guidance is surfaced automatically, so no action is needed beyond running the upgrade.
+> The refreshed embedded tree hashes to
+> `8326d4ea11d46a119588683571f8eb14e8f3faa586929ebd90a80d18cde5f58e`.
 
 ### Install the skill
 
@@ -218,7 +327,7 @@ naba skills remove                   # remove the naba skill again
 naba skills status                   # report up-to-date / complete / unmodified
 ```
 
-The skill tree is embedded via `go:embed`, so `naba skills` works offline and always
+The skill tree is embedded into the binary at compile time, so `naba skills` works offline and always
 matches the binary's version. On `install`/`upgrade` it writes a hidden integrity marker
 into the deployed `SKILL.md` (`<!-- naba-skills: v=<version> tree=<sha256> -->`); `status`
 and `naba doctor` use that marker to confirm the install is current, complete, and
@@ -235,16 +344,17 @@ naba doctor --surface agents # check the agents-surface install instead
 ```
 
 It reports: skills installed and matching this binary (integrity marker present,
-up-to-date, complete, unmodified); `GEMINI_API_KEY` present; the key live-valid (a cheap
-`models.list` call, no image cost); the configured model reachable; config parseable; and
-the binary version.
+up-to-date, complete, unmodified); the **effective provider's** API key present (it resolves
+`--provider` > config `provider` > env-key autodetect, then checks that provider's key); the
+key live-valid (a cheap `models.list` call, no image cost); the configured model reachable;
+config parseable; and the binary version.
 
 ### Subcommands
 
 Invoke as `/naba <subcommand> [args]`; run `/naba help` to print the dispatch table.
 
 | Subcommand | Purpose |
-|------------|---------|
+|:-----------|:--------|
 | `/naba generate` | Generate an image from a text prompt |
 | `/naba edit` | Edit an existing image with text instructions |
 | `/naba restore` | Restore or enhance an existing image |
@@ -264,23 +374,26 @@ live once in `skills/naba/SKILL.md`.
 ## Global Flags
 
 | Flag | Description |
-|------|-------------|
+|:-----|:------------|
 | `--json` | Output structured JSON (auto-enabled when piped) |
 | `-o, --output` | Output file path |
 | `-q, --quiet` | Suppress progress output |
-| `-m, --model` | Override Gemini model |
+| `-m, --model` | Override the model (requires `--provider` on the CLI) |
+| `--provider` | Provider: `gemini` or `openrouter` (see [Providers](#providers)) |
 | `--no-input` | Disable interactive prompts |
 
 The generative commands also accept `--aspect`, `--resolution` (imageConfig), and
-`--quality` (`fast`/`high` model alias); see [Models & pricing](#models--pricing) and the
+`--quality` (per-provider — see [Models & pricing](#models--pricing)); see the
 [Generate images](#generate-images) section.
 
 ## Output format
 
-The Gemini image API returns **JPEG**. naba writes the file with the matching extension:
-if your `-o` path uses a different extension (e.g. `-o hero.png`), naba corrects it on disk
-(`hero.jpg`), warns on stderr, and reports both formats in JSON (`requested_format` /
-`actual_format`) so you can decide whether a post-generation conversion is needed.
+The provider returns the actual image format (Gemini returns **JPEG**; OpenRouter's
+`/api/v1/images` returns **PNG**). naba writes the file with the matching extension: if your
+`-o` path uses a different extension (e.g. `-o hero.png` against a JPEG response), naba
+corrects it on disk (`hero.jpg`), warns on stderr, and reports both formats in JSON
+(`requested_format` / `actual_format`) so you can decide whether a post-generation
+conversion is needed.
 
 ## JSON Output
 
@@ -308,7 +421,7 @@ response mimeType. They differ when the extension was corrected.
 ## Exit Codes
 
 | Code | Meaning |
-|------|---------|
+|:-----|:--------|
 | 0 | Success |
 | 1 | General error |
 | 2 | Usage error |

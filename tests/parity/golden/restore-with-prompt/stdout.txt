@@ -1,0 +1,11 @@
+{
+  "path": "<CWD>/naba-restore-<TIMESTAMP>.png",
+  "command": "restore",
+  "prompt": "fix the scratches",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "aspect": "4:3",
+    "input": "input.png"
+  },
+  "actual_format": "png"
+}

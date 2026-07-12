@@ -1,0 +1,56 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Generate frame 1 of 2 for a visual story: a hero. Maintain consistent visual style, characters, and setting across all frames. Use smooth, natural transitions between scenes. This is the opening scene \u2014 establish the setting and characters"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  },
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Generate frame 2 of 2 for a visual story: a hero. Maintain consistent visual style, characters, and setting across all frames. Use smooth, natural transitions between scenes. This is the final scene \u2014 bring the story to a conclusion"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  }
+]

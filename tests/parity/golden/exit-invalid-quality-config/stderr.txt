@@ -1,0 +1,1 @@
+invalid quality "ultra" in config (valid: fast, high)

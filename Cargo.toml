@@ -1,0 +1,34 @@
+[package]
+name = "naba"
+version = "0.1.0"
+edition = "2021"
+description = "Nanobanana image generation CLI (multi-provider: Gemini, OpenRouter)"
+license = "MIT"
+authors = ["James Dixson <james.dixson@beyondidentity.com>"]
+readme = "README.md"
+repository = "https://github.com/dixson3/naba"
+build = "build.rs"
+
+[[bin]]
+name = "naba"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive"] }
+hex = "0.4"
+include_dir = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+# YAML: serde_norway (maintained serde_yaml fork). serde_yml is FORBIDDEN (RUSTSEC-2025-0068,
+# SPEC-MIGRATE-004).
+serde_norway = "0.9"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+rmcp = { version = "2.2.0", features = ["server", "transport-io"] }
+
+[dev-dependencies]
+wiremock = "0.6"

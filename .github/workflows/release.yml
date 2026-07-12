@@ -1,5 +1,10 @@
 name: release
 
+# plan-004 cutover: release ships the RUST binary (cargo cross-compile), NOT the Go build.
+# Replaces the former goreleaser (Go) pipeline. On a `v*` tag it cross-compiles `naba` for
+# darwin/linux × amd64/arm64, publishes tarballs + checksums to the GitHub release, then
+# updates the Homebrew tap formula (prebuilt-binary formula: `bin.install "naba"`).
+
 on:
   push:
     tags:
@@ -9,22 +14,102 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  # --- Cross-compile the Rust binary and publish tarballs + checksums. ----------------
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: naba_linux_amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset: naba_linux_arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset: naba_darwin_amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: naba_darwin_arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          go-version: stable
+          targets: ${{ matrix.target }}
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: Swatinem/rust-cache@v2
+
+      # aarch64 linux needs a cross linker.
+      - name: Install aarch64 linux cross-linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build (release)
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package tarball + checksum
+        run: |
+          set -euo pipefail
+          bin="target/${{ matrix.target }}/release/naba"
+          tar -czf "${{ matrix.asset }}.tar.gz" -C "$(dirname "$bin")" naba
+          shasum -a 256 "${{ matrix.asset }}.tar.gz" > "${{ matrix.asset }}.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
         with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+          name: ${{ matrix.asset }}
+          path: |
+            ${{ matrix.asset }}.tar.gz
+            ${{ matrix.asset }}.tar.gz.sha256
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Aggregate checksums
+        run: cat dist/*.sha256 > dist/checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+
+  # --- Update the Homebrew tap formula (prebuilt binary). Skipped without the token. --
+  homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      # `secrets` cannot be used in a job-level `if`; gate at step level instead.
+      - name: Check for tap token
+        id: token
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: echo "present=${TAP_TOKEN:+yes}" >> "$GITHUB_OUTPUT"
+
+      - uses: Justintime50/homebrew-releaser@v2
+        if: steps.token.outputs.present == 'yes'
+        with:
+          homebrew_owner: dixson3
+          homebrew_tap: homebrew-tap
+          formula_folder: Formula
+          github_token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          commit_owner: goreleaserbot
+          commit_email: goreleaserbot@users.noreply.github.com
+          install: 'bin.install "naba"'
+          test: 'system "#{bin}/naba", "version"'
+          target_darwin_amd64: true
+          target_darwin_arm64: true
+          target_linux_amd64: true
+          target_linux_arm64: true
+          update_readme_table: false

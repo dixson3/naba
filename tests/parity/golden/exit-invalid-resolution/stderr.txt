@@ -1,0 +1,3 @@
+invalid resolution "3K"
+
+Valid values: 512, 1K, 2K, 4K

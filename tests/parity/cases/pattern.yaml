@@ -1,0 +1,22 @@
+# pattern command group (SPEC-PATTERN, §3.5).
+cases:
+  - id: pattern-basic
+    spec: [SPEC-PATTERN-001, SPEC-PATTERN-003, SPEC-PATTERN-004]
+    argv: ["pattern", "leaves"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: pattern-mirror
+    spec: [SPEC-PATTERN-004]
+    argv: ["pattern", "leaves", "--repeat", "mirror"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: pattern-full
+    spec: [SPEC-PATTERN-002, SPEC-PATTERN-003, SPEC-PATTERN-004]
+    argv: ["pattern", "leaves", "--style", "geometric", "--colors", "mono", "--density", "dense", "--tile-size", "512x512"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}

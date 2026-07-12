@@ -3,6 +3,9 @@
 /naba-*
 /dist/
 
+# Rust build output
+/target/
+
 # Generated images
 naba-generate-*
 naba-edit-*

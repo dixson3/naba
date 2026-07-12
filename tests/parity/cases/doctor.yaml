@@ -1,0 +1,31 @@
+# doctor command group (SPEC-DOCTOR, §3.9). --target isolates skills checks.
+cases:
+  - id: doctor-no-key
+    # No API key + skills not installed -> failing checks -> exit 1 (SPEC-EXIT-005).
+    spec: [SPEC-DOCTOR-001, SPEC-DOCTOR-002, SPEC-DOCTOR-003, SPEC-DOCTOR-005, SPEC-JSON-004, SPEC-EXIT-005]
+    argv: ["doctor", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    exit_code: 1
+    golden: stdout
+
+  - id: doctor-green
+    # Key present + mock reachable + skills installed -> all pass -> exit 0.
+    spec: [SPEC-DOCTOR-003, SPEC-DOCTOR-004, SPEC-DOCTOR-005, SPEC-JSON-004, SPEC-VERSION-002]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["doctor", "--target", "{SKILLS_DEST}"]
+    gemini_key: smoke-key
+    skills_dest: true
+    exit_code: 0
+    golden: stdout
+
+  - id: doctor-human-format
+    # PTY: human output "[<symbol>] <name>: <detail>" + footer (SPEC-DOCTOR-005).
+    spec: [SPEC-DOCTOR-005]
+    argv: ["doctor", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    mode: pty
+    exit_code: 1
+    golden: stdout

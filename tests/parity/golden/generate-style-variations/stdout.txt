@@ -1,0 +1,14 @@
+{
+  "path": "<CWD>/naba-generate-<TIMESTAMP>.png",
+  "command": "generate",
+  "prompt": "an apple",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "style": "watercolor",
+    "variations": [
+      "lighting",
+      "angle"
+    ]
+  },
+  "actual_format": "png"
+}

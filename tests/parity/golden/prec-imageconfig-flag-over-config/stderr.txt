@@ -1,0 +1,4 @@
+Generating image...
+image size "512" is not supported by gemini model "gemini-3.1-flash-image"
+
+Supported sizes for this model: 1K, 2K, 4K

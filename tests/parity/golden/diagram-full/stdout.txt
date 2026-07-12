@@ -1,0 +1,14 @@
+{
+  "path": "<CWD>/naba-diagram-<TIMESTAMP>.png",
+  "command": "diagram",
+  "prompt": "auth flow",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "colors": "categorical",
+    "complexity": "comprehensive",
+    "layout": "vertical",
+    "style": "technical",
+    "type": "sequence"
+  },
+  "actual_format": "png"
+}

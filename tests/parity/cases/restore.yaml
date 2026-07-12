@@ -1,0 +1,28 @@
+# restore command group (SPEC-RESTORE, §3.3).
+cases:
+  - id: restore-no-prompt
+    spec: [SPEC-RESTORE-001, SPEC-RESTORE-004, SPEC-RESTORE-005]
+    argv: ["restore", "input.png"]
+    gemini_key: smoke-key
+    inputs:
+      - name: input.png
+        asset: canned.png
+    golden: streams
+    request: {}
+
+  - id: restore-with-prompt
+    spec: [SPEC-RESTORE-002, SPEC-RESTORE-004]
+    argv: ["restore", "input.png", "fix the scratches", "--aspect", "4:3"]
+    gemini_key: smoke-key
+    inputs:
+      - name: input.png
+        asset: canned.png
+    golden: stdout
+    request: {}
+
+  - id: restore-missing-file
+    spec: [SPEC-RESTORE-003, SPEC-ERR-002, SPEC-EXIT-001]
+    argv: ["restore", "nope.png"]
+    gemini_key: smoke-key
+    exit_code: 10
+    golden: stderr

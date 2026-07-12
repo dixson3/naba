@@ -1,0 +1,598 @@
+[
+  {
+    "description": "Edit an existing image based on a text prompt",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "file": {
+          "description": "The file path of the input image to edit",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The text prompt describing the edits to make",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "file"
+      ],
+      "type": "object"
+    },
+    "name": "edit_image"
+  },
+  {
+    "description": "Generate technical diagrams and flowcharts",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "colors": {
+          "default": "accent",
+          "description": "Color scheme",
+          "enum": [
+            "mono",
+            "accent",
+            "categorical"
+          ],
+          "type": "string"
+        },
+        "complexity": {
+          "default": "detailed",
+          "description": "Level of detail",
+          "enum": [
+            "simple",
+            "detailed",
+            "comprehensive"
+          ],
+          "type": "string"
+        },
+        "layout": {
+          "default": "hierarchical",
+          "description": "Layout orientation",
+          "enum": [
+            "horizontal",
+            "vertical",
+            "hierarchical",
+            "circular"
+          ],
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Description of the diagram to generate",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        },
+        "style": {
+          "default": "professional",
+          "description": "Visual style",
+          "enum": [
+            "professional",
+            "clean",
+            "hand-drawn",
+            "technical"
+          ],
+          "type": "string"
+        },
+        "type": {
+          "default": "flowchart",
+          "description": "Type of diagram",
+          "enum": [
+            "flowchart",
+            "architecture",
+            "network",
+            "database",
+            "wireframe",
+            "mindmap",
+            "sequence"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "name": "generate_diagram"
+  },
+  {
+    "description": "Generate app icons in multiple sizes",
+    "inputSchema": {
+      "properties": {
+        "background": {
+          "default": "transparent",
+          "description": "Background type",
+          "type": "string"
+        },
+        "corners": {
+          "default": "rounded",
+          "description": "Corner style",
+          "enum": [
+            "rounded",
+            "sharp"
+          ],
+          "type": "string"
+        },
+        "format": {
+          "default": "png",
+          "description": "Output format",
+          "enum": [
+            "png",
+            "jpeg"
+          ],
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Description of the icon to generate",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "sizes": {
+          "description": "Icon sizes in pixels (e.g. 64, 128, 256, 512)",
+          "items": {
+            "maximum": 1024,
+            "minimum": 16,
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "style": {
+          "default": "modern",
+          "description": "Visual style of the icon",
+          "enum": [
+            "flat",
+            "skeuomorphic",
+            "minimal",
+            "modern"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "name": "generate_icon"
+  },
+  {
+    "description": "Generate an image from a text prompt",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "count": {
+          "default": 1,
+          "description": "Number of variations to generate (1-8)",
+          "maximum": 8,
+          "minimum": 1,
+          "type": "number"
+        },
+        "prompt": {
+          "description": "The text prompt describing the image to generate",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        },
+        "seed": {
+          "description": "Seed for reproducible output",
+          "type": "number"
+        },
+        "style": {
+          "description": "Art style",
+          "enum": [
+            "photorealistic",
+            "watercolor",
+            "oil-painting",
+            "sketch",
+            "pixel-art",
+            "anime",
+            "vintage",
+            "modern",
+            "abstract",
+            "minimalist"
+          ],
+          "type": "string"
+        },
+        "variations": {
+          "description": "Variation types to apply",
+          "items": {
+            "enum": [
+              "lighting",
+              "angle",
+              "color-palette",
+              "composition",
+              "mood",
+              "season",
+              "time-of-day"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "name": "generate_image"
+  },
+  {
+    "description": "Generate seamless patterns and textures",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "colors": {
+          "default": "colorful",
+          "description": "Color scheme",
+          "enum": [
+            "mono",
+            "duotone",
+            "colorful"
+          ],
+          "type": "string"
+        },
+        "density": {
+          "default": "medium",
+          "description": "Element density",
+          "enum": [
+            "sparse",
+            "medium",
+            "dense"
+          ],
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Description of the pattern to generate",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "repeat": {
+          "default": "tile",
+          "description": "Tiling method",
+          "enum": [
+            "tile",
+            "mirror"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        },
+        "size": {
+          "default": "256x256",
+          "description": "Pattern tile size (e.g. 256x256, 512x512)",
+          "type": "string"
+        },
+        "style": {
+          "default": "abstract",
+          "description": "Pattern style",
+          "enum": [
+            "geometric",
+            "organic",
+            "abstract",
+            "floral",
+            "tech"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "name": "generate_pattern"
+  },
+  {
+    "description": "Generate a sequence of images that tell a visual story",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "layout": {
+          "default": "separate",
+          "description": "Output layout format",
+          "enum": [
+            "separate",
+            "grid",
+            "comic"
+          ],
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Description of the story to visualize",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        },
+        "steps": {
+          "default": 4,
+          "description": "Number of sequential images (2-8)",
+          "maximum": 8,
+          "minimum": 2,
+          "type": "number"
+        },
+        "style": {
+          "default": "consistent",
+          "description": "Visual consistency across frames",
+          "enum": [
+            "consistent",
+            "evolving"
+          ],
+          "type": "string"
+        },
+        "transition": {
+          "default": "smooth",
+          "description": "Transition style between frames",
+          "enum": [
+            "smooth",
+            "dramatic",
+            "fade"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "type": "object"
+    },
+    "name": "generate_story"
+  },
+  {
+    "description": "List recently generated images in the output directory",
+    "inputSchema": {
+      "properties": {
+        "limit": {
+          "default": 20,
+          "description": "Maximum number of images to return",
+          "type": "number"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "list_images"
+  },
+  {
+    "description": "Restore or enhance an existing image",
+    "inputSchema": {
+      "properties": {
+        "aspect": {
+          "description": "Aspect ratio (generationConfig.imageConfig.aspectRatio)",
+          "enum": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9"
+          ],
+          "type": "string"
+        },
+        "file": {
+          "description": "The file path of the input image to restore",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The text prompt describing the restoration to perform",
+          "type": "string"
+        },
+        "quality": {
+          "description": "<QUALITY_DESC>",
+          "enum": [
+            "fast",
+            "high"
+          ],
+          "type": "string"
+        },
+        "resolution": {
+          "description": "Image resolution (generationConfig.imageConfig.imageSize)",
+          "enum": [
+            "512",
+            "1K",
+            "2K",
+            "4K"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "name": "restore_image"
+  }
+]

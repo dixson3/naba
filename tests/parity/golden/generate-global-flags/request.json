@@ -1,0 +1,29 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "an apple"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/my-model:generateContent",
+    "provider": "gemini"
+  }
+]

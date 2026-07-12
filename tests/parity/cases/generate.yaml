@@ -1,0 +1,76 @@
+# generate command group (SPEC-GEN, §3.1). See cases/README.md for the schema.
+cases:
+  - id: generate-basic
+    # CFGSCHEMA-005: NABA_OUTPUT_DIR is set for every case, yet the CLI auto-names into
+    # CWD (path is <CWD>/..., never <OUTPUT_DIR>) -- CLI ignores the MCP output dir.
+    # JSON-005: elapsed_ms + the timestamped auto-name are normalized in the golden.
+    spec: [SPEC-GEN-001, SPEC-GEN-005, SPEC-GEN-006, SPEC-PROVIDER-002, SPEC-JSON-001, SPEC-JSON-002, SPEC-JSON-005, SPEC-GLOBAL-003, SPEC-CFGSCHEMA-005]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: generate-style-variations
+    spec: [SPEC-GEN-002, SPEC-GEN-005]
+    argv: ["generate", "an apple", "--style", "watercolor", "-v", "lighting", "-v", "angle"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: generate-count-two
+    spec: [SPEC-GEN-002, SPEC-GEN-006, SPEC-GEN-007, SPEC-JSON-002]
+    argv: ["generate", "an apple", "-n", "2"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: generate-global-flags
+    # SPEC-GLOBAL-001: -q suppresses progress, -o sets the output path, -m overrides model.
+    # SPEC-GLOBAL-004: --no-input is accepted but drives no behavior (no interactive path).
+    # SPEC-ERR-016 / SPEC-DIVERGE-004: `-m` (CLI --model) now requires an explicit
+    # `--provider` under the multi-provider contract; the Go capture used `-m` alone. Adding
+    # `--provider gemini` preserves the original global-flag-plumbing intent and gates the
+    # case to the Rust binary.
+    spec: [SPEC-GLOBAL-001, SPEC-GLOBAL-004, SPEC-ERR-016, SPEC-DIVERGE-004]
+    argv: ["generate", "an apple", "-q", "-o", "hero.png", "--provider", "gemini", "-m", "my-model", "--no-input"]
+    gemini_key: smoke-key
+    requires: [provider]
+    golden: streams
+    request: {}
+
+  - id: generate-count-zero-unvalidated
+    # SPEC-GEN-003: --count is NOT range-validated in the CLI; 0 loops zero times.
+    spec: [SPEC-GEN-003]
+    argv: ["generate", "an apple", "-n", "0"]
+    gemini_key: smoke-key
+    golden: stdout
+
+  - id: generate-seed-format-unused
+    # SPEC-GEN-004: --seed/--format collected but unused; request identical to basic.
+    spec: [SPEC-GEN-004]
+    argv: ["generate", "an apple", "--seed", "42", "--format", "grid"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: generate-imageconfig
+    spec: [SPEC-GEN-002, SPEC-IMG-003, SPEC-IMG-005, SPEC-IMG-006, SPEC-PROVIDER-002]
+    argv: ["generate", "an apple", "--aspect", "16:9", "--resolution", "2K"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: generate-pty-human
+    # SPEC-GLOBAL-003: under a PTY, stdout is a chardevice; --json is NOT forced.
+    spec: [SPEC-GLOBAL-003]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    mode: pty
+    golden: stdout
+
+  - id: generate-preview
+    spec: [SPEC-GLOBAL-005]
+    argv: ["generate", "an apple", "--preview"]
+    gemini_key: smoke-key
+    preview: true
+    golden: none

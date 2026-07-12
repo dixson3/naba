@@ -1,0 +1,4 @@
+Generating image...
+rate limit exceeded: boom
+
+Wait a moment and try again.
