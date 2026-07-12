@@ -1,0 +1,1 @@
+(dry run) would write 12 file(s) of "naba" -> <SKILLS_DEST>/naba

@@ -1,0 +1,24 @@
+[
+  {
+    "path": "<CWD>/naba-generate-<TIMESTAMP>.png",
+    "command": "generate",
+    "prompt": "an apple",
+    "elapsed_ms": "<ELAPSED_MS>",
+    "params": {
+      "count": 2,
+      "index": 1
+    },
+    "actual_format": "png"
+  },
+  {
+    "path": "<CWD>/naba-generate-<TIMESTAMP>.png",
+    "command": "generate",
+    "prompt": "an apple",
+    "elapsed_ms": "<ELAPSED_MS>",
+    "params": {
+      "count": 2,
+      "index": 2
+    },
+    "actual_format": "png"
+  }
+]

@@ -1,0 +1,3 @@
+--model requires --provider
+
+Specify --provider gemini or --provider openrouter

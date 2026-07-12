@@ -128,11 +128,26 @@ Available on every `naba` subcommand:
 
 | Flag | Short | Purpose |
 | :--- | :---- | :------ |
-| `--output`  | `-o` | Output file path or directory. |
-| `--json`    |      | Structured JSON output (auto-enabled when piped). |
-| `--quiet`   | `-q` | Suppress progress output. |
-| `--model`   | `-m` | Override the Gemini model. |
-| `--preview` |      | Open the result in the system viewer. |
+| `--output`   | `-o` | Output file path or directory. |
+| `--json`     |      | Structured JSON output (auto-enabled when piped). |
+| `--quiet`    | `-q` | Suppress progress output. |
+| `--provider` |      | Provider: `gemini` or `openrouter`. |
+| `--model`    | `-m` | Override the model (requires `--provider`). |
+| `--preview`  |      | Open the result in the system viewer. |
+
+### Provider selection
+
+naba runs through one of two providers, `gemini` or `openrouter`. Normally let naba pick:
+absent `--provider` / a `provider` config key, it autodetects from whichever API key is set
+(`GEMINI_API_KEY` → gemini, `OPENROUTER_API_KEY` → openrouter). Pass `--provider` only when
+the user names a provider or when both keys are set and they want a specific one (with both
+keys and no configured `provider`, autodetect routes to **openrouter**). Two rules to
+respect:
+
+- **`--model` requires `--provider`** on the CLI — a bare `--model` is a usage error. Pair
+  them (e.g. `--provider openrouter --model <slug>`).
+- **`--quality` is per-provider:** on Gemini `fast`/`high` picks a model tier; on OpenRouter
+  it is a native quality param that does not change the model slug.
 
 ## After any subcommand
 

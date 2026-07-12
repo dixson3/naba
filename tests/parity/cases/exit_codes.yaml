@@ -1,0 +1,135 @@
+# Exit-code matrix (SPEC-EXIT §7, SPEC-ERR §9). Codes: 1 General, 2 Usage, 3 Auth,
+# 4 RateLimit, 5 API, 10 FileIO. Cobra/clap PARSE errors exit 1 (not 2) per SPEC-EXIT-003.
+cases:
+  # --- cobra/clap parse errors -> 1 (SPEC-EXIT-003) --------------------------------
+  # SPEC-DIVERGE-001: clap's parse-error prose differs from cobra's. The load-bearing
+  # invariant (a flag/arg parse failure exits 1, NOT clap's default 2 -- SPEC-EXIT-003) is
+  # asserted via exit_code; the brittle full-text snapshot is replaced by a stable
+  # substring so the case survives clap wording changes.
+  - id: exit-parse-unknown-flag
+    spec: [SPEC-EXIT-003, SPEC-INV-004, SPEC-DIVERGE-001]
+    # clap parse-error wording ("unexpected argument") is [SPEC-DIVERGE-001] vs cobra's
+    # "unknown flag"; gate to the Rust port (skips on the Go baseline).
+    requires: [provider]
+    argv: ["generate", "an apple", "--bogus"]
+    provider_mock: false
+    exit_code: 1
+    golden: none
+    stderr_contains:
+      - "unexpected argument"
+
+  - id: exit-parse-missing-arg
+    spec: [SPEC-EXIT-003, SPEC-GEN-001, SPEC-DIVERGE-001]
+    # clap "required arguments were not provided" is [SPEC-DIVERGE-001] vs cobra wording;
+    # gate to the Rust port (skips on the Go baseline).
+    requires: [provider]
+    argv: ["generate"]
+    provider_mock: false
+    exit_code: 1
+    golden: none
+    stderr_contains:
+      - "required arguments were not provided"
+
+  # --- in-code usage errors -> 2 (SPEC-EXIT-003) ----------------------------------
+  - id: exit-story-steps-usage
+    spec: [SPEC-EXIT-001, SPEC-STORY-003, SPEC-ERR-003]
+    argv: ["story", "a hero", "--steps", "1"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr
+
+  # SPEC-CFGSCHEMA-001 / SPEC-DIVERGE-004: the "Valid keys" list now includes the [NEW]
+  # `provider` key; exit code and shape unchanged, golden re-captured from Rust.
+  - id: exit-unknown-config-key
+    spec: [SPEC-EXIT-001, SPEC-ERR-009, SPEC-CFGSCHEMA-001, SPEC-DIVERGE-004]
+    # golden valid-keys list includes the [NEW] `provider` key (SPEC-DIVERGE-004);
+    # gate to the Rust port (skips on the Go baseline, which lacks `provider`).
+    requires: [provider]
+    argv: ["config", "set", "nope", "x"]
+    provider_mock: false
+    exit_code: 2
+    golden: stderr
+
+  - id: exit-invalid-aspect
+    spec: [SPEC-EXIT-001, SPEC-IMG-001, SPEC-IMG-005, SPEC-ERR-004]
+    argv: ["generate", "an apple", "--aspect", "7:7"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr
+
+  - id: exit-invalid-resolution
+    spec: [SPEC-EXIT-001, SPEC-IMG-002, SPEC-IMG-005, SPEC-ERR-005]
+    argv: ["generate", "an apple", "--resolution", "3K"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr
+
+  - id: exit-invalid-quality-flag
+    spec: [SPEC-EXIT-001, SPEC-ERR-006, SPEC-PROVIDER-005]
+    argv: ["generate", "an apple", "--quality", "ultra"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr
+
+  # --- --model without --provider -> 2 Usage (SPEC-ERR-016) ------------------------
+  # Multi-provider rule (rust-only): a bare CLI --model is ambiguous across providers and
+  # must be rejected with an in-code usage error (exit 2). Gated to the Rust binary via
+  # `requires: [provider]` (the Go binary has no --provider flag, so cannot enforce this).
+  - id: exit-model-without-provider
+    spec: [SPEC-EXIT-001, SPEC-ERR-016, SPEC-PROVIDER-007, SPEC-DIVERGE-004]
+    argv: ["generate", "an apple", "--model", "some-model"]
+    gemini_key: smoke-key
+    requires: [provider]
+    exit_code: 2
+    golden: stderr
+
+  # --- invalid config quality -> 1 General (plain error, SPEC-ERR-007) -------------
+  - id: exit-invalid-quality-config
+    spec: [SPEC-CFGSCHEMA-006, SPEC-ERR-007]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    config:
+      quality: ultra
+    exit_code: 1
+    golden: stderr
+
+  # --- missing API key -> 3 Auth (SPEC-ERR-001) -----------------------------------
+  - id: exit-missing-api-key
+    spec: [SPEC-EXIT-001, SPEC-ERR-001]
+    argv: ["generate", "an apple"]
+    provider_mock: false
+    exit_code: 3
+    golden: stderr
+
+  # --- missing input file -> 10 FileIO (SPEC-ERR-002) -----------------------------
+  - id: exit-missing-input-file
+    spec: [SPEC-EXIT-001, SPEC-ERR-002]
+    argv: ["edit", "nope.png", "x"]
+    gemini_key: smoke-key
+    exit_code: 10
+    golden: stderr
+
+  # --- HTTP status -> exit mapping (SPEC-EXIT-004, SPEC-ERR-010/011/012) -----------
+  - id: exit-http-401-auth
+    spec: [SPEC-EXIT-004, SPEC-ERR-010]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    mock_status: 401
+    exit_code: 3
+    golden: stderr
+
+  - id: exit-http-429-ratelimit
+    spec: [SPEC-EXIT-004, SPEC-ERR-011]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    mock_status: 429
+    exit_code: 4
+    golden: stderr
+
+  - id: exit-http-500-api
+    spec: [SPEC-EXIT-004, SPEC-ERR-012]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    mock_status: 500
+    exit_code: 5
+    golden: stderr

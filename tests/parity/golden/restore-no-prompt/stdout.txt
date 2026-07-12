@@ -1,0 +1,10 @@
+{
+  "path": "<CWD>/naba-restore-<TIMESTAMP>.png",
+  "command": "restore",
+  "prompt": "",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "input": "input.png"
+  },
+  "actual_format": "png"
+}

@@ -1,0 +1,79 @@
+# skills command group (SPEC-SKILLS, §3.11). --target isolates the destination.
+cases:
+  - id: skills-status-not-installed
+    spec: [SPEC-SKILLS-002, SPEC-SKILLS-006]
+    argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-install
+    spec: [SPEC-SKILLS-001, SPEC-SKILLS-002, SPEC-SKILLS-003, SPEC-SKILLS-004]
+    argv: ["skills", "install", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-install-dry-run
+    spec: [SPEC-SKILLS-001, SPEC-SKILLS-004]
+    argv: ["skills", "install", "--target", "{SKILLS_DEST}", "--dry-run"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-status-installed
+    # SPEC-EMBED-003: up-to-date/complete/unmodified against a fresh install.
+    spec: [SPEC-SKILLS-006, SPEC-EMBED-001, SPEC-EMBED-003]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-status-modified
+    # SPEC-EMBED-002/003: the deployed tree-hash detects a post-install modification,
+    # so `status` flips the unmodified flag to ✗ (up-to-date/complete stay ✓).
+    spec: [SPEC-SKILLS-006, SPEC-EMBED-002, SPEC-EMBED-003]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    tamper:
+      - "naba/SKILL.md"
+    argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-upgrade
+    spec: [SPEC-SKILLS-004]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["skills", "upgrade", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-remove
+    spec: [SPEC-SKILLS-005]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["skills", "remove", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-remove-absent
+    spec: [SPEC-SKILLS-005]
+    argv: ["skills", "remove", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-remove-dry-run
+    spec: [SPEC-SKILLS-005]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["skills", "remove", "--target", "{SKILLS_DEST}", "--dry-run"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout

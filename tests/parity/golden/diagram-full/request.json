@@ -1,0 +1,29 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Generate a sequence diagram: auth flow. Visual style: technical. Layout: vertical. Level of detail: comprehensive. Color scheme: categorical. Include clear labels and annotations. Professional quality suitable for documentation or presentations"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  }
+]

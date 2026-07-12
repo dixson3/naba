@@ -1,13 +1,50 @@
 name: ci
 
+# plan-004 cutover: the shipped `naba` is the RUST binary. The Go source is retained ONLY
+# as the parity baseline (it proves the Go-captured goldens are still valid); a follow-up
+# bead retires it. The parity job runs the suite against BOTH $NABA_BIN targets. The whole
+# suite is fully mocked — NO secrets / live API keys are required for any job.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  test:
+  # --- Rust: the shipped product. build + fmt + clippy + unit tests. ------------------
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Build (release)
+        run: cargo build --release
+
+      - name: Unit tests
+        run: cargo test
+
+  # --- Go: parity baseline ONLY (not shipped). Kept green so the goldens stay trusted. -
+  go-baseline:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,18 +53,46 @@ jobs:
         with:
           go-version: stable
 
-      - name: Test
+      - name: Build (baseline)
+        run: go build -trimpath -o naba-go ./cmd/naba
+
+      - name: Unit tests
         run: go test ./... -count=1
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
 
       - uses: golangci/golangci-lint-action@v7
         with:
           version: v2.4
+
+  # --- Parity: run tests/parity against BOTH targets + the SPEC<->test traceability. --
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Build Rust binary (shipped)
+        run: cargo build --release
+
+      - name: Build Go binary (baseline)
+        run: go build -trimpath -o naba-go ./cmd/naba
+
+      - name: SPEC <-> test traceability check
+        run: uv run tests/parity/check_traceability.py
+
+      # Baseline: the Go binary must reproduce the Go-captured goldens (rust-only
+      # divergence cases self-skip via `requires: [provider]`).
+      - name: Parity suite — Go baseline
+        run: NABA_BIN="$PWD/naba-go" uv run --project tests/parity pytest tests/parity
+
+      # Parity: the Rust binary must match the same suite (divergence cases active).
+      - name: Parity suite — Rust
+        run: NABA_BIN="$PWD/target/release/naba" uv run --project tests/parity pytest tests/parity

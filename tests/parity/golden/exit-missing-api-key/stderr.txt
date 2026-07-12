@@ -1,0 +1,4 @@
+GEMINI_API_KEY not set.
+
+Set it with: export GEMINI_API_KEY=<your-key>
+Or run: naba config set api_key <your-key>

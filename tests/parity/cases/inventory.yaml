@@ -1,0 +1,37 @@
+# Command inventory (SPEC-INV §1). The skill-layer composites are NOT binary subcommands.
+cases:
+  # SPEC-DIVERGE-001: clap renders the unknown-subcommand error as "unrecognized
+  # subcommand" (cobra said "unknown command"). The load-bearing assertions -- these are
+  # NOT subcommands (SPEC-INV-002) and the invocation is a parse error exiting 1
+  # (SPEC-EXIT-003) -- hold; only the wording is reconciled to clap.
+  # The clap "unrecognized subcommand" wording is [SPEC-DIVERGE-001]; gate these three to
+  # the Rust port (skips on the Go baseline, which says "unknown command").
+  - id: inventory-storyboard-not-a-subcommand
+    spec: [SPEC-INV-002, SPEC-EXIT-003, SPEC-DIVERGE-001]
+    requires: [provider]
+    argv: ["storyboard", "a hero"]
+    provider_mock: false
+    exit_code: 1
+    golden: none
+    stderr_contains:
+      - "unrecognized subcommand"
+
+  - id: inventory-batch-not-a-subcommand
+    spec: [SPEC-INV-002, SPEC-DIVERGE-001]
+    requires: [provider]
+    argv: ["batch"]
+    provider_mock: false
+    exit_code: 1
+    golden: none
+    stderr_contains:
+      - "unrecognized subcommand"
+
+  - id: inventory-brandkit-not-a-subcommand
+    spec: [SPEC-INV-002, SPEC-DIVERGE-001]
+    requires: [provider]
+    argv: ["brand-kit"]
+    provider_mock: false
+    exit_code: 1
+    golden: none
+    stderr_contains:
+      - "unrecognized subcommand"

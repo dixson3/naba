@@ -1,0 +1,4 @@
+Generating image...
+authentication failed: boom
+
+Set GEMINI_API_KEY or run: naba config set api_key <your-key>

@@ -1,0 +1,2 @@
+OK: naba -> <SKILLS_DEST>/naba (12 files)
+Destination: <SKILLS_DEST>

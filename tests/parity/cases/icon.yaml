@@ -1,0 +1,31 @@
+# icon command group (SPEC-ICON, §3.4).
+cases:
+  - id: icon-basic
+    # SPEC-ICON-003: plain generate path, NO imageConfig sent. SPEC-ICON-004: icon-256.png.
+    spec: [SPEC-ICON-001, SPEC-ICON-003, SPEC-ICON-004, SPEC-ICON-005, SPEC-ICON-006]
+    argv: ["icon", "a rocket"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: icon-multisize
+    spec: [SPEC-ICON-002, SPEC-ICON-004, SPEC-ICON-005]
+    argv: ["icon", "a rocket", "--size", "128", "--size", "256"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: icon-background-corners
+    spec: [SPEC-ICON-002, SPEC-ICON-006]
+    argv: ["icon", "a rocket", "--background", "white", "--corners", "sharp"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: icon-format-jpeg
+    # SPEC-ICON-004: ExtForFormat(jpeg)->.jpg. The mock returns PNG, so the on-disk
+    # extension is reconciled to .png with a stderr note (SPEC output reconcile).
+    spec: [SPEC-ICON-004]
+    argv: ["icon", "a rocket", "--format", "jpeg"]
+    gemini_key: smoke-key
+    golden: streams

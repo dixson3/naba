@@ -1,0 +1,28 @@
+# edit command group (SPEC-EDIT, §3.2).
+cases:
+  - id: edit-basic
+    spec: [SPEC-EDIT-001, SPEC-EDIT-004, SPEC-EDIT-005, SPEC-PROVIDER-002]
+    argv: ["edit", "input.png", "make it red"]
+    gemini_key: smoke-key
+    inputs:
+      - name: input.png
+        asset: canned.png
+    golden: streams
+    request: {}
+
+  - id: edit-imageconfig
+    spec: [SPEC-EDIT-002, SPEC-IMG-006]
+    argv: ["edit", "input.png", "make it red", "--aspect", "1:1"]
+    gemini_key: smoke-key
+    inputs:
+      - name: input.png
+        asset: canned.png
+    golden: stdout
+    request: {}
+
+  - id: edit-missing-file
+    spec: [SPEC-EDIT-003, SPEC-ERR-002, SPEC-EXIT-001]
+    argv: ["edit", "nope.png", "make it red"]
+    gemini_key: smoke-key
+    exit_code: 10
+    golden: streams

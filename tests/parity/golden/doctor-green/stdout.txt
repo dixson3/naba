@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "version",
+      "status": "pass",
+      "detail": "naba <VERSION> (commit <COMMIT>, built <DATE>)"
+    },
+    {
+      "name": "config",
+      "status": "pass",
+      "detail": "parseable (<CONFIG_DIR>/config.yaml)"
+    },
+    {
+      "name": "api_key",
+      "status": "pass",
+      "detail": "present"
+    },
+    {
+      "name": "api_live",
+      "status": "pass",
+      "detail": "key validated via models.list"
+    },
+    {
+      "name": "model_reachable",
+      "status": "pass",
+      "detail": "\"gemini-3.1-flash-image\" is available"
+    },
+    {
+      "name": "skills:naba",
+      "status": "pass",
+      "detail": "installed, up-to-date, complete, unmodified (<SKILLS_DEST>)"
+    }
+  ]
+}

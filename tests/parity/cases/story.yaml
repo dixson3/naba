@@ -1,0 +1,39 @@
+# story command group (SPEC-STORY, §3.7).
+cases:
+  - id: story-basic
+    # SPEC-STORY-006/SPEC-JSON-003: always array. SPEC-STORY-007: frame prompts.
+    spec: [SPEC-STORY-001, SPEC-STORY-005, SPEC-STORY-006, SPEC-STORY-007, SPEC-JSON-003]
+    argv: ["story", "a hero", "--steps", "2"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: story-transition-fade
+    # 3 frames: opening / middle "scene 2" / final. --transition fade.
+    spec: [SPEC-STORY-002, SPEC-STORY-007]
+    argv: ["story", "a hero", "--steps", "3", "--transition", "fade"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: story-layout-unused
+    # SPEC-STORY-004: --layout recorded in params but absent from the prompt.
+    spec: [SPEC-STORY-004]
+    argv: ["story", "a hero", "--steps", "2", "--layout", "grid"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
+
+  - id: story-steps-too-low
+    spec: [SPEC-STORY-003, SPEC-ERR-003, SPEC-EXIT-001]
+    argv: ["story", "a hero", "--steps", "1"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr
+
+  - id: story-steps-too-high
+    spec: [SPEC-STORY-003, SPEC-ERR-003]
+    argv: ["story", "a hero", "--steps", "9"]
+    gemini_key: smoke-key
+    exit_code: 2
+    golden: stderr

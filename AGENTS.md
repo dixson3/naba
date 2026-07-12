@@ -1,7 +1,8 @@
 # naba — Project & Agent Instructions
 
-Standalone CLI (plus stdio MCP server) for AI image generation via Google's Gemini API.
-This file is the single source of truth for both human and agent guidance.
+Standalone CLI (plus stdio MCP server) for AI image generation via multiple providers —
+Google Gemini and OpenRouter. This file is the single source of truth for both human and
+agent guidance.
 
 ## Build & Test
 
@@ -39,12 +40,31 @@ All commands follow: resolve API key -> enrich prompt -> call Gemini -> write ou
 
 ## Environment Variables
 
-| Variable          | Purpose                                                      |
-| ----------------- | ------------------------------------------------------------ |
-| `GEMINI_API_KEY`  | API authentication (required for generation commands)        |
-| `NABA_CONFIG_DIR` | Override config directory (default: `~/.config/naba`)        |
-| `NABA_OUTPUT_DIR` | Override output directory for generated images (MCP and CLI) |
-| `GEMINI_BASE_URL` | Override API base URL (used by tests)                        |
+| Variable             | Purpose                                                       |
+|:---------------------|:-------------------------------------------------------------|
+| `GEMINI_API_KEY`     | Gemini API auth (env > config `api_key`)                     |
+| `OPENROUTER_API_KEY` | OpenRouter API auth (env-only — no config key)               |
+| `NABA_CONFIG_DIR`    | Override config directory (default: `~/.config/naba`)        |
+| `NABA_OUTPUT_DIR`    | Override output directory for generated images (MCP and CLI) |
+| `GEMINI_BASE_URL`    | Override Gemini API base URL (used by tests)                 |
+| `OPENROUTER_BASE_URL`| Override OpenRouter API base URL (used by tests)             |
+
+## Providers
+
+naba routes every image command through one of two providers (`gemini` | `openrouter`),
+selected by the global `--provider` flag or the `provider` config key. **Agents shelling
+out to naba must know:**
+
+- **Resolution precedence:** CLI `--provider` > config `provider` > env-key autodetect
+  (only `GEMINI_API_KEY` → gemini; only `OPENROUTER_API_KEY` → openrouter) > gemini fallback.
+- **Multi-key reroute (intentional):** both keys set + no configured `provider` → autodetect
+  picks **openrouter** (default slug `google/gemini-3.1-flash-image-preview`). To stay on
+  Gemini, pin `provider: gemini` in config (config beats autodetect).
+- **`--model` requires `--provider`** on the CLI (a bare model is ambiguous → usage error,
+  exit 2). Config `model` without config `provider` is allowed.
+- **`--quality` is per-provider:** Gemini maps `fast`/`high` to a model tier; OpenRouter
+  passes `quality` through as a native request param without swapping the model slug.
+  `openrouter/auto` cannot generate images and is rejected early.
 
 **MCP mode**: When no output directory is configured, MCP handlers default to `~/.local/share/naba/images` (not CWD). Tool results return file paths + `ResourceLink` (no inline base64) to stay under Claude Desktop's ~1MB response limit.
 

@@ -1,0 +1,38 @@
+# config command group (SPEC-CONFIG, §3.8). config get/set need no provider/key.
+cases:
+  - id: config-set
+    spec: [SPEC-CONFIG-003]
+    argv: ["config", "set", "model", "gemini-3-pro-image"]
+    provider_mock: false
+    golden: stdout
+
+  - id: config-set-then-get
+    spec: [SPEC-CONFIG-002, SPEC-CONFIG-003]
+    pre_argv:
+      - ["config", "set", "model", "gemini-3-pro-image"]
+    argv: ["config", "get", "model"]
+    provider_mock: false
+    golden: stdout
+
+  # SPEC-CFGSCHEMA-001 / SPEC-DIVERGE-004: the "Valid keys" list now includes the [NEW]
+  # multi-provider `provider` key, so the error text diverges from the Go capture. The
+  # exit code and error shape are unchanged; golden re-captured from the Rust binary.
+  - id: config-get-unset
+    spec: [SPEC-CONFIG-002, SPEC-CFGSCHEMA-002, SPEC-CFGSCHEMA-001, SPEC-ERR-008, SPEC-EXIT-002, SPEC-DIVERGE-004]
+    # golden valid-keys list includes the [NEW] `provider` key (SPEC-DIVERGE-004);
+    # gate to the Rust port (skips on the Go baseline).
+    requires: [provider]
+    argv: ["config", "get", "aspect"]
+    provider_mock: false
+    exit_code: 1
+    golden: stderr
+
+  - id: config-set-unknown-key
+    spec: [SPEC-CONFIG-003, SPEC-ERR-009, SPEC-CFGSCHEMA-001, SPEC-EXIT-001, SPEC-DIVERGE-004]
+    # golden valid-keys list includes the [NEW] `provider` key (SPEC-DIVERGE-004);
+    # gate to the Rust port (skips on the Go baseline).
+    requires: [provider]
+    argv: ["config", "set", "bogus", "x"]
+    provider_mock: false
+    exit_code: 2
+    golden: stderr

@@ -1,0 +1,24 @@
+# JSON output shapes (SPEC-JSON §8). Single-object vs array; story always-array;
+# doctor envelope. (doctor envelope also covered in doctor.yaml; here it is pinned as a
+# JSON-shape clause too.)
+cases:
+  - id: json-single-object
+    # SPEC-JSON-002: one result -> a single JSON object (not a 1-element array).
+    spec: [SPEC-JSON-001, SPEC-JSON-002]
+    argv: ["generate", "an apple"]
+    gemini_key: smoke-key
+    golden: stdout
+
+  - id: json-array-multi
+    # SPEC-JSON-002: more than one result -> a JSON array.
+    spec: [SPEC-JSON-002]
+    argv: ["generate", "an apple", "-n", "2"]
+    gemini_key: smoke-key
+    golden: stdout
+
+  - id: json-story-always-array
+    # SPEC-JSON-003: story ALWAYS emits an array (PrintJSONMulti), here with 2 frames.
+    spec: [SPEC-JSON-003, SPEC-STORY-006]
+    argv: ["story", "a hero", "--steps", "2"]
+    gemini_key: smoke-key
+    golden: stdout

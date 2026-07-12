@@ -1,0 +1,29 @@
+[
+  {
+    "body": {
+      "contents": [
+        {
+          "parts": [
+            {
+              "text": "Generate a flowchart diagram: auth flow. Visual style: professional. Layout: hierarchical. Level of detail: detailed. Color scheme: accent. Include clear labels and annotations. Professional quality suitable for documentation or presentations"
+            }
+          ],
+          "role": "user"
+        }
+      ],
+      "generationConfig": {
+        "responseModalities": [
+          "TEXT",
+          "IMAGE"
+        ]
+      }
+    },
+    "headers": {
+      "content-type": "application/json",
+      "x-goog-api-key": "smoke-key"
+    },
+    "method": "POST",
+    "path": "/models/gemini-3.1-flash-image:generateContent",
+    "provider": "gemini"
+  }
+]

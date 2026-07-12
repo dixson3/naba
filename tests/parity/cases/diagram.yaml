@@ -1,0 +1,15 @@
+# diagram command group (SPEC-DIAGRAM, §3.6).
+cases:
+  - id: diagram-basic
+    spec: [SPEC-DIAGRAM-001, SPEC-DIAGRAM-003, SPEC-DIAGRAM-004]
+    argv: ["diagram", "auth flow"]
+    gemini_key: smoke-key
+    golden: streams
+    request: {}
+
+  - id: diagram-full
+    spec: [SPEC-DIAGRAM-002, SPEC-DIAGRAM-003, SPEC-DIAGRAM-004]
+    argv: ["diagram", "auth flow", "--type", "sequence", "--style", "technical", "--layout", "vertical", "--complexity", "comprehensive", "--colors", "categorical"]
+    gemini_key: smoke-key
+    golden: stdout
+    request: {}
