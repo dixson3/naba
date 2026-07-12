@@ -31,3 +31,6 @@
 /.yf/
 
 /.worktrees/
+
+# Skill runtime state + local config (yf-plan; Surface Convention §6)
+/.beads/formulas/
