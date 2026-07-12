@@ -13,6 +13,39 @@ build = "build.rs"
 name = "naba"
 path = "src/main.rs"
 
+# naba is a single-package crate; declaring an (empty) [workspace] table makes the package its
+# own workspace root so cargo-dist (which keys off a workspace surface) has a home for
+# [workspace.metadata.dist]. Adding this table is inert for `cargo build`/`cargo test`
+# (SPEC-DIST). See docs/plans/plan-005 Investigation Findings.
+[workspace]
+
+# cargo-dist configuration (SPEC-DIST-001..003). Hand-authored per the cargo-dist schema (as yf
+# did before `dist` was installed); `dist init`/`dist generate` regenerate release.yml from this
+# (Issue A.3, capability-gated). Deliberately NO homebrew `depends_on` — the generated formula
+# declares no runtime dependency. `install-path` overrides cargo-dist's ~/.cargo/bin default so
+# the vendor installer lands in ~/.local/bin and writes ~/.config/naba/naba-receipt.json.
+# `unix-archive = .tar.gz` (not .tar.xz) so `naba self update` extracts with pure-Rust flate2+tar.
+[workspace.metadata.dist]
+cargo-dist-version = "0.32.0"
+ci = "github"
+installers = ["shell", "homebrew"]
+tap = "dixson3/homebrew-tap"
+publish-jobs = ["homebrew"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
+checksum = "sha256"
+install-path = "~/.local/bin"
+unix-archive = ".tar.gz"
+
+# Release build profile cargo-dist builds against: release + thin LTO (SPEC-DIST-001).
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 [dependencies]
 async-trait = "0.1"
 base64 = "0.22"
