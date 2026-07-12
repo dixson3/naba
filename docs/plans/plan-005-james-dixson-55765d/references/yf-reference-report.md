@@ -1,0 +1,150 @@
+# Reference: yoshiko-flow (`yf`) self-update, vendor install, skills embed, preflight
+
+Snapshot of the yoshiko-flow implementation this plan ports from, captured 2026-07-12 from
+`~/workspace/dixson3/yoshiko-flow` (crate `yf` v0.4.0, Cargo workspace with the crate under
+`yf/`). This is the portable record — a cold reader can plan the naba port from this file
+without the yf repo present.
+
+## Dependency choices (yf/Cargo.toml)
+
+`ureq` (sync HTTP, no tokio), `flate2`+`tar` (pure-Rust `.tar.gz`), `sha2`, `self-replace`
+(atomic in-place binary swap), `rust-embed` (embed skills), `serde_json` with
+`preserve_order`. naba is async (tokio + reqwest) so the port reuses reqwest for downloads
+rather than adding ureq.
+
+## 1. Self-update (`yf self update`)
+
+- **Module tree:** `yf/src/cmd/self_cmd/` — `mod.rs` (dispatch), `update.rs` (pipeline),
+  `source.rs` (install-source classification), `receipt.rs` (receipt contract),
+  `update_check.rs` (shared cache), `nag.rs` (upgrade nudge), `archive.rs` (pure-Rust
+  extraction), `install.rs` (from-build), `uninstall.rs`, `fsutil.rs`.
+- **CLI:** `Command::SelfCmd` registered as literal `self` (`#[command(name = "self")]`;
+  variant `SelfCmd` because `Self` is reserved). `SelfCommand` → `Update | Install |
+  Uninstall`. `SelfUpdateArgs`: `--check`, `--force`, `--binary-only`, `--json`.
+- **Version discovery:** NOT the GitHub releases API — reads the cargo-dist
+  `dist-manifest.json` at `{CARGO_PKG_REPOSITORY}/releases/latest/download/dist-manifest.json`.
+  `DistManifest { announcement_tag, artifacts }`; `Artifact { name, kind, target_triples,
+  checksum }`. `select_artifact()` picks `kind == "executable-zip"` whose `target_triples`
+  contains the compile-time `HOST_TRIPLE`, then follows `checksum` to the sidecar. Current
+  version overridable via `YF_VERSION` (test seam).
+- **Install-source classification** (`source.rs`): `Source { Vendor, Homebrew, FromBuild,
+  Unknown }`. `classify()` precedence **Homebrew > FromBuild > Vendor > Unknown**.
+  Path-primary, not receipt-primary: authoritative signal is canonicalized `current_exe()`;
+  the receipt only supplies the vendor prefix. Homebrew = exe path contains a `Cellar`
+  component (or `.linuxbrew`). FromBuild = presence of `yf-from-build.json` marker. Vendor =
+  canonicalized exe `starts_with` canonicalized vendor prefix. `auto_updatable()` =
+  `nag_eligible()` = only `Vendor`.
+- **Pipeline** (`update.rs::run_inner`, network behind a `Fetcher` trait, swap behind a
+  closure): (1) source gate — Homebrew refuses always; non-auto-updatable refuses without
+  `--force`. (2) fetch/parse manifest; compare versions; early-exit up-to-date unless
+  `--force`. (3) `select_artifact()`; `--check` stops here. (4) download archive + `.sha256`
+  sidecar; `parse_sha256_file()` (accepts `"<hex>  <name>"` or bare hex, 64 hex chars);
+  `sha256_hex()`; **bail on mismatch before any swap**. (5) `archive::extract_binary(bytes,
+  "yf", scratch)` pure-Rust flate2+tar, tolerates enclosing `yf-<triple>/yf` dir. (6)
+  `self_replace::self_replace(new_bin)`. (7) PATH-shadow warning. (8) post-update skills
+  refresh unless `--binary-only`.
+- **Refusal guidance** (`refusal_guidance`): Homebrew → "run `brew upgrade yf` instead";
+  FromBuild → "re-run `yf self install --from-build`… or `yf self update --force`"; Unknown →
+  "re-run with `--force`". JSON refusal:
+  `{"command":"self update","status":"refused","source":"homebrew","guidance":"…"}`.
+- **Post-update skills refresh (REQ-YF-SELF-005):** after swap, exec the **swap-destination**
+  binary (captured *before* the swap — `self-replace` moves the old binary aside so
+  `current_exe()` becomes stale) and run `yf skills upgrade --scope user --surface <surface>`
+  once per present surface (`~/.claude`, `~/.agents`). Fail-soft: failure exits non-zero but
+  never rolls back the swap.
+- **Cache invalidation (REQ-YF-SELF-007):** self-update does not clear caches explicitly. The
+  new binary reports a new `crate::VERSION`; preflight's per-skill `yf-version` stamp mismatch
+  (REQ-YF-PRE-008) triggers a full cache reset on next run.
+
+## 2. Vendor install pattern (cargo-dist)
+
+- **cargo-dist config** lives in the **workspace root** `Cargo.toml` `[workspace.metadata.dist]`
+  (not `yf/Cargo.toml`): `cargo-dist-version = "0.32.0"`, `ci = "github"`,
+  `installers = ["shell","homebrew"]`, `tap = "dixson3/homebrew-tap"`,
+  `publish-jobs = ["homebrew"]`, 4-way `targets` (`{aarch64,x86_64}-apple-darwin` +
+  `{aarch64,x86_64}-unknown-linux-gnu`), `checksum = "sha256"`,
+  `install-path = "~/.local/bin"` (overrides cargo-dist default `~/.cargo/bin`),
+  `unix-archive = ".tar.gz"` (flipped from `.tar.xz` so self-update extracts with pure-Rust
+  flate2+tar — no C xz codec). Plus `[profile.dist]` inheriting release + `lto = "thin"`.
+  **Deliberately NO** `[workspace.metadata.dist.dependencies.homebrew]` — generated formula
+  declares NO runtime `depends_on`.
+- **Release workflow** `.github/workflows/release.yml` — autogenerated by `dist`, triggers on
+  `**[0-9]+.[0-9]+.[0-9]+*` tags. Jobs: `plan` → `build-local-artifacts` (matrix) →
+  `build-global-artifacts` → `host` (creates GitHub Release, uploads artifacts incl.
+  `dist-manifest.json`) → `publish-homebrew-formula` (checks out tap via `HOMEBREW_TAP_TOKEN`,
+  commits `.rb`) → `announce`.
+- **Receipt writer:** the cargo-dist-generated `curl|sh` installer writes
+  `~/.config/yf/yf-receipt.json`. yf never writes it — only reads it (and writes its own
+  separate `yf-from-build.json` marker). Receipt schema (cargo-dist's; model only read
+  fields, tolerate unknowns via `#[serde(default)]`): `install_prefix` (load-bearing, e.g.
+  `~/.local/bin`), `install_layout` (`"unspecified"`), `version`, plus `binaries`,
+  `binary_aliases`, `modify_path`, `provider`, and a `source {app_name,name,owner,
+  release_type}` **repo descriptor** — NEVER branch on `source` for install classification.
+  `canonical_install_prefix()`: expand `~/`, `std::fs::canonicalize`. Classifier canonicalizes
+  BOTH exe and prefix before `starts_with`.
+- **yf's own marker** `~/.config/yf/yf-from-build.json`, written only by `yf self install
+  --from-build`: `FromBuildMarker { source: "from-build", version, profile }`. Atomic
+  temp+rename; removed on `self update --force` and `self uninstall`.
+- **Homebrew documented default:** README `## Install` says "Recommended: the Homebrew tap"
+  (`brew install dixson3/tap/yf`, `brew upgrade`). curl|sh vendor block present but
+  HTML-commented-out pending a domain.
+
+## 3. Skills embedding + `yf skills`
+
+- **Embedding** (`yf/src/embed.rs`): `skills/` tree (`#[folder = "../skills"]`) via
+  `rust_embed`, excludes `*.pyc`/`__pycache__`. `skill_names()`, `skill_files(skill)`,
+  `read_file(relpath)`, `all_relpaths()`. Compile-time only — NO `skills embed` subcommand.
+- **Subcommand:** `SkillsCommand = Install | Upgrade | Remove | Status`, shared `SkillsArgs`
+  (positional `names`, `--scope {user,project}`, `--surface {claude,agents}`, `--target`,
+  `--group`, `--strict`, `--force`, `--dry-run`, `--json`). Dest: `--target` wins else
+  `<scope-root>/.<surface>/{skills,rules}/`. Install writes an integrity marker (tree-hash) +
+  regenerates the aggregate `YOSHIKO_FLOW.md` ruleset. **naba already has this whole surface**
+  (`src/skills.rs`, `src/embed.rs`) minus the rules-aggregate (naba's skill is not rule-backed).
+
+## 4. Preflight (`yf preflight <skill> --json`)
+
+- **Module:** `yf/src/preflight.rs` (~2100 lines). CLI `PreflightArgs { skill, json }`. Shared
+  kernel re-implementing the legacy Python per-skill check. Contract doc
+  `docs/yf/preflight-contract.md`.
+- **Evaluation order** (short-circuits top→bottom): (1) `ignore-skill` config → `ignored`.
+  (2) version-stamp cache invalidation (REQ-YF-PRE-008): state file `yf-version` !=
+  `crate::VERSION` → overwrite state, drop cached `prereqs-present`/`scaffold-ensured`.
+  (3) system deps (git/uv/bd, min bd version) → `system_deps_missing`. (4) beads-init →
+  `bd_not_initialized`. (5) rule hash/semver (`check_rule`) — compares sha256 of installed
+  companion rule body against the **embedded** `protocols/manifest.json`. (6) scaffold
+  (gitignore anchor). (7) folds in self-update offer + canonicalization-drift offer on `ok`
+  (instruction strings only — no network, no mutation).
+- **JSON schema** (`Outcome::to_json`): `status`, `missing: []`, `rule: {…}|null`,
+  `scaffold_added: []` (only on ok), `instructions: []`. **status enum:** `ok | ignored |
+  system_deps_missing | bd_not_initialized | rule_missing | rule_drift | rule_deprecated |
+  manifest_schema_unknown | manifest_missing`. `RuleVerdict { outcome, rule, path?, version?,
+  schema_version? }`, outcome ∈ `ok | update_available | drift | deprecated | missing |
+  manifest_schema_unknown | manifest_missing`. Exit non-zero on any status except ok/ignored.
+- **Embedded manifest** shape: `{schema_version, files: { "<RULE>.md": { sha256, version,
+  deprecated, previous_versions: [{sha256, version}, …] } }}`. `check_rule` computes
+  `section_body_sha256` over the installed rule body and maps: == current → ok; matches a
+  `previous_versions[].sha256` → update_available; deprecated → deprecated; else drift.
+- **"Skills up to date with the binary":** two coupled mechanisms — (a) rule-hash axis
+  compares on-disk rules against the manifest embedded in *this* binary; (b) REQ-YF-PRE-008
+  version stamp invalidates cache when the binary version changes.
+- **API/auth:** yf preflight does **NOT** validate any external API keys/auth — only tool
+  presence/version and beads DB init. (naba's port DIVERGES here: naba preflight adds a
+  provider-aware key-present check.)
+
+## Cross-cutting
+
+- **Doctor** (`yf/src/cmd/doctor/`): read-only sweep; `--repair` runs beads_init repair.
+  Checks: version, bd, uv, uv:homebrew-shadow (warn), git, per-skill `skills:<name>` +
+  `rules:<name>`. JSON `{command, ok, warnings, skills_dir, rules_dir, axes:[{axis, ok,
+  required, severity, detail, remediation}]}`. Doctor + preflight share rule-hash machinery
+  and install-source/nag infra. Doctor = whole-env sweep; preflight = single-skill gate.
+- **SPEC IDs:** `REQ-YF-<AREA>-<NNN>`, areas: CLI, EMBED, INSTALL, FLOW, MARK, PRE, DOCTOR,
+  DIST, DIRS, SELF, RENAME, MIGRATE. SPEC sections: §3.7.2 Vendor install & self-update
+  (REQ-YF-SELF-001..007), §3.7 Distribution (REQ-YF-DIST-001..003), §3.7.1 XDG dirs
+  (REQ-YF-DIRS-001), §3.5 Preflight kernel (REQ-YF-PRE-001..010), §3.6 Doctor.
+- **XDG dirs** (`dirs.rs`): `~/.config/yf` (receipt + from-build marker), `~/.cache/yf`
+  (update-check cache), `~/.local/share/yf` (reserved), `~/.local/bin` (binary). Honors
+  `XDG_CONFIG_HOME/XDG_CACHE_HOME/XDG_DATA_HOME/XDG_BIN_HOME`. For naba change: the `APP` leaf
+  (`"yf"`→`"naba"`), receipt basenames, `HOST_TRIPLE` asset prefix, embedded binary name in
+  `extract_binary`, and `CARGO_PKG_REPOSITORY`. Env knobs: `YF_NO_UPDATE_CHECK`, `CI`,
+  `YF_VERSION`.
