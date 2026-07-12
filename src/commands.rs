@@ -88,6 +88,7 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                 SkillsCommand::Status => crate::skills::status(&opts),
             }
         }
+        Commands::SelfCmd(args) => crate::self_cmd::dispatch(args.command, globals).await,
         Commands::Mcp => crate::mcp::serve().await,
     }
 }

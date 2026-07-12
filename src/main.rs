@@ -20,6 +20,7 @@ mod mcp;
 mod output;
 mod prompt;
 mod provider;
+mod self_cmd;
 mod skills;
 mod version;
 
