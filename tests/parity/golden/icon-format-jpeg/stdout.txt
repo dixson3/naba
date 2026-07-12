@@ -1,0 +1,15 @@
+{
+  "path": "<CWD>/icon-256.png",
+  "command": "icon",
+  "prompt": "a rocket",
+  "elapsed_ms": "<ELAPSED_MS>",
+  "params": {
+    "background": "transparent",
+    "corners": "rounded",
+    "format": "jpeg",
+    "size": 256,
+    "style": "modern"
+  },
+  "requested_format": "jpeg",
+  "actual_format": "png"
+}

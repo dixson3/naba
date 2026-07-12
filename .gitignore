@@ -6,12 +6,13 @@
 # Rust build output
 /target/
 
-# Generated images
-naba-generate-*
-naba-edit-*
-naba-restore-*
-naba-story-*
-icon-*
+# Generated images (root-anchored: CWD auto-named outputs, not nested
+# tests/parity/golden/<case> fixtures which share these prefixes)
+/naba-generate-*
+/naba-edit-*
+/naba-restore-*
+/naba-story-*
+/icon-*
 
 
 # Dolt database files (added by bd init)
