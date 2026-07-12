@@ -110,11 +110,24 @@ fn home_dir() -> PathBuf {
         .unwrap_or_default()
 }
 
-/// Config directory: `NABA_CONFIG_DIR` if set, else `<home>/.config/naba` (SPEC-CFGSCHEMA-001).
+/// Config directory (SPEC-CFGSCHEMA-001, SPEC-DIRS-001): `NABA_CONFIG_DIR` >
+/// `$XDG_CONFIG_HOME/naba` > `<home>/.config/naba`.
+///
+/// This is the **single source of truth** for the config dir — `self`/`preflight`
+/// ([`crate::dirs`]) defer to it so they never diverge from `config`. The `XDG_CONFIG_HOME`
+/// fallback was added for SPEC-DIRS so the naba **receipt lookup** matches where the
+/// cargo-dist installer writes it (`${XDG_CONFIG_HOME:-$HOME/.config}/naba/naba-receipt.json`).
+/// `NABA_CONFIG_DIR` is naba-specific and the installer does not honor it — overriding it moves
+/// naba's lookup away from the installer's path (documented in SPEC-DIRS).
 pub fn config_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os(ENV_CONFIG_DIR) {
         if !dir.is_empty() {
             return PathBuf::from(dir);
+        }
+    }
+    if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+        if !xdg.is_empty() {
+            return PathBuf::from(xdg).join("naba");
         }
     }
     home_dir().join(".config").join("naba")
@@ -464,6 +477,43 @@ mod tests {
         let s = Scope::new("path");
         assert_eq!(config_dir(), s.dir);
         assert_eq!(config_path(), s.dir.join("config.yaml"));
+    }
+
+    // SPEC-DIRS-001: config_dir precedence NABA_CONFIG_DIR > $XDG_CONFIG_HOME/naba > ~/.config/naba.
+    #[test]
+    fn config_dir_precedence_naba_then_xdg_then_default() {
+        let _g = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let prev_naba = std::env::var_os(ENV_CONFIG_DIR);
+        let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+        let prev_home = std::env::var_os("HOME");
+
+        // NABA_CONFIG_DIR wins over both XDG and HOME.
+        std::env::set_var(ENV_CONFIG_DIR, "/explicit/naba-cfg");
+        std::env::set_var("XDG_CONFIG_HOME", "/xdg");
+        std::env::set_var("HOME", "/home/tester");
+        assert_eq!(config_dir(), PathBuf::from("/explicit/naba-cfg"));
+
+        // XDG_CONFIG_HOME/naba when NABA_CONFIG_DIR is unset.
+        std::env::remove_var(ENV_CONFIG_DIR);
+        assert_eq!(config_dir(), PathBuf::from("/xdg/naba"));
+
+        // ~/.config/naba when both are unset — matches the cargo-dist installer default.
+        std::env::remove_var("XDG_CONFIG_HOME");
+        assert_eq!(config_dir(), PathBuf::from("/home/tester/.config/naba"));
+
+        // Restore.
+        match prev_naba {
+            Some(v) => std::env::set_var(ENV_CONFIG_DIR, v),
+            None => std::env::remove_var(ENV_CONFIG_DIR),
+        }
+        match prev_xdg {
+            Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+            None => std::env::remove_var("XDG_CONFIG_HOME"),
+        }
+        match prev_home {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
     }
 
     #[test]

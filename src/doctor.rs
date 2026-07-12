@@ -198,7 +198,11 @@ async fn checks(opts: &Opts, globals: &Globals) -> Vec<DoctorCheck> {
 }
 
 /// Effective provider: CLI `--provider` > config `provider` > env-key autodetect.
-fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> String {
+///
+/// `pub(crate)` shared surface: `skills preflight` (Epic C) reuses this and
+/// [`provider_api_key`]/[`provider_key_name`] for its offline auth axis, so the two commands
+/// resolve the provider identically (SPEC-DIRS/SPEC-PREFLIGHT).
+pub(crate) fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> String {
     if let Some(p) = cli_provider.filter(|s| !s.is_empty()) {
         return p.to_string();
     }
@@ -214,8 +218,9 @@ fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> String {
     }
 }
 
-/// The resolved API key for the effective provider.
-fn provider_api_key(provider: &str, cfg: &Config) -> String {
+/// The resolved API key for the effective provider. `pub(crate)` shared surface (see
+/// [`resolve_provider`]).
+pub(crate) fn provider_api_key(provider: &str, cfg: &Config) -> String {
     if provider == provider::select::PROVIDER_OPENROUTER {
         cfg.resolve_openrouter_api_key()
     } else {
@@ -223,8 +228,9 @@ fn provider_api_key(provider: &str, cfg: &Config) -> String {
     }
 }
 
-/// The env-var name doctor reports for a missing provider key.
-fn provider_key_name(provider: &str) -> &'static str {
+/// The env-var name doctor reports for a missing provider key. `pub(crate)` shared surface (see
+/// [`resolve_provider`]).
+pub(crate) fn provider_key_name(provider: &str) -> &'static str {
     if provider == provider::select::PROVIDER_OPENROUTER {
         "OPENROUTER_API_KEY"
     } else {

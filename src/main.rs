@@ -12,6 +12,7 @@
 mod cli;
 mod commands;
 mod config;
+mod dirs;
 mod doctor;
 mod embed;
 mod error;
