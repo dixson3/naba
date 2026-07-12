@@ -22,3 +22,8 @@ icon-*
 # Beads (bd doctor required exclusions)
 .beads-credential-key
 .beads/proxieddb/
+
+# Skill runtime state + local config (yf-plan; Surface Convention §6)
+/.yf/
+
+/.worktrees/
