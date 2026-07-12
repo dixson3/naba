@@ -3,7 +3,7 @@
 **ID:** plan-004-james-dixson-9a7b16
 **Author:** james-dixson
 **Created:** 2026-07-11
-**Status:** reconciling
+**Status:** complete
 **Epic:** naba-mol-4dz
 **Fingerprint:** e1658264d0e6f8edeaab1d00723f0768374b2bee14d03127f2b317b914b3cda5
 **Phase log:**
@@ -17,6 +17,7 @@
 - 2026-07-11 intake: epic naba-mol-4dz poured
 - 2026-07-11 executing: start gate resolved
 - 2026-07-12 reconciling: DAG drained (20/20 issues); merge-back
+- 2026-07-12 complete: plan complete — Rust rewrite + multi-provider merged to main, full suite green, upstream reconciled
 
 ## Objective
 
