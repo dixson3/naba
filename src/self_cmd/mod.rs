@@ -18,8 +18,10 @@ use crate::cli::SelfCommand;
 use crate::commands::Globals;
 use crate::error::AppResult;
 
-// Submodules land per Epic B issue: `source` (B.2), `receipt` (B.3), `archive` (B.4) are
-// declared when their files are added. The three dispatch targets below are scaffolded now.
+// Submodules land per Epic B issue: `receipt` (B.3), `archive` (B.4) are declared when their
+// files are added. The three dispatch targets below are scaffolded now.
+pub mod source;
+
 pub mod install;
 pub mod uninstall;
 pub mod update;
