@@ -14,11 +14,11 @@
 //! (`EmbeddedTreeHash("naba") == 6dfa9939…d1cf`).
 //!
 //! **Issue 5.2 intentionally updated the embedded skill content** (`skills/naba/SKILL.md`,
-//! documenting the multi-provider surface), so the embedded tree now hashes to
-//! `8326d4ea…f58e` (see [`tests::embedded_hash_matches_go_reference`], now a Rust-content
-//! regression pin). Because the shipped skill **content** changed — not just the hashing
-//! algorithm — existing on-disk installs read "outdated" until upgraded: **Issue 5.3 must
-//! run a post-cutover `naba skills upgrade`.** This flips the Issue 4.0 "no forced upgrade
+//! documenting the multi-provider surface), and **plan-005 Issue C.3** updated it again (adding
+//! the `## Preflight` section), so the embedded tree now hashes to `d5b2fdfe…368c8` (see
+//! [`tests::embedded_hash_matches_go_reference`], now a Rust-content regression pin). Because the
+//! shipped skill **content** changed — not just the hashing algorithm — existing on-disk installs
+//! read "outdated" until `naba skills upgrade`. This flips the Issue 4.0 "no forced upgrade
 //! needed" conclusion, which held only while the content was unchanged.
 
 use std::path::Path;
@@ -341,7 +341,11 @@ mod tests {
     /// a content-regression pin, not a Go-parity assertion. Because the shipped content
     /// changed, existing on-disk installs read "outdated" until `naba skills upgrade`
     /// (Issue 5.3 must run a post-cutover upgrade).
-    const NABA_TREE_HASH: &str = "8326d4ea11d46a119588683571f8eb14e8f3faa586929ebd90a80d18cde5f58e";
+    // plan-005 Issue C.3 again updated the embedded content (added the `## Preflight` section
+    // wiring `naba skills preflight --json` at trigger time), re-hashing the tree. On-disk
+    // installs read "outdated" until `naba skills upgrade` — surfaced by the very preflight this
+    // change adds (skills axis).
+    const NABA_TREE_HASH: &str = "d5b2fdfe452b2d803670dd781cbf92375f1600ddac6220831cec6aae7fe368c8";
 
     #[test]
     fn embedded_hash_matches_go_reference() {
