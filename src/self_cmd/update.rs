@@ -295,7 +295,10 @@ pub async fn run_inner<F: Fetcher>(
         )));
     }
 
-    // 7. Extract + 8. swap.
+    // 7. Extract + 8. swap. Capture the swap DESTINATION (the running-binary path, which
+    // self_replace overwrites in place) BEFORE the swap — `self_replace` moves the old image
+    // aside so `current_exe()` can read stale/`(deleted)` afterward (SPEC-SELF-005).
+    let swap_dest = std::env::current_exe().ok();
     let scratch = scratch_dir();
     let new_bin = archive::extract_binary(&archive_bytes, "naba", &scratch)?;
     swap(&new_bin)?;
@@ -306,9 +309,12 @@ pub async fn run_inner<F: Fetcher>(
         let _ = FromBuildMarker::remove();
     }
 
-    // 9. Post-update skills refresh (B.6) unless --binary-only.
+    // 9. Post-update skills refresh (SPEC-SELF-005) unless --binary-only. Fail-soft: a refresh
+    // failure exits non-zero but never rolls back the (already-completed) swap.
     if !args.binary_only {
-        post_update_skills_refresh(globals)?;
+        if let Some(dest) = &swap_dest {
+            post_update_skills_refresh(dest, globals)?;
+        }
     }
 
     let outcome = Outcome {
@@ -325,9 +331,44 @@ pub async fn run_inner<F: Fetcher>(
     Ok(())
 }
 
-/// Post-update skills refresh — implemented in Issue B.6. Scaffold no-op for B.5.
-fn post_update_skills_refresh(_globals: &Globals) -> AppResult<()> {
+/// Post-update skills refresh (SPEC-SELF-005): re-deploy the embedded skills from the freshly
+/// swapped-in binary so the on-disk skill trees match the new version.
+///
+/// `dest` is the swap destination (the new binary's path, captured before the swap). For each
+/// **present** surface under `$HOME` (`.claude`, `.agents`) it execs
+/// `<dest> skills upgrade --scope user --surface <surface>`. Fail-soft: a non-zero child exits
+/// non-zero here, but the swap is never rolled back.
+fn post_update_skills_refresh(dest: &Path, globals: &Globals) -> AppResult<()> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    for surface in present_surfaces(&home) {
+        if !globals.quiet {
+            eprintln!("Refreshing {surface} skills from the updated binary...");
+        }
+        let status = std::process::Command::new(dest)
+            .args(["skills", "upgrade", "--scope", "user", "--surface", surface])
+            .status()
+            .map_err(|e| AppError::general(format!("exec skills upgrade ({surface}): {e}")))?;
+        if !status.success() {
+            return Err(AppError::general(format!(
+                "post-update skills upgrade failed for surface {surface}"
+            )));
+        }
+    }
     Ok(())
+}
+
+/// Surfaces whose root dir exists under `home` (`.claude` → `claude`, `.agents` → `agents`).
+/// Only present surfaces get a post-update refresh (SPEC-SELF-005).
+fn present_surfaces(home: &Path) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    for (dir, surface) in [(".claude", "claude"), (".agents", "agents")] {
+        if home.join(dir).is_dir() {
+            out.push(surface);
+        }
+    }
+    out
 }
 
 /// A unique scratch dir under the system temp for extraction.
@@ -532,8 +573,10 @@ mod tests {
             *captured.lock().unwrap() = Some(std::fs::read(p).unwrap());
             Ok(())
         };
+        // binary_only=true so the post-update skills refresh (a subprocess exec of the swapped
+        // binary) does not run against the test harness binary.
         run_inner(
-            &args(false, false, false),
+            &args(false, false, true),
             &globals(false),
             &f,
             swap,
@@ -591,6 +634,23 @@ mod tests {
         // 0.1.0 is NOT newer; a later release is.
         assert!(!is_newer("0.1.0", "0.1.0-5-gabcdef-dirty"));
         assert!(is_newer("0.2.0", "0.1.0-5-gabcdef-dirty"));
+    }
+
+    #[test]
+    fn present_surfaces_detects_existing_dirs() {
+        let d = std::env::temp_dir().join(format!("naba-surfaces-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join(".claude")).unwrap();
+        // Only .claude exists → only "claude".
+        assert_eq!(present_surfaces(&d), vec!["claude"]);
+        // Add .agents → both, in fixed order.
+        std::fs::create_dir_all(d.join(".agents")).unwrap();
+        assert_eq!(present_surfaces(&d), vec!["claude", "agents"]);
+        // Neither present.
+        let empty = d.join("empty");
+        std::fs::create_dir_all(&empty).unwrap();
+        assert!(present_surfaces(&empty).is_empty());
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
