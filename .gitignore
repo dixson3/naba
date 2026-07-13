@@ -1,3 +1,7 @@
+# venv 
+.venv/
+.envrc 
+
 # Build output
 /naba
 /naba-*
