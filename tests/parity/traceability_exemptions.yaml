@@ -54,3 +54,23 @@ exemptions:
   SPEC-DOCTOR-006: "[DIVERGENCE] provider-aware api_key/api_live/model_reachable checks. doctor.yaml pins doctor envelope shape + status semantics (SPEC-DOCTOR-003/005); the exact provider-named detail strings are intentionally unpinned."
   SPEC-EMBED-004: "[DIVERGENCE] Rust embed hash may differ from Go's (one-time post-cutover `naba skills upgrade`). skills.yaml pins the up-to-date/complete/unmodified flag semantics against a freshly-installed tree, not the hash literal."
   SPEC-VERSION-BUILD-001: "[DIVERGENCE] build.rs version injection replaces Go ldflags. version.yaml + the normalizer (SPEC-JSON-005) pin the output format with Version/Commit/Date normalized; the concrete build values are intentionally unpinned."
+
+  # --- [NEW — plan-005] Rust-only self-update / distribution / XDG / preflight
+  #     clauses (SPEC-DIVERGE-007). No Go counterpart, so they are EXEMPT from the
+  #     Go-captured parity goldens; each is covered by cargo unit tests (and the
+  #     cargo-dist config by `dist plan`/`cargo build` at execution). Live
+  #     end-to-end `self update` is a deferred post-first-release follow-on. ---
+  SPEC-DIST-001: "[NEW/Rust-only] Cargo.toml [workspace]+[profile.dist] inert for build/test — validated by `cargo build`/`cargo test` (they pass with the tables added). Config surface, no runtime behavior."
+  SPEC-DIST-002: "[NEW/Rust-only] [workspace.metadata.dist] config validated by `dist plan` at execution (4 targets .tar.gz+sha256, shell+homebrew installers, no depends_on). Config, not a mock-observable CLI behavior."
+  SPEC-DIST-003: "[NEW/Rust-only] generated .github/workflows/release.yml (tag glob, homebrew publish job, asset names) validated by `dist generate --mode ci` at execution; the live release is a deferred follow-on. Not a black-box CLI behavior."
+  SPEC-DIRS-001: "[NEW/Rust-only] XDG dir + receipt-path precedence. cargo tests src/dirs.rs (cache/data/bin/receipt/update-check precedence) + src/config.rs::config_dir_precedence_naba_then_xdg_then_default."
+  SPEC-SELF-001: "[NEW/Rust-only] from-build install/uninstall + receipt/marker. cargo tests src/self_cmd/install.rs::install_copies_binary_and_writes_marker, uninstall.rs::uninstall_removes_marker_and_optionally_binary, receipt.rs (real-shape receipt fixture + marker round-trip)."
+  SPEC-SELF-002: "[NEW/Rust-only] path-primary source classification precedence. cargo tests src/self_cmd/source.rs (homebrew_wins_over_everything, from_build_wins_over_vendor, vendor/unknown branches, auto_updatable/nag_eligible)."
+  SPEC-SELF-003: "[NEW/Rust-only] source gate + Homebrew-refuse. cargo tests src/self_cmd/update.rs::homebrew_is_refused_even_with_force, from_build_refused_without_force, refused_json_envelope_shape."
+  SPEC-SELF-004: "[NEW/Rust-only] dist-manifest fetch/select/verify/extract/swap behind Fetcher+swap seams. cargo tests src/self_cmd/update.rs (full_update_verifies_and_swaps, checksum_mismatch_bails_before_swap, check_reports_available_without_swapping, version_compare) + archive.rs (extract/sha256/parse_sha256). Live e2e deferred to post-first-release."
+  SPEC-SELF-005: "[NEW/Rust-only] post-update skills refresh present-surface logic. cargo test src/self_cmd/update.rs::present_surfaces_detects_existing_dirs; the subprocess exec is live-verified by the follow-on release bead."
+  SPEC-SELF-006: "[NEW/Rust-only] update-check cache + throttled nag. cargo tests src/self_cmd/update_check.rs (round-trip, staleness, corrupt-as-absent) + nag.rs (should_nag throttle/availability)."
+  SPEC-PREFLIGHT-001: "[NEW/Rust-only] preflight envelope + shared resolution. cargo tests src/preflight.rs (axis + overall_status tests); live envelope shape exercised at execution."
+  SPEC-PREFLIGHT-002: "[NEW/Rust-only] offline auth axis (provider key-present). cargo test src/preflight.rs::auth_axis_key_present_vs_missing (reuses doctor::resolve_provider/provider_api_key)."
+  SPEC-PREFLIGHT-003: "[NEW/Rust-only] skills-up-to-date axis. cargo tests src/preflight.rs::skills_axis_all_good_is_ok / skills_axis_reports_first_failure (over embed::skill_status)."
+  SPEC-PREFLIGHT-004: "[NEW/Rust-only] binary tri-state axis (unknown non-blocking) + overall status/exit codes. cargo tests src/preflight.rs::binary_axis_absent_cache_is_unknown / stale / fresh + overall_ok_when_auth_and_skills_pass_regardless_of_binary + overall_blocks_on_auth_then_skills."

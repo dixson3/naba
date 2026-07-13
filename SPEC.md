@@ -650,7 +650,7 @@ byte-snapshot) test.
   intentional precedence outcome, documented, not a divergence-as-defect.
 - **SPEC-DIVERGE-006** Everything **not** enumerated in §14 is [PINNED]: any observable
   difference outside these zones is a port defect, not a sanctioned divergence.
-- **SPEC-DIVERGE-007** [NEW — plan-005] The `naba self` command group (§17 SPEC-SELF), the
+- **SPEC-DIVERGE-007** The `naba self` command group (§17 SPEC-SELF), the
   cargo-dist distribution (§15 SPEC-DIST), the XDG dirs (§16 SPEC-DIRS), and
   `naba skills preflight` (§18 SPEC-PREFLIGHT) are **Rust-only** additions ported from
   yoshiko-flow. They have **no Go counterpart** and are exempt from the Go-captured parity
