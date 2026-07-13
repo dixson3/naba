@@ -95,8 +95,59 @@ pub enum Commands {
         long_about = "Start a stdio-based Model Context Protocol server that exposes all image generation capabilities as MCP tools for AI assistants."
     )]
     Mcp,
+    /// Update, install, or uninstall the naba binary itself
+    // SPEC-SELF-001: literal subcommand `self`; the variant is `SelfCmd` because `Self` is a
+    // reserved keyword. Update refuses on Homebrew installs (use `brew upgrade naba`).
+    #[command(name = "self")]
+    SelfCmd(SelfArgs),
     /// Show version information
     Version,
+}
+
+// ---- self (SPEC-SELF) ----
+#[derive(Args, Debug)]
+pub struct SelfArgs {
+    #[command(subcommand)]
+    pub command: SelfCommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SelfCommand {
+    /// Update naba in place to the latest published release (vendor installs only)
+    Update(SelfUpdateArgs),
+    /// Install the currently-running build to ~/.local/bin as a from-build install
+    Install(SelfInstallArgs),
+    /// Remove a from-build install marker (does not delete the binary)
+    Uninstall(SelfUninstallArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct SelfUpdateArgs {
+    /// Report whether an update is available without swapping the binary
+    #[arg(long)]
+    pub check: bool,
+
+    /// Update even when the source is not auto-updatable (e.g. from-build/unknown)
+    #[arg(long)]
+    pub force: bool,
+
+    /// Swap the binary only; skip the post-update `naba skills upgrade` refresh
+    #[arg(long = "binary-only")]
+    pub binary_only: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SelfInstallArgs {
+    /// Record this checkout's build as a from-build install (writes the marker)
+    #[arg(long = "from-build")]
+    pub from_build: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SelfUninstallArgs {
+    /// Proceed without interactive confirmation
+    #[arg(long)]
+    pub force: bool,
 }
 
 // ---- generate (SPEC-GEN) ----
@@ -370,4 +421,6 @@ pub enum SkillsCommand {
     Remove,
     /// Report whether installed skills are up-to-date, complete, and unmodified
     Status,
+    /// Fast skill-gate: validate provider key + skills/binary freshness (SPEC-PREFLIGHT)
+    Preflight,
 }

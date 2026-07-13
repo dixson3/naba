@@ -7,19 +7,55 @@ license = "MIT"
 authors = ["James Dixson <james.dixson@beyondidentity.com>"]
 readme = "README.md"
 repository = "https://github.com/dixson3/naba"
+homepage = "https://github.com/dixson3/naba"
 build = "build.rs"
 
 [[bin]]
 name = "naba"
 path = "src/main.rs"
 
+# naba is a single-package crate; declaring an (empty) [workspace] table makes the package its
+# own workspace root so cargo-dist (which keys off a workspace surface) has a home for
+# [workspace.metadata.dist]. Adding this table is inert for `cargo build`/`cargo test`
+# (SPEC-DIST). See docs/plans/plan-005 Investigation Findings.
+[workspace]
+
+# cargo-dist configuration (SPEC-DIST-001..003). Hand-authored per the cargo-dist schema (as yf
+# did before `dist` was installed); `dist init`/`dist generate` regenerate release.yml from this
+# (Issue A.3, capability-gated). Deliberately NO homebrew `depends_on` — the generated formula
+# declares no runtime dependency. `install-path` overrides cargo-dist's ~/.cargo/bin default so
+# the vendor installer lands in ~/.local/bin and writes ~/.config/naba/naba-receipt.json.
+# `unix-archive = .tar.gz` (not .tar.xz) so `naba self update` extracts with pure-Rust flate2+tar.
+[workspace.metadata.dist]
+cargo-dist-version = "0.32.0"
+ci = "github"
+installers = ["shell", "homebrew"]
+tap = "dixson3/homebrew-tap"
+publish-jobs = ["homebrew"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+]
+checksum = "sha256"
+install-path = "~/.local/bin"
+unix-archive = ".tar.gz"
+
+# Release build profile cargo-dist builds against: release + thin LTO (SPEC-DIST-001).
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
 [dependencies]
 async-trait = "0.1"
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 clap = { version = "4", features = ["derive"] }
+flate2 = "1"
 hex = "0.4"
 include_dir = "0.7"
+self-replace = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -27,6 +63,7 @@ sha2 = "0.10"
 # YAML: serde_norway (maintained serde_yaml fork). serde_yml is FORBIDDEN (RUSTSEC-2025-0068,
 # SPEC-MIGRATE-004).
 serde_norway = "0.9"
+tar = "0.4"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 rmcp = { version = "2.2.0", features = ["server", "transport-io"] }
 

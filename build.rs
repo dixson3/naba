@@ -34,9 +34,15 @@ fn main() {
     let commit = git(&["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "none".to_string());
     let date = utc_date();
 
+    // The compile target triple (e.g. aarch64-apple-darwin) — cargo sets $TARGET for build
+    // scripts. `naba self update` matches this against the dist-manifest artifact target_triples
+    // (SPEC-SELF-004). Fallback `unknown` should never occur under cargo.
+    let host_triple = std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string());
+
     println!("cargo:rustc-env=NABA_VERSION={version}");
     println!("cargo:rustc-env=NABA_COMMIT={commit}");
     println!("cargo:rustc-env=NABA_DATE={date}");
+    println!("cargo:rustc-env=NABA_HOST_TRIPLE={host_triple}");
 
     // Re-run when the checked-out commit changes so the injected values stay fresh.
     println!("cargo:rerun-if-changed=.git/HEAD");

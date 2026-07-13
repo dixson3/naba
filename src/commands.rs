@@ -37,6 +37,9 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
     match command {
         Commands::Version => {
             println!("{}", version::version_line());
+            // Throttled, offline upgrade nudge (SPEC-SELF-006); no-op unless a vendor install has
+            // a cached newer release. Honors NABA_NO_UPDATE_CHECK/CI.
+            crate::self_cmd::nag::maybe_nag();
             Ok(())
         }
         Commands::Generate(args) => run_generate(args, globals).await,
@@ -86,8 +89,17 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                 SkillsCommand::Upgrade => crate::skills::run(crate::skills::Mode::Upgrade, &opts),
                 SkillsCommand::Remove => crate::skills::run(crate::skills::Mode::Remove, &opts),
                 SkillsCommand::Status => crate::skills::status(&opts),
+                SkillsCommand::Preflight => {
+                    let pf = crate::preflight::Opts {
+                        scope: opts.scope.clone(),
+                        surface: opts.surface.clone(),
+                        target: opts.target.clone(),
+                    };
+                    crate::preflight::run(&pf, globals)
+                }
             }
         }
+        Commands::SelfCmd(args) => crate::self_cmd::dispatch(args.command, globals).await,
         Commands::Mcp => crate::mcp::serve().await,
     }
 }

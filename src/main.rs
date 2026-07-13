@@ -12,13 +12,16 @@
 mod cli;
 mod commands;
 mod config;
+mod dirs;
 mod doctor;
 mod embed;
 mod error;
 mod mcp;
 mod output;
+mod preflight;
 mod prompt;
 mod provider;
+mod self_cmd;
 mod skills;
 mod version;
 

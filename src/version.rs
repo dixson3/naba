@@ -10,6 +10,9 @@ pub const VERSION: &str = env!("NABA_VERSION");
 pub const COMMIT: &str = env!("NABA_COMMIT");
 /// UTC build time.
 pub const DATE: &str = env!("NABA_DATE");
+/// The compile target triple (e.g. `aarch64-apple-darwin`), set from `$TARGET` in build.rs.
+/// `naba self update` matches this against dist-manifest artifact `target_triples`.
+pub const HOST_TRIPLE: &str = env!("NABA_HOST_TRIPLE");
 
 /// SPEC-VERSION-001 format (with colons) — used by the `version` subcommand.
 pub fn version_line() -> String {

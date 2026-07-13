@@ -27,6 +27,30 @@ One skill for the whole `naba` image toolkit. Invoked as `/naba <subcommand> [ar
 This file is the single source of truth for the router and the shared guidance below;
 each subcommand's unique detail (usage, flags, examples) lives in `commands/<sub>.md`.
 
+## Preflight
+
+At trigger time — **before** dispatching any subcommand — run the fast skill-gate once and
+branch on its `status` (a fast, offline check: provider key present + skills/binary freshness):
+
+```bash
+naba skills preflight --json
+```
+
+- **`status: "ok"`** → proceed to the Router.
+- **`status: "auth_missing"`** → no provider API key is set (`GEMINI_API_KEY` /
+  `OPENROUTER_API_KEY`). Tell the user to set one (env, or `naba config set api_key …`) and
+  **stop** — image generation will fail without it.
+- **`status: "skills_outdated"`** → the installed skill files are stale or missing versus the
+  `naba` binary. Run the remediation from the `axes.skills.detail` (usually
+  `naba skills upgrade`), then retry.
+- The **binary axis** (`axes.binary.status` ∈ `up_to_date | update_available | unknown`) is
+  **informational only** — an `update_available` may be surfaced as a one-line note (run
+  `naba self update`) but never blocks; `unknown` (no/stale update-check cache) is normal on a
+  fresh install and does not block.
+
+The gate exits non-zero on `auth_missing` / `skills_outdated` and zero otherwise, so a
+`naba skills preflight` in a script gates cleanly on its exit code.
+
 ## Router
 
 Parse `$ARGUMENTS`. The **first whitespace-delimited token** is the subcommand; the
