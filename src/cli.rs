@@ -421,4 +421,6 @@ pub enum SkillsCommand {
     Remove,
     /// Report whether installed skills are up-to-date, complete, and unmodified
     Status,
+    /// Fast skill-gate: validate provider key + skills/binary freshness (SPEC-PREFLIGHT)
+    Preflight,
 }

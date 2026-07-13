@@ -89,6 +89,14 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                 SkillsCommand::Upgrade => crate::skills::run(crate::skills::Mode::Upgrade, &opts),
                 SkillsCommand::Remove => crate::skills::run(crate::skills::Mode::Remove, &opts),
                 SkillsCommand::Status => crate::skills::status(&opts),
+                SkillsCommand::Preflight => {
+                    let pf = crate::preflight::Opts {
+                        scope: opts.scope.clone(),
+                        surface: opts.surface.clone(),
+                        target: opts.target.clone(),
+                    };
+                    crate::preflight::run(&pf, globals)
+                }
             }
         }
         Commands::SelfCmd(args) => crate::self_cmd::dispatch(args.command, globals).await,
