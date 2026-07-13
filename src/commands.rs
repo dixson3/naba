@@ -37,6 +37,9 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
     match command {
         Commands::Version => {
             println!("{}", version::version_line());
+            // Throttled, offline upgrade nudge (SPEC-SELF-006); no-op unless a vendor install has
+            // a cached newer release. Honors NABA_NO_UPDATE_CHECK/CI.
+            crate::self_cmd::nag::maybe_nag();
             Ok(())
         }
         Commands::Generate(args) => run_generate(args, globals).await,

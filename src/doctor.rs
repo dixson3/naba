@@ -32,6 +32,9 @@ pub struct Opts {
 /// Entry point: run the checks, then report (human/JSON) and set the exit status.
 pub async fn run(opts: &Opts, globals: &Globals) -> AppResult<()> {
     let checks = checks(opts, globals).await;
+    // Throttled, offline upgrade nudge (SPEC-SELF-006) before the report; no-op unless a vendor
+    // install has a cached newer release. Honors NABA_NO_UPDATE_CHECK/CI.
+    crate::self_cmd::nag::maybe_nag();
     report(&checks, globals.json)
 }
 

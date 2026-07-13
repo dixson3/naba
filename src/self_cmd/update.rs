@@ -113,8 +113,9 @@ fn parse_core(s: &str) -> Option<(u64, u64, u64)> {
 }
 
 /// Whether `latest` is strictly newer than `current`. When `current` is unparseable (e.g. a
-/// `dev`/dirty build) any parseable `latest` counts as newer.
-fn is_newer(latest: &str, current: &str) -> bool {
+/// `dev`/dirty build) any parseable `latest` counts as newer. Shared with `update_check`/`nag`
+/// and the `skills preflight` binary axis (SPEC-PREFLIGHT).
+pub(crate) fn is_newer(latest: &str, current: &str) -> bool {
     match (parse_core(latest), parse_core(current)) {
         (Some(l), Some(c)) => l > c,
         (Some(_), None) => true,

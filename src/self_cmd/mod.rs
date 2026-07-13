@@ -9,6 +9,7 @@
 //! - [`archive`] (B.4) — pure-Rust `.tar.gz` extraction + sha256 helpers.
 //! - [`update`] (B.5/B.6) — the update pipeline (fetch manifest, verify, swap, skills refresh).
 //! - [`install`] / [`uninstall`] (B.7) — from-build install management.
+//! - [`update_check`] / [`nag`] (B.7) — the offline update-check cache + throttled upgrade nag.
 //!
 //! This module is the CLI dispatch surface; the source-gate and Homebrew-refuse policy live in
 //! [`update`]. naba is async (tokio); [`dispatch`] is `async` to match `commands::dispatch`, and
@@ -19,8 +20,10 @@ use crate::commands::Globals;
 use crate::error::AppResult;
 
 pub mod archive;
+pub mod nag;
 pub mod receipt;
 pub mod source;
+pub mod update_check;
 
 pub mod install;
 pub mod uninstall;
