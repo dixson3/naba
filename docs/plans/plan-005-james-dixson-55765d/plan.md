@@ -3,7 +3,8 @@
 **ID:** plan-005-james-dixson-55765d
 **Author:** james-dixson
 **Created:** 2026-07-12
-**Status:** approved
+**Status:** reconciling
+**Epic:** naba-mol-ueh
 **Fingerprint:** ceed9aef45bf34bd15a32c328502929b91b2cc3d203eeb66e49833ac49ba0c04
 **Phase log:**
 - 2026-07-12 scoping: initial scope captured
@@ -12,6 +13,9 @@
 - 2026-07-12 review: plan v2 re-reviewed — red-team APPROVE (pass-2)
 - 2026-07-12 ready-for-approval: ready-check green — last red-team APPROVE (pass-2) + audit pass
 - 2026-07-12 approved: operator approved
+- 2026-07-12 intake: epic naba-mol-ueh poured
+- 2026-07-12 executing: start gate resolved
+- 2026-07-12 reconciling: post-execution reconciliation; DAG drained
 
 ## Objective
 
