@@ -133,7 +133,10 @@ mod tests {
             Some(hex.to_string())
         );
         // bare hex.
-        assert_eq!(parse_sha256_file(&format!("{hex}\n")), Some(hex.to_string()));
+        assert_eq!(
+            parse_sha256_file(&format!("{hex}\n")),
+            Some(hex.to_string())
+        );
         // uppercase normalized to lowercase.
         assert_eq!(
             parse_sha256_file(&hex.to_uppercase()),
@@ -146,7 +149,7 @@ mod tests {
         assert_eq!(parse_sha256_file(""), None);
         assert_eq!(parse_sha256_file("not-a-hash  file"), None);
         assert_eq!(parse_sha256_file("abcd"), None); // too short
-        // 64 chars but not all hex.
+                                                     // 64 chars but not all hex.
         assert_eq!(parse_sha256_file(&"z".repeat(64)), None);
     }
 

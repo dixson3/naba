@@ -177,7 +177,8 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("naba-receipt-test-{}-{name}", std::process::id()));
+        let d =
+            std::env::temp_dir().join(format!("naba-receipt-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -198,7 +199,9 @@ mod tests {
     #[test]
     fn load_missing_receipt_is_none() {
         let d = scratch("missing");
-        assert!(Receipt::load_from(&d.join("naba-receipt.json")).unwrap().is_none());
+        assert!(Receipt::load_from(&d.join("naba-receipt.json"))
+            .unwrap()
+            .is_none());
         let _ = std::fs::remove_dir_all(&d);
     }
 
