@@ -63,6 +63,17 @@ All image commands follow: resolve provider + API key -> enrich prompt -> call p
 | `CI`                 | When set, suppresses the `self` upgrade nag                  |
 | `GEMINI_BASE_URL`    | Override Gemini API base URL (used by tests)                 |
 | `OPENROUTER_BASE_URL`| Override OpenRouter API base URL (used by tests)             |
+| `NABA_HOSTED_ZONE_ID`| Route53 zone id for `web/` provisioning (local `.envrc` + GitHub repo secret; never committed) |
+
+## Secrets & Account-Specific Config
+
+- **Never commit secrets or account-specific references** — API keys, AWS account ids,
+  IAM/profile names, Route53 zone ids, GA measurement ids, ARNs, and similar.
+- Scripts read such values from the **environment** (e.g. `NABA_HOSTED_ZONE_ID`), sourced
+  locally from the gitignored `.envrc` (direnv) and stored canonically as **GitHub repo
+  secrets** (`gh secret set …`). Fail closed when a required value is unset.
+- Generated/captured artifacts that hold ids (e.g. `web/aws-config.mk`,
+  `web/.aws-provision-state.json`) are **gitignored**, never committed.
 
 ## Providers
 
