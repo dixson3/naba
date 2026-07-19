@@ -31,8 +31,16 @@ plan-006 website (2026-07-19):** the `web/` documentation pages (`web-usage`, `w
 `web-install`) were added as `derived` nodes that must follow the fixed Rust capability
 sources, so a feature/capability change in the CLI, self-management, or provider client fans
 out to the site docs (`e-web-usage-commands`, `e-web-config-self`, `e-web-config-model`,
-`e-web-install-methods`). The engine enforces this manifest; it is a silent no-op only while
-`approved: no`.
+`e-web-install-methods`). **Re-approved for the plan-007 multi-provider config + provider
+ecosystem (2026-07-19):** two new fixed sources were added — `mcp-source` (`src/mcp.rs`, the 8
+MCP tools + the `skill://` lazy-loading resources) and `provider-source`
+(`src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs`, the provider registry +
+Bedrock + the nested per-provider config schema) — feeding two new `derived` web pages
+(`web-skills`, `web-mcp`) plus the rewritten config page, via `e-web-config-providers`,
+`e-web-skills-lifecycle`, `e-web-skills-subcommands`, and `e-web-mcp-tools`; and a
+README ↔ web install/config sync edge (`e-readme-web-install`) was added so the project README
+and the site's install/config pages stay in agreement. The engine enforces this manifest; it is
+a silent no-op only while `approved: no`.
 
 ## 1. Artifact Nodes
 
@@ -50,11 +58,15 @@ out to the site docs (`e-web-usage-commands`, `e-web-config-self`, `e-web-config
 | `cli-source` | `src/cli.rs` | source | fixed | required |
 | `self-source` | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | source | fixed | required |
 | `gemini-source` | `src/provider/gemini.rs` (`DEFAULT_MODEL` constant) | source | fixed | required |
+| `mcp-source` | `src/mcp.rs` | source | fixed | required |
+| `provider-source` | `src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs` | source | fixed | required |
 | `ig-configuration` | `docs/specifications/IG/configuration.md` | spec | derived | required |
 | `edd-core` | `docs/specifications/EDD/CORE.md` | spec | derived | required |
 | `web-usage` | `web/content/pages/usage.md` | doc | derived | required |
 | `web-config` | `web/content/pages/config.md` | doc | derived | required |
 | `web-install` | `web/content/pages/install.md` | doc | derived | required |
+| `web-skills` | `web/content/pages/skills.md` | doc | derived | required |
+| `web-mcp` | `web/content/pages/mcp.md` | doc | derived | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -76,7 +88,12 @@ out to the site docs (`e-web-usage-commands`, `e-web-config-self`, `e-web-config
 | `e-web-usage-commands` | `cli-source` | `web-usage` | cross-ref |
 | `e-web-config-self` | `self-source` | `web-config` | cross-ref |
 | `e-web-config-model` | `gemini-source` | `web-config` | contract |
+| `e-web-config-providers` | `provider-source` | `web-config` | cross-ref |
 | `e-web-install-methods` | `self-source` | `web-install` | cross-ref |
+| `e-web-skills-lifecycle` | `cli-source` | `web-skills` | cross-ref |
+| `e-web-skills-subcommands` | `skill-md` | `web-skills` | cross-ref |
+| `e-web-mcp-tools` | `mcp-source` | `web-mcp` | cross-ref |
+| `e-readme-web-install` | `web-install` | `project-readme` | contract |
 
 `e-depends-on-skill` (plan-001) is **deleted**: the composites no longer have sibling skills;
 their dependency is now intra-skill router logic, not a `depends-on-skill` frontmatter edge.
@@ -102,6 +119,11 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-web-config-self` | `field-set-subset` | the `naba self …`, `naba doctor`, and `naba skills …` verbs documented on the config page (`web/content/pages/config.md`) correspond to real clap subcommands in `src/cli.rs` / `src/self_cmd/*.rs`; no config-page verb lacks a real command. `self-source` is the fixed authority. |
 | `e-web-config-model` | `value-equal` | the default Gemini model id and `--quality` tier ids (`fast`→flash, `high`→pro) stated on the config page match the `DEFAULT_MODEL` constant and the quality→model mapping in `src/provider/gemini.rs`. `gemini-source` is the fixed authority. |
 | `e-web-install-methods` | `field-set-subset` | the install methods and the `naba skills install`/`upgrade` + `naba self install --from-build` lifecycle documented on the install page (`web/content/pages/install.md`) correspond to real commands in `src/cli.rs` / `src/self_cmd/*.rs`. `self-source`/`cli-source` are the fixed authority. |
+| `e-web-config-providers` | `field-set-subset` | the provider list, per-provider default models, the uniform api-key resolution precedence, the Bedrock auth modes + region default, the `naba provider`/`naba models` commands, and the nested config-key set (`default-provider`, `<provider>.model`/`.api-key`/`.api-key-envvar`) stated on the config page (`web/content/pages/config.md`) match the provider registry (`src/provider/registry.rs`), the Bedrock provider (`src/provider/bedrock.rs` — `DEFAULT_REGION`, `CURATED_MODELS`, auth modes), and the config schema/env-var constants + `valid_keys` in `src/config.rs`. `provider-source` is the fixed authority. |
+| `e-web-skills-lifecycle` | `field-set-subset` | the `naba skills` verbs (`install`/`upgrade`/`remove`/`status`/`preflight`) and their `--scope`/`--surface`/`--target`/`--dry-run`/`--json` flags documented on the skills page (`web/content/pages/skills.md`) correspond to real clap subcommands + args in `src/cli.rs` (`SkillsCommand`, `SkillsArgs`). `cli-source` is the fixed authority. |
+| `e-web-skills-subcommands` | `field-set-equal` | the `/naba <subcommand>` set on the skills page (`web/content/pages/skills.md`) equals the SKILL.md dispatch table (inline: generate/edit/restore/icon/pattern/diagram/story; composite: storyboard/batch/brand-kit) — no extras or omissions. `skill-md` is the source. |
+| `e-web-mcp-tools` | `field-set-equal` | the 8 MCP tools + their required/optional params, the `skill://<name>` / `skill://<name>/<rel>` / `file://` resource surface, and `NABA_OUTPUT_DIR` resolution documented on the MCP page (`web/content/pages/mcp.md`) equal the tools + schemas + resource handlers in `src/mcp.rs` (`tools()`, `skill_resources`, `read_skill_resource`, `resolve_output_dir`). `mcp-source` is the fixed authority. |
+| `e-readme-web-install` | `field-set-subset` | the project README Install / Setup / Providers / Configuration / MCP sections agree with the site install + config pages (`web/content/pages/install.md`, `config.md`) on the install methods, the nested per-provider config surface, the providers (incl. Bedrock) + api-key resolution, and the MCP pointer. Neither side is `fixed` (both derive from the Rust sources); a mismatch is drift on whichever is stale. |
 
 ## 4. Referencers (orphan check)
 
@@ -116,9 +138,13 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `gemini-source` | the `DEFAULT_MODEL` constant is consumed by `src/commands.rs`, `src/doctor.rs`, and `src/mcp.rs` (client construction) |
 | `ig-configuration` | referenced by AGENTS.md "Specifications" (docs/specifications/IG) and EDD/CORE |
 | `edd-core` | referenced by AGENTS.md "Specifications" (docs/specifications/EDD) |
+| `mcp-source` | `src/mcp.rs` (the 8 MCP tools + `skill://` resource handlers), consumed by the `naba mcp` command (`src/cli.rs`) and referenced by the website MCP page and the project README "MCP Server" section |
+| `provider-source` | `src/provider/registry.rs` / `src/provider/bedrock.rs` / `src/config.rs`, consumed by `src/commands.rs` (`naba provider`/`naba models`), the selector (`src/provider/select.rs`), and referenced by the website config page + README "Providers"/"Configuration" sections and AGENTS.md |
 | `web-usage` | the naba website usage page (`web/content/pages/usage.md`), linked from the site nav and `web/README.md` |
 | `web-config` | the naba website config page (`web/content/pages/config.md`), linked from the site nav and `web/README.md` |
 | `web-install` | the naba website install page (`web/content/pages/install.md`), linked from the site nav and `web/README.md` |
+| `web-skills` | the naba website skills page (`web/content/pages/skills.md`), linked from the site nav (`MENUITEMS`), the home cards, and the install/config pages |
+| `web-mcp` | the naba website MCP page (`web/content/pages/mcp.md`), linked from the site nav (`MENUITEMS`), the home cards, and the config page |
 
 ## 5. Required-Section Contracts
 
@@ -138,32 +164,43 @@ A source-node edit fans out to every derived edge it feeds.
 
 | Changed-Path Glob | Scopes To |
 |:-------------------|:-----------|
-| `skills/naba/SKILL.md` | `e-readme-prereqs`, `e-readme-desc`, `e-installer-skillset`, `e-index-table`, `e-skill-preflight`, `e-skill-spec` |
+| `skills/naba/SKILL.md` | `e-readme-prereqs`, `e-readme-desc`, `e-installer-skillset`, `e-index-table`, `e-skill-preflight`, `e-skill-spec`, `e-web-skills-subcommands` |
 | `skills/naba/commands/*.md` | `e-readme-usage`, `e-index-table`, `e-cli-subcommand`, `e-skill-spec` |
 | `skills/naba/README.md` | `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table` |
 | `src/skills.rs` | `e-installer-skillset` |
-| `README.md` | `e-index-table`, `e-readme-self` |
+| `README.md` | `e-index-table`, `e-readme-self`, `e-readme-web-install` |
 | `docs/specifications/IG/skills.md` | `e-skill-spec` |
-| `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight`, `e-web-usage-commands`, `e-web-install-methods` |
+| `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight`, `e-web-usage-commands`, `e-web-install-methods`, `e-web-skills-lifecycle` |
 | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight`, `e-web-config-self`, `e-web-install-methods` |
 | `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core`, `e-web-config-model` |
+| `src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs` | `e-web-config-providers` |
+| `src/mcp.rs` | `e-web-mcp-tools` |
 | `docs/specifications/IG/configuration.md` | `e-model-ig-config` |
 | `docs/specifications/EDD/CORE.md` | `e-model-edd-core` |
 | `web/content/pages/usage.md` | `e-web-usage-commands` |
-| `web/content/pages/config.md` | `e-web-config-self`, `e-web-config-model` |
-| `web/content/pages/install.md` | `e-web-install-methods` |
+| `web/content/pages/config.md` | `e-web-config-self`, `e-web-config-model`, `e-web-config-providers` |
+| `web/content/pages/install.md` | `e-web-install-methods`, `e-readme-web-install` |
+| `web/content/pages/skills.md` | `e-web-skills-lifecycle`, `e-web-skills-subcommands` |
+| `web/content/pages/mcp.md` | `e-web-mcp-tools` |
 
 ## 7. Fixed-Authority Conflict Policy
 
-Three `fixed` authorities: `cli-source` (`src/cli.rs`), `self-source` (`src/self_cmd/*.rs`,
-`src/preflight.rs`, `src/dirs.rs`), and `gemini-source` (`src/provider/gemini.rs`).
+Five `fixed` authorities: `cli-source` (`src/cli.rs`), `self-source` (`src/self_cmd/*.rs`,
+`src/preflight.rs`, `src/dirs.rs`), `gemini-source` (`src/provider/gemini.rs`), `mcp-source`
+(`src/mcp.rs`), and `provider-source` (`src/provider/registry.rs`, `src/provider/bedrock.rs`,
+`src/config.rs`).
 
 On an `e-cli-subcommand`, `e-skill-preflight`, `e-readme-self`, `e-web-usage-commands`,
-`e-web-config-self`, or `e-web-install-methods` conflict, the Rust source wins: report the
-`commands/*.md` / `SKILL.md` / README / `web/content/pages/*.md` as drifted; never edit the CLI
-to match a doc. **Exception:** if the evidence shows a doc names a verb that genuinely should
-exist but does not (a stale reference on either side), emit a **CONFLICT**, report it to the
-operator, and halt; never silently rewrite either side.
+`e-web-config-self`, `e-web-install-methods`, `e-web-skills-lifecycle`, `e-web-mcp-tools`, or
+`e-web-config-providers` conflict, the Rust source wins: report the `commands/*.md` / `SKILL.md`
+/ README / `web/content/pages/*.md` as drifted; never edit the CLI / MCP / provider source to
+match a doc. **Exception:** if the evidence shows a doc names a verb/tool/provider that genuinely
+should exist but does not (a stale reference on either side), emit a **CONFLICT**, report it to
+the operator, and halt; never silently rewrite either side.
+
+For `e-web-skills-subcommands` and `e-readme-web-install`, neither side is `fixed` (both derive
+from the fixed Rust sources): a mismatch is reported as drift (update whichever is stale) rather
+than a hard CONFLICT.
 
 On an `e-model-ig-config`, `e-model-edd-core`, or `e-web-config-model` conflict, the Rust
 `DEFAULT_MODEL` constant wins: report the doc (`ig-configuration` / `edd-core` /

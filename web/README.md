@@ -11,7 +11,7 @@ web/
 ├── requirements.txt        # pinned Pelican + sitemap + markdown + PyYAML
 ├── Makefile                # devserver / validate / publish / deploy / provision
 ├── content/
-│   ├── pages/              # install, usage, config, 404 (home is the index template)
+│   ├── pages/              # install, usage, config, skills, mcp, 404 (home is the index template)
 │   ├── images/samples/     # dogfooded naba output shown on the usage page
 │   └── extra/              # robots.txt, staged install.sh (site-root files)
 ├── themes/naba-terminal/   # bespoke theme: templates + one hand-authored CSS file

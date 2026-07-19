@@ -1,8 +1,8 @@
 # naba
 
 A standalone CLI (a single Rust binary) for AI image generation with multiple
-providers — **Google Gemini** and **OpenRouter**. Generate, edit, and transform images
-from the command line.
+providers — **Google Gemini**, **OpenRouter**, and **AWS Bedrock**. Generate, edit, and
+transform images from the command line.
 
 **Website:** [naba.ysapp.net](https://naba.ysapp.net) — docs, usage examples with sample
 output, and a one-line bootstrap install.
@@ -87,37 +87,51 @@ silence it.
 Set the API key for whichever provider(s) you use:
 
 ```bash
-export GEMINI_API_KEY=<your-key>        # Google Gemini
-export OPENROUTER_API_KEY=<your-key>    # OpenRouter
+export GEMINI_API_KEY=<your-key>              # Google Gemini
+export OPENROUTER_API_KEY=<your-key>          # OpenRouter
+export AWS_BEARER_TOKEN_BEDROCK=<your-token>  # AWS Bedrock (api-key bearer path)
 ```
 
-You can save the **Gemini** key to config (there is no config key for the OpenRouter key —
-it stays env-only):
+You can also save a key per provider into config (stored inline in `config.yaml`):
 
 ```bash
-naba config set api_key <your-key>
+naba config set gemini.api-key <your-key>
+naba config set openrouter.api-key <your-key>
+naba config set bedrock.api-key <your-token>
 ```
 
-For Gemini, the key precedence is `GEMINI_API_KEY` env > config `api_key`.
+**API-key resolution** is uniform for every provider — highest precedence first: inline
+`providers.<provider>.api-key` > the env var named by `providers.<provider>.api-key-envvar` >
+the provider's conventional env var (`GEMINI_API_KEY` / `OPENROUTER_API_KEY` /
+`AWS_BEARER_TOKEN_BEDROCK`).
 
-See [Providers](#providers) for how naba picks a provider when one or both keys are present.
+See [Providers](#providers) for how naba picks a provider when one or more keys are present.
 
 ## Providers
 
 naba routes every image command (`generate`, `edit`, `restore`, and the composites)
-through one of two providers:
+through one of its registered providers:
 
-| Provider | API key | Default model | Endpoint |
-|:---------|:--------|:--------------|:---------|
+| Provider | Conventional key env var | Default model | Endpoint |
+|:---------|:-------------------------|:--------------|:---------|
 | `gemini` | `GEMINI_API_KEY` | `gemini-3.1-flash-image` | `{base}/models/{model}:generateContent` |
 | `openrouter` | `OPENROUTER_API_KEY` | `google/gemini-3.1-flash-image-preview` | `POST /api/v1/images` |
+| `bedrock` | `AWS_BEARER_TOKEN_BEDROCK` | `amazon.nova-canvas-v1:0` | `POST {base}/model/{modelId}/invoke` |
 
-Select the provider with the global `--provider` flag or the `provider` config key:
+Discover providers and models from the CLI:
+
+```bash
+naba provider                        # list providers + credential status (* marks the default)
+naba provider --json                 # machine-readable {status, data} envelope
+naba models --provider bedrock       # list a provider's models (needs a resolvable key)
+```
+
+Select the provider with the global `--provider` flag or the `default-provider` config key:
 
 ```bash
 naba generate "a red apple" --provider gemini
-naba generate "a red apple" --provider openrouter
-naba config set provider gemini      # pin a default provider
+naba generate "a red apple" --provider bedrock
+naba config set default-provider gemini      # pin a default provider
 ```
 
 ### Provider resolution precedence
@@ -125,25 +139,33 @@ naba config set provider gemini      # pin a default provider
 When you don't pass `--provider`, naba resolves the provider in this order:
 
 1. **CLI** `--provider`
-2. **Config** `provider` key
-3. **Env-key autodetect** — only `GEMINI_API_KEY` set → gemini; only `OPENROUTER_API_KEY`
-   set → openrouter
+2. **Config** `default-provider` key
+3. **Env-key autodetect** — among providers with resolvable credentials, the one **latest** in
+   the registry order (`gemini` → `openrouter` → `bedrock`) wins
 4. **Built-in fallback** — gemini (the missing-key error surfaces at call time)
 
 ### Multi-key reroute (intentional behavior)
 
-If **both** `GEMINI_API_KEY` and `OPENROUTER_API_KEY` are set **and** no `provider` is
-configured (CLI or config), autodetect resolves to **OpenRouter** (with the default slug
-`google/gemini-3.1-flash-image-preview`). This is an intentional precedence outcome, not a
-bug: a user who already had `GEMINI_API_KEY` and later adds `OPENROUTER_API_KEY` is
-rerouted to OpenRouter.
+Autodetect scans the registry order and the **latest** provider with credentials wins. So if
+both `GEMINI_API_KEY` and `OPENROUTER_API_KEY` are set **and** no `default-provider` is
+configured, autodetect resolves to **OpenRouter**; add Bedrock credentials and it reroutes to
+**Bedrock**. This is an intentional precedence outcome, not a bug.
 
-> **To stay on Gemini when both keys are set, pin the provider in config** — config beats
+> **To stay put when several keys are set, pin the provider in config** — config beats
 > autodetect:
 >
 > ```bash
-> naba config set provider gemini
+> naba config set default-provider gemini
 > ```
+
+### AWS Bedrock auth
+
+Bedrock supports **both** an api-key bearer token (`AWS_BEARER_TOKEN_BEDROCK` /
+`bedrock.api-key`, sent as `Authorization: Bearer`) **and** the AWS profile / SigV4 path
+(`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` [+ `AWS_SESSION_TOKEN`], or a named `AWS_PROFILE`
+in `~/.aws/credentials`). naba prefers the bearer token when one resolves, else signs with
+SigV4. The region defaults to `us-east-1` and is read from `AWS_REGION` > `AWS_DEFAULT_REGION` >
+the default.
 
 ### `--model` requires `--provider`
 
@@ -187,10 +209,10 @@ differently:
 - **Gemini** — `--quality` selects a **model tier**: `fast` → `gemini-3.1-flash-image`,
   `high` → `gemini-3-pro-image`. Any other value is a usage error. An explicit `--model`
   overrides `--quality`.
-- **OpenRouter** — `--quality` is passed through as the **native `quality` request
-  parameter** on `POST /api/v1/images`; it does **not** swap the model. The OpenRouter model
-  slug is chosen independently (`--model` / config `model` / the default slug). So
-  `--provider openrouter --quality high` keeps the resolved slug and sends `quality: high`.
+- **OpenRouter / Bedrock** — `--quality` is passed through as a **native request parameter**;
+  it does **not** swap the model. The model is chosen independently (`--model` / config
+  `<provider>.model` / the default). So `--provider openrouter --quality high` keeps the
+  resolved slug and sends `quality: high`.
 
 `openrouter/auto` (and bare `auto`) is a text-only router and **cannot** generate images —
 naba rejects it early with a usage error.
@@ -259,31 +281,54 @@ naba diagram "database schema for blog" --type database --style clean
 
 ### Configuration
 
+The config is **nested and per-provider**: a `default_provider`, a `providers` map (each entry
+`{model, api-key?, api-key-envvar?}`), and top-level image defaults.
+
 ```bash
-naba config set api_key <key>
-naba config set provider gemini              # default provider (gemini or openrouter)
-naba config set model gemini-3-pro-image    # or use: naba config set quality high
-naba config set aspect 16:9                  # default imageConfig aspect ratio
-naba config set resolution 2K                # default imageConfig resolution
-naba config get model
+naba config set default-provider gemini          # default provider (gemini, openrouter, bedrock)
+naba config set gemini.api-key <key>              # a provider's inline api-key
+naba config set gemini.model gemini-3-pro-image   # a provider's default model (or: config set quality high)
+naba config set gemini.api-key-envvar MY_KEY      # a provider's custom key env var
+naba config set aspect 16:9                       # default imageConfig aspect ratio
+naba config set resolution 2K                     # default imageConfig resolution
+naba config get gemini.model
+naba config get gemini.model --json               # machine-readable envelope
 ```
 
-Config keys: `api_key`, `model`, `provider`, `default_output_dir`, `aspect`, `resolution`,
-`quality`. Per-call flags override config; within config, `model` beats `quality`, and
-`provider` beats env-key autodetect (see [Providers](#providers)). The `api_key` config key
-holds the **Gemini** key only; the OpenRouter key is env-only (`OPENROUTER_API_KEY`).
+Config keys: `default-provider`, `<provider>.model`, `<provider>.api-key`,
+`<provider>.api-key-envvar` (provider ∈ `gemini`, `openrouter`, `bedrock`),
+`default_output_dir`, `aspect`, `resolution`, `quality`. Per-call flags override config; within
+config, a provider's `model` beats `quality`, and `default-provider` beats env-key autodetect
+(see [Providers](#providers)). The legacy flat keys `api_key` (→ `gemini.api-key`), `model`
+(→ the default provider's model), and `provider` (→ `default-provider`) are still accepted as
+aliases.
 
-**Config auto-migration.** The `provider` key is additive-optional, so the schema change is
-**zero-rewrite by default**: absent keys resolve to defaults on read and your hand-edited
-`config.yaml` (comments included) is left untouched. A file rewrite happens **only** if a
-genuine structural migration is ever required; when it does, naba writes a `.bak` backup
-first, is idempotent, and is graceful on empty/missing/malformed inputs. A structural
-rewrite is a serde round-trip and would drop YAML comments — mitigated by the `.bak` backup
-and the zero-rewrite default.
+A full `config.yaml`:
+
+```yaml
+default_provider: gemini
+providers:
+  gemini:
+    model: gemini-3-pro-image
+    api-key: <inline-key>
+  openrouter:
+    api-key-envvar: MY_OR_KEY
+  bedrock:
+    model: amazon.nova-canvas-v1:0
+aspect: "16:9"
+resolution: 2K
+```
+
+**Config auto-migration.** An old **flat** config (top-level `api_key` / `model` / `provider`)
+is auto-migrated to the nested schema on first load: naba writes a `config.yaml.bak` backup
+with the original bytes first, then rewrites the document (`api_key` → `providers.gemini.api-key`,
+`model` → the default provider's block, `provider` → `default_provider`). It is idempotent and
+graceful on empty/missing/malformed inputs; a structural rewrite drops YAML comments (mitigated
+by the `.bak` backup).
 
 ### MCP Server
 
-`naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 7 image generation tools to AI assistants like Claude Desktop and Cursor.
+`naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 8 image tools to AI assistants like Claude Desktop and Cursor, plus the embedded skill tree as lazily-loaded `skill://` resources.
 
 **Claude Desktop configuration** — add to your `claude_desktop_config.json`:
 
@@ -296,6 +341,7 @@ and the zero-rewrite default.
       "env": {
         "GEMINI_API_KEY": "<your-key>",
         "OPENROUTER_API_KEY": "<your-key>",
+        "AWS_BEARER_TOKEN_BEDROCK": "<your-token>",
         "NABA_OUTPUT_DIR": "/path/to/output"
       }
     }
@@ -322,6 +368,11 @@ The generative tools accept `aspect`, `resolution`, and `quality` params (matchi
 CLI); `generate_icon` accepts `quality`. With `count`/`steps`/`sizes` > 1 the same
 `imageConfig` applies to every image in the call.
 
+**Skills as resources (lazy loading).** `resources/list` enumerates the embedded skill tree
+cheaply as `skill://naba/<rel>` URIs (paths only — no bodies), plus a compact `skill://naba`
+index; `resources/read` serves a file's content on demand (`skill://naba/<rel>`) or the
+generated index (`skill://naba`). See the website [MCP page](https://naba.ysapp.net/mcp/).
+
 **Manual test** — verify the server responds to the MCP initialize handshake:
 
 ```bash
@@ -338,7 +389,7 @@ plugin and no separate installer script.
 
 > **Prerequisite:** the skill shells out to the `naba` CLI, so the **`naba` binary must be
 > installed and on PATH** (see [Install](#install)) and a provider API key set —
-> `GEMINI_API_KEY` and/or `OPENROUTER_API_KEY` (see [Setup](#setup) and
+> `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, and/or `AWS_BEARER_TOKEN_BEDROCK` (see [Setup](#setup) and
 > [Providers](#providers)). `naba skills install` always writes the skill files; the skill is
 > inert until the binary is on PATH.
 
@@ -452,7 +503,7 @@ live once in `skills/naba/SKILL.md`.
 | `-o, --output` | Output file path |
 | `-q, --quiet` | Suppress progress output |
 | `-m, --model` | Override the model (requires `--provider` on the CLI) |
-| `--provider` | Provider: `gemini` or `openrouter` (see [Providers](#providers)) |
+| `--provider` | Provider: `gemini`, `openrouter`, or `bedrock` (see [Providers](#providers)) |
 | `--no-input` | Disable interactive prompts |
 
 The generative commands also accept `--aspect`, `--resolution` (imageConfig), and
