@@ -90,18 +90,25 @@ cases:
     golden: none
     request: {}
 
-  # --- API-key precedence: GEMINI_API_KEY env > config api_key (SPEC-CFGSCHEMA-003) -
-  - id: prec-apikey-env-over-config
+  # --- API-key precedence: inline api-key > custom envvar > conventional env (SPEC-CFGSCHEMA-003)
+  # Epic 1 nested-schema change: the resolver is now inline `<provider>.api-key` > custom
+  # `api-key-envvar` > the conventional env var. An inline config key therefore BEATS
+  # `GEMINI_API_KEY` -- a deliberate reversal of the OLD flat env-over-config behavior. This case
+  # also exercises the flat->nested auto-migration (the flat `api_key` migrates to
+  # `providers.gemini.api-key` on load). Gated to the Rust port (nested config).
+  - id: prec-apikey-inline-over-env
     spec: [SPEC-CFGSCHEMA-003]
     argv: ["generate", "an apple"]
-    gemini_key: env-key-wins
+    gemini_key: env-key-loses
+    requires: [provider]
     config:
-      api_key: config-key-loses
+      api_key: inline-key-wins
     golden: none
     request: {}
 
   - id: prec-apikey-config-fallback
-    # No env key -> the config api_key is used (header carries it).
+    # No env key -> the inline config api-key is used (header carries it). Under the new
+    # precedence the inline key is highest, so this still holds.
     spec: [SPEC-CFGSCHEMA-003]
     argv: ["generate", "an apple"]
     config:

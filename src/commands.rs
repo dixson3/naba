@@ -54,15 +54,21 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
             // unset key → exit 1 `key %q is not set`; else print the value.
             ConfigCommand::Get { key } => {
                 let value = config::get_value(&key)?;
-                println!("{value}");
+                if globals.json {
+                    output::print_config_json(&key, &value);
+                } else {
+                    println!("{value}");
+                }
                 Ok(())
             }
             // SPEC-CONFIG-003 / SPEC-ERR-009: set load error → exit 1 `load config: %v`;
             // unknown key → exit 2 `unknown key %q`; save error → exit 10 `save config: %v`;
-            // success (unless --quiet) → `Set %s = %s`.
+            // success → `Set %s = %s` (human) or a JSON envelope (--json, Issue 1.4).
             ConfigCommand::Set { key, value } => {
                 config::set_value(&key, &value)?;
-                if !globals.quiet {
+                if globals.json {
+                    output::print_config_json(&key, &value);
+                } else if !globals.quiet {
                     println!("Set {key} = {value}");
                 }
                 Ok(())
@@ -131,8 +137,8 @@ fn resolve_selection_for(globals: &Globals, quality: &str) -> AppResult<(Selecti
     // Feed the selector the *resolved* keys so config `api_key` (gemini) counts for autodetect
     // and the resolved key rides onto the Selection (SPEC-CFGSCHEMA-003 env > config).
     let env_keys = EnvKeys {
-        gemini: opt(cfg.resolve_api_key()),
-        openrouter: opt(cfg.resolve_openrouter_api_key()),
+        gemini: opt(cfg.resolve_api_key_for("gemini")),
+        openrouter: opt(cfg.resolve_api_key_for("openrouter")),
     };
 
     // SPEC-ERR-016 / SPEC-PROVIDER-007: a CLI `--model` without a CLI `--provider` is a usage

@@ -82,7 +82,7 @@ pub enum Commands {
     // resolved at runtime (NABA_CONFIG_DIR else ~/.config/naba); help prose is [DIVERGENCE], so the
     // static long_about states the resolution rule rather than a baked absolute path.
     #[command(
-        long_about = "Manage naba configuration.\n\nConfig file: $NABA_CONFIG_DIR/config.yaml (default ~/.config/naba/config.yaml)\nValid keys: api_key, model, provider, default_output_dir, aspect, resolution, quality"
+        long_about = "Manage naba configuration.\n\nConfig file: $NABA_CONFIG_DIR/config.yaml (default ~/.config/naba/config.yaml)\nValid keys: default-provider, <provider>.model, <provider>.api-key, <provider>.api-key-envvar (provider: gemini, openrouter), default_output_dir, aspect, resolution, quality"
     )]
     Config(ConfigArgs),
     /// Check naba's environment health (skills, API key, model, config)

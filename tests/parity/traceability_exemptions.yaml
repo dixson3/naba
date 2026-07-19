@@ -23,7 +23,7 @@ exemptions:
   #     rewording); the suite pins flag inventory / enum membership, not full help
   #     snapshots. These clauses are string-for-string help prose only. ---
   SPEC-INV-003: "Root Use/Short/Long help prose; Long is [DIVERGENCE] (multi-provider reword). Help snapshots are out of parity scope per SPEC-DIVERGE-001; command inventory is pinned by inventory.yaml/mcp.yaml (SPEC-INV-001)."
-  SPEC-CONFIG-001: "config parent Short/Long help prose; the valid-keys list is [DIVERGENCE] (gains `provider`). Prose is not snapshotted (SPEC-DIVERGE-001); the key set is pinned via config.yaml cases (SPEC-CFGSCHEMA-001)."
+  SPEC-CONFIG-001: "config parent Short/Long help prose; the valid-keys list is [DIVERGENCE] (nested dotted keys: default-provider, <provider>.model/api-key/api-key-envvar, image defaults). Prose is not snapshotted (SPEC-DIVERGE-001); the key set is pinned via config.yaml / exit_codes.yaml cases (SPEC-CFGSCHEMA-001, SPEC-ERR-008/009)."
   SPEC-GLOBAL-002: "[NEW] --provider global flag. Its help string is [DIVERGENCE]; the flag's behavior is exercised throughout precedence.yaml / generate.yaml (`--provider gemini|openrouter`) and select.rs cargo tests. Only the help-inventory line is unpinned."
 
   # --- MCP-only output-dir precedence, exercised by test_mcp.py (images asserted
@@ -31,12 +31,12 @@ exemptions:
   SPEC-CFGSCHEMA-004: "Output-dir precedence (NABA_OUTPUT_DIR > config > XDG) is MCP-side; test_mcp.py sets NABA_OUTPUT_DIR and asserts images/list_images resolve under it. The CLI-vs-MCP asymmetry (SPEC-CFGSCHEMA-005) is pinned by generate.yaml."
 
   # --- Config-migration clauses: Rust-only machinery (no Go counterpart), covered
-  #     by cargo unit tests in src/config.rs (migrate-byte-identical, migrate-
-  #     comments, migrate-structural + .bak). Not observable via the black-box CLI
-  #     surface (zero-rewrite default = no observable behavior). ---
-  SPEC-MIGRATE-001: "[NEW] additive-optional schema / zero-rewrite default. cargo test config::tests::migrate-byte-identical (bytes + comments unchanged, no .bak)."
-  SPEC-MIGRATE-002: "[NEW] .bak-backed idempotent structural rewrite. cargo test config::tests::migrate-structural."
-  SPEC-MIGRATE-003: "[NEW/ACCEPTED] structural rewrite loses YAML comments. cargo test config::tests::migrate-comments documents the accepted loss + .bak mitigation."
+  #     by cargo unit tests in src/config.rs. The flat->nested rewrite is on-disk
+  #     state, not a black-box stdout/stderr surface, so it is unit-tested not
+  #     golden-pinned (the resolved effect flows through the precedence.yaml cases). ---
+  SPEC-MIGRATE-001: "[NEW] flat->nested structural migration + per-key mapping. cargo tests config::tests::flat_config_migrates_backs_up_and_is_idempotent, migrate_openrouter_default_with_stray_gemini_api_key, migrate_flat_model_without_provider_targets_gemini, image_defaults_only_config_not_migrated, load_migrates_flat_and_resolves_nested."
+  SPEC-MIGRATE-002: "[NEW] .bak-backed idempotent structural rewrite, graceful on edge inputs. cargo tests config::tests::flat_config_migrates_backs_up_and_is_idempotent (.bak = original bytes, idempotent) + migration_is_graceful_on_edge_inputs (missing/empty/malformed/already-nested)."
+  SPEC-MIGRATE-003: "[NEW/ACCEPTED] structural rewrite loses YAML comments. cargo test config::tests::flat_config_migrates_backs_up_and_is_idempotent asserts comment loss + the .bak mitigation."
   SPEC-MIGRATE-004: "[NEW] serde_norway required, serde_yml forbidden (RUSTSEC-2025-0068). Enforced at the Cargo.toml dependency level (compile-time), not a runtime behavior."
 
   # --- Provider-layer [NEW] clauses covered by cargo unit tests (src/provider). ---

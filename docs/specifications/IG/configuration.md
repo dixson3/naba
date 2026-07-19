@@ -16,41 +16,67 @@ Configuration in naba follows a layered resolution model: environment variables 
 
 ### Config File Format
 
+The schema is **nested per-provider**: a top-level `default_provider`, a `providers` map keyed
+by provider name (each entry `{ model, api-key, api-key-envvar }`), plus the top-level image
+defaults.
+
 ```yaml
-api_key: "your-gemini-api-key"
-model: "gemini-3.1-flash-image"
+default_provider: gemini
+providers:
+  gemini:
+    model: gemini-3.1-flash-image
+    api-key: your-gemini-api-key       # inline (optional; env var also works)
+  openrouter:
+    model: google/gemini-3.1-flash-image-preview
+    api-key-envvar: MY_OPENROUTER_KEY  # read the key from a custom env var
 default_output_dir: "~/images"
 aspect: "16:9"
 resolution: "2K"
 quality: "high"
 ```
 
+An **old flat** config (`api_key` / `model` / `provider` at the top level) is **auto-migrated**
+to this nested shape on load: the original is backed up to `config.yaml.bak` first, then the file
+is rewritten (comments are lost — see the `.bak` backup). Migration is idempotent.
+
 ### Valid Keys
 
-Defined in `internal/config/config.go` `ValidKeys()`: `api_key`, `model`,
-`default_output_dir`, `aspect`, `resolution`, `quality`.
+`config get`/`config set` accept dotted addressing:
 
-- `aspect` / `resolution` are imageConfig defaults (see
-  [image-generation.md](image-generation.md) for valid values).
-- `quality` is a model alias (`fast` → `gemini-3.1-flash-image`, `high` →
-  `gemini-3-pro-image`).
+- `default-provider`
+- `<provider>.model`, `<provider>.api-key`, `<provider>.api-key-envvar` — provider ∈ `gemini`,
+  `openrouter`
+- `default_output_dir`, `aspect`, `resolution`, `quality`
+
+`aspect` / `resolution` are imageConfig defaults (see
+[image-generation.md](image-generation.md) for valid values); `quality` is a model alias
+(`fast` → flash, `high` → pro). The legacy flat keys `api_key`, `model`, `provider` still work
+as aliases (`api_key` → `gemini.api-key`, `model` → the default provider's model, `provider` →
+`default-provider`) for backward compatibility.
+
+`config get` / `config set` accept `--json` and emit a `{status, key, value}` envelope; a piped
+(non-TTY) invocation auto-enables it (SPEC-GLOBAL-003).
 
 ### Auth Resolution Order
 
-1. `GEMINI_API_KEY` environment variable
-2. `api_key` from config file
-3. Empty string (triggers ExitAuth error in commands)
+Uniform across every provider (highest first):
+
+1. Inline `providers.<provider>.api-key` in the config file
+2. The env var **named by** `providers.<provider>.api-key-envvar`
+3. The provider's conventional default env var (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`)
+4. Empty string (triggers ExitAuth error in commands)
+
+Note this is inline-first: an inline config `api-key` beats the conventional env var.
 
 ### Model Resolution Order
 
-Precedence (highest first):
+Each provider designates its own default model; an absent `providers.<name>.model` resolves to
+that provider's compiled-in default, so no provider is ever model-less. Precedence
+(highest first):
 
-1. `--model / -m` flag
-2. `--quality` flag (`fast`/`high` alias → model id)
-3. `model` from config file
-4. `quality` from config file (intra-config tiebreak: config `model` beats config `quality`)
-5. Built-in `DefaultModel` constant in `internal/gemini/client.go`: `gemini-3.1-flash-image`
-
-Explicit flags are detected with cobra `Changed()` (not empty-string sentinels). The prior
-default `gemini-2.0-flash-exp-image-generation` was retired upstream (2025-11-14); the
-built-in default is now the current GA model so a fresh install with no config works.
+1. `--model / -m` flag (requires `--provider` on the CLI)
+2. `--quality` flag (`fast`/`high` alias → model id, Gemini)
+3. `providers.<default_provider>.model` from config
+4. `quality` from config (tier alias)
+5. The selected provider's built-in default model (e.g. gemini `gemini-3.1-flash-image`,
+   openrouter `google/gemini-3.1-flash-image-preview`)

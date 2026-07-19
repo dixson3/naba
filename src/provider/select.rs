@@ -111,11 +111,13 @@ pub struct EnvKeys {
 }
 
 impl EnvKeys {
-    /// Read `GEMINI_API_KEY` / `OPENROUTER_API_KEY` from the process environment.
+    /// Read the providers' conventional key env vars from the process environment. The names
+    /// are centralized in [`crate::config`] (SPEC-CFGSCHEMA-003) so config and the selector
+    /// never diverge — no literal `GEMINI_API_KEY`/`OPENROUTER_API_KEY` strings live here.
     pub fn from_env() -> Self {
         Self {
-            gemini: std::env::var("GEMINI_API_KEY").ok(),
-            openrouter: std::env::var("OPENROUTER_API_KEY").ok(),
+            gemini: std::env::var(crate::config::ENV_API_KEY).ok(),
+            openrouter: std::env::var(crate::config::ENV_OPENROUTER_API_KEY).ok(),
         }
     }
 

@@ -448,8 +448,8 @@ fn resolve_selection_mcp(quality: &str) -> Result<(Selection, Config), String> {
     let cfg = Config::load().unwrap_or_default();
     let cfg_defaults = cfg.to_config_defaults().map_err(|e| e.message)?;
     let env_keys = EnvKeys {
-        gemini: opt(cfg.resolve_api_key()),
-        openrouter: opt(cfg.resolve_openrouter_api_key()),
+        gemini: opt(cfg.resolve_api_key_for("gemini")),
+        openrouter: opt(cfg.resolve_api_key_for("openrouter")),
     };
     let inputs = SelectionInputs {
         provider: None,

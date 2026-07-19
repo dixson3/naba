@@ -176,6 +176,42 @@ impl DoctorEnvelope {
 }
 
 // ---------------------------------------------------------------------------
+// config get/set --json envelope (Issue 1.4)
+// ---------------------------------------------------------------------------
+
+/// The `config get`/`config set` JSON envelope (Issue 1.4). PROVISIONAL: the universal envelope
+/// contract is finalized by Issue 2.4; this uses a `status`/key/value shape consistent with the
+/// other envelopes so 2.4 can normalize it without rework. Serialized 2-space-indented.
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigEnvelope {
+    /// `"ok"` on success (the only status this success-path envelope emits; errors surface as
+    /// exit codes + stderr, per the pre-2.4 convention).
+    pub status: String,
+    pub key: String,
+    pub value: String,
+}
+
+impl ConfigEnvelope {
+    pub fn ok(key: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            status: "ok".to_string(),
+            key: key.into(),
+            value: value.into(),
+        }
+    }
+
+    /// Serialize as 2-space-indented JSON.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).expect("ConfigEnvelope serializes")
+    }
+}
+
+/// Print the `config get`/`config set` JSON envelope to stdout.
+pub fn print_config_json(key: &str, value: &str) {
+    println!("{}", ConfigEnvelope::ok(key, value).to_json());
+}
+
+// ---------------------------------------------------------------------------
 // File writing + extension reconciliation (SPEC §3 file writing)
 // ---------------------------------------------------------------------------
 

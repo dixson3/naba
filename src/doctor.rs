@@ -209,12 +209,16 @@ pub(crate) fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> Stri
     if let Some(p) = cli_provider.filter(|s| !s.is_empty()) {
         return p.to_string();
     }
-    if !cfg.provider.is_empty() {
-        return cfg.provider.clone();
+    if !cfg.default_provider.is_empty() {
+        return cfg.default_provider.clone();
     }
     // Autodetect from resolved key presence (matches select::autodetect).
-    let gemini = !cfg.resolve_api_key().is_empty();
-    let openrouter = !cfg.resolve_openrouter_api_key().is_empty();
+    let gemini = !cfg
+        .resolve_api_key_for(provider::select::PROVIDER_GEMINI)
+        .is_empty();
+    let openrouter = !cfg
+        .resolve_api_key_for(provider::select::PROVIDER_OPENROUTER)
+        .is_empty();
     match (gemini, openrouter) {
         (_, true) => provider::select::PROVIDER_OPENROUTER.to_string(),
         _ => provider::select::PROVIDER_GEMINI.to_string(),
@@ -224,11 +228,7 @@ pub(crate) fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> Stri
 /// The resolved API key for the effective provider. `pub(crate)` shared surface (see
 /// [`resolve_provider`]).
 pub(crate) fn provider_api_key(provider: &str, cfg: &Config) -> String {
-    if provider == provider::select::PROVIDER_OPENROUTER {
-        cfg.resolve_openrouter_api_key()
-    } else {
-        cfg.resolve_api_key()
-    }
+    cfg.resolve_api_key_for(provider)
 }
 
 /// The env-var name doctor reports for a missing provider key. `pub(crate)` shared surface (see
