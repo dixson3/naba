@@ -68,6 +68,20 @@ make deploy           # s3_upload (site) + sync_installer (install.sh, short TTL
   headers), then invalidate `/install.sh`.
 - `make invalidate` — invalidate the mutable paths on demand.
 
+## Analytics (GA4)
+
+Google Analytics is rendered **production-only** (via `publishconf.py`), so local
+`make devserver` and PR builds never load it. The GA4 **measurement id** is account-specific
+and is **never committed** — it is read from the environment:
+
+```bash
+export NABA_GA_MEASUREMENT_ID=G-XXXXXXXXXX   # local: repo .envrc (gitignored)
+```
+
+The canonical value lives as the GitHub repo secret `NABA_GA_MEASUREMENT_ID`. When the env var
+is unset, the theme renders **no** gtag snippet (fail-safe). The GA stream id / property id are
+GA-side account metadata and are **not** needed by the page tag.
+
 ## The GH-canonical vs site-bootstrap boundary
 
 **GitHub Releases is canonical for every naba binary and for self-update.** This site hosts
