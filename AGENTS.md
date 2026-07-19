@@ -6,12 +6,16 @@ agent guidance.
 
 ## Build & Test
 
+naba is a single **Rust** binary (the legacy Go source was retired post-cutover).
+
 ```bash
-go build ./...              # build all packages
-go test ./... -count=1      # run all tests
-go test ./internal/cli/...  # test CLI commands only
-go run ./cmd/naba generate "a red apple"  # run locally
-make build                  # build with version ldflags
+cargo build --release                       # build the shipped binary (target/release/naba)
+cargo test                                  # run all tests
+cargo clippy --all-targets -- -D warnings   # lint
+cargo fmt --check                           # format check
+cargo run -- generate "a red apple"         # run locally
+make build                                  # build + copy to ./naba
+make parity                                 # parity suite against the Rust binary
 ```
 
 ## Architecture

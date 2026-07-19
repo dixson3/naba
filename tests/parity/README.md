@@ -16,9 +16,8 @@ The harness is a `uv`-managed Python project pinned by `pyproject.toml`. `uv` cr
 venv on first run.
 
 ```bash
-# Build the binaries the suite runs against (plan-004 cutover):
+# Build the shipped Rust binary the suite runs against:
 make build                       # from the repo root -> ./naba (RUST, shipped)
-make build-go                    # -> ./naba-go (Go parity baseline)
 
 # Run the whole suite (from this directory):
 cd tests/parity
@@ -27,26 +26,21 @@ uv run pytest -x
 # ...or from the repo root, pointing uv at this project:
 uv run --project tests/parity pytest tests/parity -x
 
-# ...or via the Makefile helpers (build + run against each target):
-make parity                      # Rust binary
-make parity-go                   # Go baseline
+# ...or via the Makefile helper (build + run against the Rust binary):
+make parity
 ```
 
 Smoke-test-only run: `uv run pytest test_harness.py -x`.
 
-## Selecting Go vs Rust: `$NABA_BIN`
+## Selecting the binary: `$NABA_BIN`
 
 The runner picks the binary under test from the `NABA_BIN` environment variable. When it
-is unset, it defaults to `./naba` at the repo root — which, post-cutover, is the **Rust**
-binary (`make build`). The Go baseline is `./naba-go` (`make build-go`); point `NABA_BIN`
-at it explicitly.
+is unset, it defaults to `./naba` at the repo root — the shipped **Rust** binary
+(`make build`).
 
 ```bash
 # Test the shipped Rust build (default ./naba):
 NABA_BIN=/path/to/target/release/naba uv run pytest
-
-# Test the Go parity baseline:
-NABA_BIN=/path/to/naba-go uv run pytest
 ```
 
 The `naba_bin` fixture fails fast with a clear message if the binary is missing.
@@ -79,17 +73,16 @@ flag inventory, not snapshots); and the three `[DIVERGENCE]` clauses (pinned at 
 level by doctor/skills/version cases). The checker rejects a blank reason or an exemption that
 names a non-existent clause.
 
-### Rust-only divergence cases and the Go baseline
+### Rust divergence cases
 
 Cases that assert a sanctioned Rust-port divergence — clap parse-error wording
 (`[SPEC-DIVERGE-001]`), the `provider` key added to the valid-keys list (`[SPEC-DIVERGE-004]`),
-or the model-aware `512` rejection (`[SPEC-IMG-007]`) — carry `requires: [provider]`. The Go
-baseline lacks the `--provider` capability, so those cases **skip** on it (keeping the baseline
-green) and become **active** on the Rust binary. Run both, as CI does:
+or the model-aware `512` rejection (`[SPEC-IMG-007]`) — carry `requires: [provider]`. That
+marker historically let them skip on the (now-retired) Go baseline; on the shipped Rust binary
+the `--provider` capability is present, so they are **active**. Run the suite as CI does:
 
 ```bash
-NABA_BIN="$PWD/naba-go"                uv run --project tests/parity pytest tests/parity  # baseline
-NABA_BIN="$PWD/target/release/naba"    uv run --project tests/parity pytest tests/parity  # parity
+NABA_BIN="$PWD/target/release/naba"    uv run --project tests/parity pytest tests/parity
 ```
 
 ## Fixture inventory (`conftest.py`)

@@ -109,3 +109,56 @@ naba where to write images (otherwise `~/.local/share/naba/images`).
   }
 }
 ```
+
+## Self-update
+
+`naba self` manages the binary itself. It only auto-updates a **vendor** install (the
+`curl | sh` bootstrap from the [install](/install/) page); Homebrew installs are refused with
+a pointer to `brew upgrade naba`, and a from-build/unknown install needs `--force`.
+
+```bash
+naba self update            # fetch the latest release, verify sha256, swap in place
+naba self update --check    # report whether an update is available; change nothing
+naba self update --json     # machine-readable envelope (status/source/current/latest)
+naba self install --from-build   # record the running build as a from-build install
+naba self uninstall              # remove the from-build marker (--force also deletes the binary)
+```
+
+A successful `self update` also refreshes the installed Claude Code skills
+(`naba skills upgrade`) unless you pass `--binary-only`. GitHub Releases is canonical for
+every binary and for the self-update manifest — the website hosts no binaries.
+
+## Claude Code skills
+
+The `/naba` skill tree is embedded in the binary, so `naba skills` works offline and always
+matches the binary's version. The [install](/install/#claude-code-skills) page covers the
+common `install` / `upgrade` lifecycle; the full option surface:
+
+```bash
+naba skills install                  # default: user scope -> ~/.claude/skills
+naba skills install --dry-run        # show what would be written, change nothing
+naba skills install --scope project  # install into <git-root>/.claude/skills
+naba skills install --surface agents # install into ~/.agents/skills (agents surface)
+naba skills install --target DIR     # install into an explicit directory
+naba skills upgrade                  # rewrite from the embedded tree, pruning stale files
+naba skills remove                   # remove the naba skill again
+naba skills status                   # report up-to-date / complete / unmodified
+```
+
+On `install`/`upgrade` naba writes a hidden integrity marker into the deployed `SKILL.md`
+(`<!-- naba-skills: v=<version> tree=<sha256> -->`); `status` and `naba doctor` use it to
+confirm the install is current, complete, and unmodified.
+
+## Health check (`naba doctor`)
+
+`naba doctor` validates your environment and exits non-zero if any check fails:
+
+```bash
+naba doctor                  # checks skills install, API key, model, config
+naba doctor --json           # structured output
+naba doctor --surface agents # check the agents-surface install instead
+```
+
+It reports: skills installed and matching this binary; the **effective provider's** API key
+present and live-valid (a cheap `models.list` call, no image cost); the configured model
+reachable; config parseable; and the binary version.

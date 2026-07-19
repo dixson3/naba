@@ -20,25 +20,25 @@
 </section>
 
 <section class="features">
-  <div class="card">
-    <h3><span class="glyph">#</span> generate</h3>
+  <a class="card" href="{{ SITEURL }}/usage/#generate">
+    <h3><span class="glyph">#</span> generate <span class="card-arrow">&rarr;</span></h3>
     <p>Turn a text prompt into an image. Icons, patterns, stories, and diagrams too.</p>
     <pre class="mini">naba generate "a red apple on white"</pre>
-  </div>
-  <div class="card">
-    <h3><span class="glyph">#</span> edit &amp; restore</h3>
+  </a>
+  <a class="card" href="{{ SITEURL }}/usage/#edit">
+    <h3><span class="glyph">#</span> edit &amp; restore <span class="card-arrow">&rarr;</span></h3>
     <p>Modify an existing image or enhance an old one with a natural-language instruction.</p>
     <pre class="mini">naba edit photo.png "make the sky dramatic"</pre>
-  </div>
-  <div class="card">
-    <h3><span class="glyph">#</span> multi-provider</h3>
+  </a>
+  <a class="card" href="{{ SITEURL }}/config/#providers">
+    <h3><span class="glyph">#</span> multi-provider <span class="card-arrow">&rarr;</span></h3>
     <p>Route through Google Gemini or OpenRouter. One binary, no runtime, no dependencies.</p>
     <pre class="mini">naba generate "hero" --provider gemini</pre>
-  </div>
-  <div class="card">
-    <h3><span class="glyph">#</span> self-updating</h3>
+  </a>
+  <a class="card" href="{{ SITEURL }}/config/#self-update">
+    <h3><span class="glyph">#</span> self-updating <span class="card-arrow">&rarr;</span></h3>
     <p>A vendor install updates itself in place. GitHub Releases stays canonical for binaries.</p>
     <pre class="mini">naba self update</pre>
-  </div>
+  </a>
 </section>
 {% endblock %}
