@@ -29,6 +29,9 @@ providers:
   openrouter:
     model: google/gemini-3.1-flash-image-preview
     api-key-envvar: MY_OPENROUTER_KEY  # read the key from a custom env var
+  bedrock:
+    model: amazon.nova-canvas-v1:0
+    api-key-envvar: AWS_BEARER_TOKEN_BEDROCK  # api-key (bearer) path; AWS profile/SigV4 also works
 default_output_dir: "~/images"
 aspect: "16:9"
 resolution: "2K"
@@ -45,7 +48,7 @@ is rewritten (comments are lost — see the `.bak` backup). Migration is idempot
 
 - `default-provider`
 - `<provider>.model`, `<provider>.api-key`, `<provider>.api-key-envvar` — provider ∈ `gemini`,
-  `openrouter`
+  `openrouter`, `bedrock`
 - `default_output_dir`, `aspect`, `resolution`, `quality`
 
 `aspect` / `resolution` are imageConfig defaults (see
@@ -63,10 +66,32 @@ Uniform across every provider (highest first):
 
 1. Inline `providers.<provider>.api-key` in the config file
 2. The env var **named by** `providers.<provider>.api-key-envvar`
-3. The provider's conventional default env var (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`)
+3. The provider's conventional default env var (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`,
+   `AWS_BEARER_TOKEN_BEDROCK`)
 4. Empty string (triggers ExitAuth error in commands)
 
 Note this is inline-first: an inline config `api-key` beats the conventional env var.
+
+### AWS Bedrock provider (SPEC-PROVIDER-012/013)
+
+Bedrock is a thin `reqwest` client over the Bedrock Runtime `InvokeModel` REST call — it does
+**not** pull in the full `aws-sdk`. Two model families are supported (raw per-model JSON bodies,
+both returning base64 images): the **Amazon** family (`amazon.*` — Nova Canvas, Titan Image v1/v2)
+and the **Stability** family (`stability.*` — Stable Image Core / Ultra / SD 3.5). `naba models
+--provider bedrock` lists the curated set.
+
+Bedrock has **two auth modes**, chosen automatically (bearer preferred when a token is resolvable,
+else the profile/SigV4 path):
+
+1. **api-key bearer** — `Authorization: Bearer <token>`, resolved via the uniform api-key order
+   above (`providers.bedrock.api-key` / `api-key-envvar` / `AWS_BEARER_TOKEN_BEDROCK`).
+2. **AWS profile / SigV4** — the request is signed with `aws-sigv4` using credentials from the
+   environment (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`) or a named
+   `~/.aws/credentials` profile (`AWS_PROFILE`). SSO-token / IMDS resolution is out of scope.
+
+Region defaults to **`us-east-1`** and is read from `AWS_REGION` > `AWS_DEFAULT_REGION` > the
+default. The endpoint host is `https://bedrock-runtime.<region>.amazonaws.com` (override via
+`BEDROCK_BASE_URL` for testing).
 
 ### Model Resolution Order
 
@@ -79,4 +104,4 @@ that provider's compiled-in default, so no provider is ever model-less. Preceden
 3. `providers.<default_provider>.model` from config
 4. `quality` from config (tier alias)
 5. The selected provider's built-in default model (e.g. gemini `gemini-3.1-flash-image`,
-   openrouter `google/gemini-3.1-flash-image-preview`)
+   openrouter `google/gemini-3.1-flash-image-preview`, bedrock `amazon.nova-canvas-v1:0`)

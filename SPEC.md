@@ -349,9 +349,10 @@ outgoing prompt and the suite asserts it exactly.
 
 ## §5 Provider layer (SPEC-PROVIDER)
 
-- **SPEC-PROVIDER-001** [NEW] naba supports two providers: **gemini** (current) and
-  **openrouter** (new). Every image path (`generate`, `edit`, `restore`, and the composite
-  commands) routes through the selected provider.
+- **SPEC-PROVIDER-001** [NEW] naba supports multiple providers: **gemini** (current),
+  **openrouter** (new), and **AWS bedrock** (Epic 3). Every image path (`generate`, `edit`,
+  `restore`, and the composite commands) routes through the selected provider. The provider set
+  is the registry (SPEC-PROVIDER-009); the count is not fixed.
 - **SPEC-PROVIDER-002** [PINNED] **Gemini** provider (port of the Go client): base URL
   `https://generativelanguage.googleapis.com/v1beta` (override via `GEMINI_BASE_URL`);
   endpoint `{base}/models/{model}:generateContent`, POST, headers `Content-Type:
@@ -428,6 +429,35 @@ outgoing prompt and the suite asserts it exactly.
   provider. It is a live API call: an empty resolved key raises the provider-named SPEC-ERR-001
   "not set" auth error (exit 3). Human output + the universal `--json` envelope (SPEC-JSON-006,
   `data = {provider, models:[<id>…]}`).
+- **SPEC-PROVIDER-012** [NEW] **AWS Bedrock** provider (Epic 3): a **thin `reqwest`** client over
+  the Bedrock Runtime **`InvokeModel`** REST call (operator decision at the bedrock-transport
+  capability gate — chosen over the ~100-crate `aws-sdk-bedrockruntime`; `aws-sigv4` is pulled in
+  only for the profile signing path, see SPEC-PROVIDER-013). Endpoint host pattern
+  `https://bedrock-runtime.<region>.amazonaws.com`, override via **`BEDROCK_BASE_URL`** (mirrors
+  `GEMINI_BASE_URL`/`OPENROUTER_BASE_URL`, for mockable tests); URL
+  `{base}/model/{modelId}/invoke`, POST, `Content-Type`/`Accept: application/json`. Region default
+  **`us-east-1`** (broadest image-model coverage), from `AWS_REGION` > `AWS_DEFAULT_REGION` > the
+  default. Default model `amazon.nova-canvas-v1:0`. **Two request/response families** (raw
+  per-model JSON body; both return base64 images decoded to bytes): the **Amazon** schema
+  (`amazon.*` — Nova Canvas, Titan Image v1/v2: `{taskType, textToImageParams, imageGenerationConfig}`,
+  edit/restore via `IMAGE_VARIATION`) and the **Stability** schema (`stability.*` — Stable Image
+  Core/Ultra/SD 3.5: `{prompt, aspect_ratio, output_format}`, edit/restore via `mode:
+  "image-to-image"`). Response images come from `{"images":[<b64>]}` (older Stability
+  `{"artifacts":[{"base64":…}]}` also tolerated); no images → exit 5. `list_models` returns the
+  curated image-model set (no network / no credentials). Registered through the Epic-2 registry
+  (`registry.rs`) as one `ProviderSpec` entry; `--quality` is a native request param, not a model
+  tier (SPEC-PROVIDER-005), and Bedrock has no `auto` router. **Edit/restore wire shapes and the
+  SigV4 path are mock/unit-validated only — not exercised against real AWS.**
+- **SPEC-PROVIDER-013** [NEW] **Bedrock auth — two modes.** (a) **api-key bearer**:
+  `Authorization: Bearer <token>`, the token resolved through Epic-1's uniform api-key resolution
+  (`providers.bedrock.api-key` inline > `providers.bedrock.api-key-envvar` > the conventional
+  `AWS_BEARER_TOKEN_BEDROCK`). (b) **AWS profile / SigV4**: sign the request with `aws-sigv4` using
+  credentials from the environment (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`)
+  or a named `~/.aws/credentials` profile (`AWS_PROFILE`); region as in SPEC-PROVIDER-012. **Mode
+  selection** (unit-testable, pure): prefer the bearer path when a non-empty bearer token is
+  resolvable, else fall back to the profile/SigV4 path. Full SSO-token / IMDS credential resolution
+  is intentionally **out of scope** (the heavy `aws-config` path the thin-transport decision
+  avoids).
 
 ---
 
@@ -440,7 +470,7 @@ outgoing prompt and the suite asserts it exactly.
   entry carries `model`, `api-key`, `api-key-envvar` (all omitempty). The `config get`/`config
   set` addressable key set (order pinned, drives the `Valid keys:` error lines): `default-provider`,
   each known provider's `<provider>.model` / `<provider>.api-key` / `<provider>.api-key-envvar`
-  (providers: `gemini`, `openrouter`), then `default_output_dir`, `aspect`, `resolution`,
+  (providers: `gemini`, `openrouter`, `bedrock`), then `default_output_dir`, `aspect`, `resolution`,
   `quality`. The legacy flat keys `api_key`, `model`, `provider` remain accepted as **aliases**
   (`api_key` → `gemini.api-key`, `model` → the default provider's `model`, `provider` →
   `default-provider`) for backward compatibility, but are not advertised in the valid-keys list.
@@ -449,7 +479,8 @@ outgoing prompt and the suite asserts it exactly.
 - **SPEC-CFGSCHEMA-003** [PINNED] **Uniform api-key precedence** (one resolver for every
   provider, Epic 1): inline `providers.<name>.api-key` > the env var named by
   `providers.<name>.api-key-envvar` > the provider's conventional default env var
-  (`GEMINI_API_KEY` for gemini, `OPENROUTER_API_KEY` for openrouter). The conventional env-var
+  (`GEMINI_API_KEY` for gemini, `OPENROUTER_API_KEY` for openrouter, `AWS_BEARER_TOKEN_BEDROCK`
+  for bedrock's api-key path — SPEC-PROVIDER-013). The conventional env-var
   names are centralized in one place. Note this **reverses the old flat env-over-config order**:
   an inline config `api-key` now beats the conventional env var (an explicit per-provider
   credential is the most specific source). OpenRouter is no longer special-cased — it has a

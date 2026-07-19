@@ -2,10 +2,11 @@
 # commands, gated `requires: [provider]` (they skip on the Go baseline, which lacks them).
 cases:
   # `naba provider` piped -> universal --json envelope (SPEC-JSON-006). The runner scrubs
-  # provider keys from the env, so both providers show credentials:false and the default is the
-  # autodetect fallback (gemini) -- deterministic.
+  # provider keys from the env (incl. AWS_BEARER_TOKEN_BEDROCK), so all three registered providers
+  # (gemini, openrouter, bedrock) show credentials:false and the default is the autodetect fallback
+  # (gemini) -- deterministic. The bedrock row also pins its registration (SPEC-PROVIDER-012).
   - id: provider-list-json
-    spec: [SPEC-PROVIDER-010, SPEC-PROVIDER-009, SPEC-JSON-006]
+    spec: [SPEC-PROVIDER-010, SPEC-PROVIDER-009, SPEC-PROVIDER-012, SPEC-JSON-006]
     requires: [provider]
     argv: ["provider"]
     provider_mock: false

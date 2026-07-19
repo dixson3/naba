@@ -67,6 +67,10 @@ pub const ENV_API_KEY: &str = "GEMINI_API_KEY";
 /// `OPENROUTER_API_KEY` — the OpenRouter provider's conventional default key env var
 /// (SPEC-CFGSCHEMA-003).
 pub const ENV_OPENROUTER_API_KEY: &str = "OPENROUTER_API_KEY";
+/// `AWS_BEARER_TOKEN_BEDROCK` — the AWS Bedrock provider's conventional default key env var
+/// (SPEC-CFGSCHEMA-003, SPEC-PROVIDER-012). This is the api-key *bearer* token; the alternative
+/// AWS profile / SigV4 credential path is resolved inside the Bedrock provider, not here.
+pub const ENV_BEDROCK_API_KEY: &str = "AWS_BEARER_TOKEN_BEDROCK";
 /// `NABA_OUTPUT_DIR` — output-dir override, consumed by MCP only (SPEC-CFGSCHEMA-004/005).
 pub const ENV_OUTPUT_DIR: &str = "NABA_OUTPUT_DIR";
 /// `NABA_CONFIG_DIR` — config-dir override (SPEC-CFGSCHEMA-001).
@@ -840,7 +844,7 @@ mod tests {
     fn set_unknown_key_returns_false() {
         let mut cfg = Config::default();
         assert!(!cfg.set("bogus", "v"));
-        assert!(!cfg.set("bedrock.model", "v")); // unknown provider (not yet registered)
+        assert!(!cfg.set("dalle.model", "v")); // unknown provider (not registered)
         assert!(!cfg.set("gemini.bogus", "v")); // unknown field
         assert_eq!(cfg.get("bogus"), "");
     }
@@ -865,6 +869,9 @@ mod tests {
                 "openrouter.model",
                 "openrouter.api-key",
                 "openrouter.api-key-envvar",
+                "bedrock.model",
+                "bedrock.api-key",
+                "bedrock.api-key-envvar",
                 "default_output_dir",
                 "aspect",
                 "resolution",
@@ -1209,7 +1216,8 @@ mod tests {
             conventional_env_var("openrouter"),
             Some(ENV_OPENROUTER_API_KEY)
         );
-        assert_eq!(conventional_env_var("bedrock"), None);
+        assert_eq!(conventional_env_var("bedrock"), Some(ENV_BEDROCK_API_KEY));
+        assert_eq!(conventional_env_var("dalle"), None);
         // Sanity: the openrouter default model constant is reachable (registry extensibility).
         assert!(!openrouter::DEFAULT_MODEL.is_empty());
     }

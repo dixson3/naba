@@ -14,6 +14,12 @@
         "default": false,
         "credentials": false,
         "model": "google/gemini-3.1-flash-image-preview"
+      },
+      {
+        "name": "bedrock",
+        "default": false,
+        "credentials": false,
+        "model": "amazon.nova-canvas-v1:0"
       }
     ]
   }

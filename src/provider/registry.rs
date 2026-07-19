@@ -35,7 +35,9 @@
 //! here — the selector, config, doctor, and the `provider`/`models` commands all pick it up with
 //! no further edits.
 
-use crate::provider::{gemini, openrouter, GeminiProvider, OpenRouterProvider, Provider};
+use crate::provider::{
+    bedrock, gemini, openrouter, BedrockProvider, GeminiProvider, OpenRouterProvider, Provider,
+};
 
 /// A registered provider (see the module docs). All fields are `'static` so the whole registry
 /// is a compile-time `static`.
@@ -81,6 +83,17 @@ static REGISTRY: &[ProviderSpec] = &[
         rejects_auto_router: true,
         builder: |k, m| Box::new(OpenRouterProvider::new(k, m)),
     },
+    ProviderSpec {
+        name: "bedrock",
+        conventional_env_var: Some(crate::config::ENV_BEDROCK_API_KEY),
+        default_model: bedrock::DEFAULT_MODEL,
+        // Bedrock treats quality as a native request param (Amazon quality/Stability), not a model
+        // tier — like OpenRouter (SPEC-PROVIDER-005).
+        quality_selects_model: false,
+        // Bedrock has no `auto` router.
+        rejects_auto_router: false,
+        builder: |k, m| Box::new(BedrockProvider::new(k, m)),
+    },
 ];
 
 /// The registry as an ordered slice.
@@ -118,8 +131,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn declared_order_is_gemini_then_openrouter() {
-        assert_eq!(names(), vec!["gemini", "openrouter"]);
+    fn declared_order_is_gemini_openrouter_bedrock() {
+        assert_eq!(names(), vec!["gemini", "openrouter", "bedrock"]);
         assert_eq!(fallback(), "gemini");
     }
 
@@ -134,8 +147,17 @@ mod tests {
             conventional_env_var("openrouter"),
             Some(crate::config::ENV_OPENROUTER_API_KEY)
         );
-        assert_eq!(conventional_env_var("bedrock"), None);
-        assert!(!is_known("bedrock"));
+        assert_eq!(
+            conventional_env_var("bedrock"),
+            Some(crate::config::ENV_BEDROCK_API_KEY)
+        );
+        assert!(is_known("bedrock"));
+        assert_eq!(
+            find("bedrock").unwrap().default_model,
+            bedrock::DEFAULT_MODEL
+        );
+        assert_eq!(conventional_env_var("dalle"), None);
+        assert!(!is_known("dalle"));
     }
 
     #[test]
@@ -146,6 +168,9 @@ mod tests {
         let o = find("openrouter").unwrap();
         assert!(!o.quality_selects_model);
         assert!(o.rejects_auto_router);
+        let b = find("bedrock").unwrap();
+        assert!(!b.quality_selects_model);
+        assert!(!b.rejects_auto_router);
     }
 
     #[test]
@@ -154,6 +179,13 @@ mod tests {
         assert_eq!(
             find("openrouter").unwrap().build("k", "m").name(),
             "openrouter"
+        );
+        assert_eq!(
+            find("bedrock")
+                .unwrap()
+                .build("k", "amazon.nova-canvas-v1:0")
+                .name(),
+            "bedrock"
         );
     }
 }

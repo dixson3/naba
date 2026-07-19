@@ -506,15 +506,29 @@ mod tests {
     #[test]
     fn autodetect_ignores_creds_for_unregistered_providers() {
         // A credential for a provider not in the registry never wins — the scan is registry-driven,
-        // so a stray `bedrock` cred (before bedrock is registered) falls back to autodetect over
-        // the real registry (gemini/openrouter only).
+        // so a stray `dalle` cred (an unregistered provider) falls back to autodetect over the real
+        // registry (gemini/openrouter/bedrock).
         let sel = resolve(
             inputs(None, None, None),
             cfg(None, None),
-            env_pairs(&[("bedrock", "b-key"), ("gemini", "g-key")]),
+            env_pairs(&[("dalle", "d-key"), ("gemini", "g-key")]),
         );
         assert_eq!(sel.provider, PROVIDER_GEMINI);
         assert_eq!(sel.api_key, "g-key");
+    }
+
+    #[test]
+    fn autodetect_bedrock_key_reroutes_to_bedrock() {
+        // Bedrock is registered last, so a resolvable bedrock cred wins over gemini/openrouter
+        // (SPEC-PROVIDER-009 "latest with creds wins").
+        let sel = resolve(
+            inputs(None, None, None),
+            cfg(None, None),
+            env_pairs(&[("gemini", "g-key"), ("bedrock", "b-key")]),
+        );
+        assert_eq!(sel.provider, "bedrock");
+        assert_eq!(sel.api_key, "b-key");
+        assert_eq!(sel.model, crate::provider::bedrock::DEFAULT_MODEL);
     }
 
     #[test]
@@ -700,7 +714,7 @@ mod tests {
         assert_eq!(err.code, exit::USAGE);
         assert_eq!(
             err.message,
-            "unknown provider \"dalle\"\n\nValid values: gemini, openrouter"
+            "unknown provider \"dalle\"\n\nValid values: gemini, openrouter, bedrock"
         );
     }
 

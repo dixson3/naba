@@ -89,8 +89,10 @@ class NabaRunner:
         for key in (
             "GEMINI_API_KEY",
             "OPENROUTER_API_KEY",
+            "AWS_BEARER_TOKEN_BEDROCK",
             "GEMINI_BASE_URL",
             "OPENROUTER_BASE_URL",
+            "BEDROCK_BASE_URL",
             "NABA_CONFIG_DIR",
             "NABA_OUTPUT_DIR",
         ):
