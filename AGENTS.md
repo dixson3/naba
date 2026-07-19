@@ -68,6 +68,7 @@ All image commands follow: resolve provider + API key -> enrich prompt -> call p
 | `GEMINI_BASE_URL`    | Override Gemini API base URL (used by tests)                 |
 | `OPENROUTER_BASE_URL`| Override OpenRouter API base URL (used by tests)             |
 | `NABA_HOSTED_ZONE_ID`| Route53 zone id for `web/` provisioning (local `.envrc` + GitHub repo secret; never committed) |
+| `NABA_GA_MEASUREMENT_ID`| GA4 measurement id for the `web/` site — production build only (local `.envrc` + GitHub repo secret; never committed) |
 
 ## Secrets & Account-Specific Config
 
