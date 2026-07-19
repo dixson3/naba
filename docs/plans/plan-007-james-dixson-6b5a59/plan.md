@@ -3,7 +3,7 @@
 **ID:** plan-007-james-dixson-6b5a59
 **Author:** james-dixson
 **Created:** 2026-07-19
-**Status:** reconciling
+**Status:** complete
 **Epic:** naba-mol-a7v
 **Fingerprint:** e05af01f94a0082ccf3382e0ff1b5e24aac18ef69235e301beb65bc8a537139c
 **Phase log:**
@@ -17,6 +17,7 @@
 - 2026-07-19 intake: epic naba-mol-a7v poured
 - 2026-07-19 executing: start gate resolved (auto-migrate confirmed); bedrock-transport gate resolved: thin reqwest
 - 2026-07-19 reconciling: post-execution reconciliation (all 5 epics landed on execute branch)
+- 2026-07-19 complete: plan complete — 5 epics merged to main + validated; push pending operator authorization
 
 ## Objective
 Consistent multi-provider config + provider ecosystem for naba (per-provider defaults, api-key resolution, AWS Bedrock provider, naba provider/models commands, --json everywhere, MCP lazy-loading skills) with comprehensive web/ docs (full config schema, separate skills + mcp pages, lifecycle coverage)
