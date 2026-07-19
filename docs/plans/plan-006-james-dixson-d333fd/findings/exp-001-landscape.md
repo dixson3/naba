@@ -14,7 +14,7 @@ from the reference project and naba's own source.
 ## AWS / DNS state (account REDACTED-ACCOUNT-ID, user `dixson3`)
 
 - AWS CLI credentials work (`aws sts get-caller-identity` succeeds).
-- `ysapp.net` is already a Route53 **public hosted zone**: `REDACTED-ROUTE53-ZONE-ID`.
+- `ysapp.net` is already a Route53 **public hosted zone**: the Route53 zone id (redacted — stored in local .envrc + GitHub repo secret `NABA_HOSTED_ZONE_ID`, not in the repo).
   A `naba.ysapp.net` subdomain record is a single upsert — no domain registration or
   zone delegation needed.
 

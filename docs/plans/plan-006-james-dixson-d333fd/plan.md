@@ -61,7 +61,7 @@ human-facing surface; GitHub remains the source of truth for all binaries.
 See `findings/exp-001-landscape.md` for full detail. Summary:
 
 - **AWS/DNS ready.** Account `REDACTED-ACCOUNT-ID` (user `dixson3`) credentials work; `ysapp.net`
-  is an existing Route53 public hosted zone (`REDACTED-ROUTE53-ZONE-ID`). `naba.ysapp.net` is
+  is an existing Route53 public hosted zone (the Route53 zone id (redacted — stored in local .envrc + GitHub repo secret `NABA_HOSTED_ZONE_ID`, not in the repo)). `naba.ysapp.net` is
   a single record upsert.
 - **Proven pattern.** The sibling `~/workspace/ys/thesoftwarefactory` site is Pelican +
   `Makefile` (`devserver`, `publish`, `s3_upload` = `aws s3 sync --delete` + CloudFront

@@ -61,7 +61,7 @@ after #7.
   with permissions for S3, CloudFront, ACM, and Route53. `aws sts get-caller-identity`
   succeeds. ACM cert MUST be requested in `us-east-1` (CloudFront constraint).
 - **DNS:** `ysapp.net` is an existing Route53 public hosted zone
-  (`REDACTED-ROUTE53-ZONE-ID`); `naba.ysapp.net` is a single record upsert.
+  (the Route53 zone id (redacted — stored in local .envrc + GitHub repo secret `NABA_HOSTED_ZONE_ID`, not in the repo)); `naba.ysapp.net` is a single record upsert.
 - **Side-effects / permissions:** Epics 1–2 are local-only (no network side effects beyond
   fetching a GitHub Release asset). Epic 3 creates **real, billable** AWS infrastructure
   and is fenced behind the go-live capability gate — nothing billable is created before the
