@@ -6,7 +6,7 @@
 #
 # Requires (repo Settings -> Secrets and variables -> Actions):
 #   - Variable  AWS_DEPLOY_ROLE_ARN : arn of the OIDC deploy role (S3 + CloudFront invalidation)
-#   - Variable  CF_DISTRIBUTION     : CloudFront distribution id (REDACTED-CF-DISTRIBUTION)
+#   - Variable  CF_DISTRIBUTION     : CloudFront distribution id (see gitignored web/aws-config.mk)
 #   - Secret    NABA_GA_MEASUREMENT_ID : GA4 id for the production build (optional; unset -> no gtag)
 #
 # The S3 bucket (naba.ysapp.net) and region (us-east-1) are pinned in web/Makefile /

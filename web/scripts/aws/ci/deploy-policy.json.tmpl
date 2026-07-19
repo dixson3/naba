@@ -21,7 +21,7 @@
       "Sid": "CloudFrontInvalidate",
       "Effect": "Allow",
       "Action": "cloudfront:CreateInvalidation",
-      "Resource": "arn:aws:cloudfront::REDACTED-ACCOUNT-ID:distribution/REDACTED-CF-DISTRIBUTION"
+      "Resource": "arn:aws:cloudfront::${AWS_ACCOUNT_ID}:distribution/${CF_DISTRIBUTION}"
     }
   ]
 }
