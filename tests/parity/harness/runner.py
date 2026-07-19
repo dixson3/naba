@@ -90,6 +90,14 @@ class NabaRunner:
             "GEMINI_API_KEY",
             "OPENROUTER_API_KEY",
             "AWS_BEARER_TOKEN_BEDROCK",
+            # Bedrock's AWS profile / SigV4 credential probe (SPEC-PROVIDER-013): scrub every
+            # static/profile source so a stray developer/CI AWS credential can't flip bedrock's
+            # `credentials` column non-deterministically. A case sets these back via `env=` when it
+            # wants to exercise the profile path.
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_PROFILE",
             "GEMINI_BASE_URL",
             "OPENROUTER_BASE_URL",
             "BEDROCK_BASE_URL",
@@ -97,6 +105,9 @@ class NabaRunner:
             "NABA_OUTPUT_DIR",
         ):
             result.pop(key, None)
+        # Point the AWS shared-credentials file at /dev/null so a real ~/.aws/credentials never
+        # leaks into a case; a case that needs a profile sets AWS_SHARED_CREDENTIALS_FILE via `env=`.
+        result["AWS_SHARED_CREDENTIALS_FILE"] = os.devnull
 
         if env:
             result.update({k: str(v) for k, v in env.items()})

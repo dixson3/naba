@@ -12,6 +12,32 @@ cases:
     provider_mock: false
     golden: stdout
 
+  # `naba provider` with ONLY an AWS static-env credential (no bearer token) -> bedrock reports
+  # credentials:true via the profile/SigV4 validity probe (SPEC-PROVIDER-013), while gemini/openrouter
+  # stay credentials:false. Autodetect ignores the profile path (bearer-only), so the default stays
+  # gemini. Regression cover for GH#11 (profile-only bedrock wrongly reported missing).
+  - id: provider-bedrock-profile-creds-json
+    spec: [SPEC-PROVIDER-010, SPEC-PROVIDER-013, SPEC-JSON-006]
+    requires: [provider]
+    argv: ["provider"]
+    provider_mock: false
+    env:
+      AWS_ACCESS_KEY_ID: AKIA_PARITY_TEST
+      AWS_SECRET_ACCESS_KEY: parity-test-secret
+    golden: stdout
+
+  # `naba models --provider bedrock` with ONLY an AWS static-env credential -> the empty-key gate is
+  # NOT hit (SPEC-PROVIDER-013); the curated bedrock model list prints (list_models is network-free).
+  - id: models-bedrock-profile-creds-json
+    spec: [SPEC-PROVIDER-011, SPEC-PROVIDER-013, SPEC-JSON-006]
+    requires: [provider]
+    argv: ["models", "--provider", "bedrock"]
+    provider_mock: false
+    env:
+      AWS_ACCESS_KEY_ID: AKIA_PARITY_TEST
+      AWS_SECRET_ACCESS_KEY: parity-test-secret
+    golden: stdout
+
   # `naba provider` under a PTY -> the human table (no --json). Deterministic (no keys).
   - id: provider-list-human
     spec: [SPEC-PROVIDER-010]

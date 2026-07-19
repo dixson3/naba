@@ -420,15 +420,20 @@ outgoing prompt and the suite asserts it exactly.
   (only-gemini→gemini, only-openrouter→openrouter, both→openrouter, neither→gemini).
 - **SPEC-PROVIDER-010** [NEW] **`naba provider`** lists every registered provider with: whether
   it is the effective default (config `default_provider` > autodetect), whether its credentials
-  resolve (SPEC-CFGSCHEMA-003), and its effective default model. Human output + the universal
-  `--json` envelope (SPEC-JSON-006, `data = {default_provider, providers:[{name, default,
-  credentials, model}]}`). Read-only — no network call.
+  resolve (SPEC-CFGSCHEMA-003 — **and, for bedrock, also a resolvable AWS profile /
+  default-credential-chain (SigV4) credential per SPEC-PROVIDER-013**, so profile-only bedrock is
+  reported `credentials: present`, not missing), and its effective default model. Human output +
+  the universal `--json` envelope (SPEC-JSON-006, `data = {default_provider, providers:[{name,
+  default, credentials, model}]}`). Read-only — no network call.
 - **SPEC-PROVIDER-011** [NEW] **`naba models [--provider <name>]`** lists a provider's models via
   `Provider::list_models`. The target provider is the global `--provider` when set (validated
   against the registry; an unknown name is a usage error, exit 2) else the resolved default
-  provider. It is a live API call: an empty resolved key raises the provider-named SPEC-ERR-001
-  "not set" auth error (exit 3). Human output + the universal `--json` envelope (SPEC-JSON-006,
-  `data = {provider, models:[<id>…]}`).
+  provider. It is a live API call: a provider with **no resolvable credential** raises the
+  provider-named SPEC-ERR-001 "not set" auth error (exit 3). Credential validity is the same probe
+  as SPEC-PROVIDER-010 — for bedrock a resolvable AWS profile / SigV4 credential (SPEC-PROVIDER-013)
+  counts, so a profile-only bedrock does not hit the empty-key gate (the empty bearer key is fine;
+  the provider signs with SigV4 at invoke time). Human output + the universal `--json` envelope
+  (SPEC-JSON-006, `data = {provider, models:[<id>…]}`).
 - **SPEC-PROVIDER-012** [NEW] **AWS Bedrock** provider (Epic 3): a **thin `reqwest`** client over
   the Bedrock Runtime **`InvokeModel`** REST call (operator decision at the bedrock-transport
   capability gate — chosen over the ~100-crate `aws-sdk-bedrockruntime`; `aws-sigv4` is pulled in
@@ -455,9 +460,14 @@ outgoing prompt and the suite asserts it exactly.
   credentials from the environment (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`)
   or a named `~/.aws/credentials` profile (`AWS_PROFILE`); region as in SPEC-PROVIDER-012. **Mode
   selection** (unit-testable, pure): prefer the bearer path when a non-empty bearer token is
-  resolvable, else fall back to the profile/SigV4 path. Full SSO-token / IMDS credential resolution
-  is intentionally **out of scope** (the heavy `aws-config` path the thin-transport decision
-  avoids).
+  resolvable, else fall back to the profile/SigV4 path. The shared-credentials file is
+  `AWS_SHARED_CREDENTIALS_FILE` (the standard AWS override) when set, else `~/.aws/credentials`.
+  Full SSO-token / IMDS credential resolution is intentionally **out of scope** (the heavy
+  `aws-config` path the thin-transport decision avoids). **Credential-validity probe**: the same
+  profile/SigV4 resolution is exposed network-free to the command layer so `naba provider` /
+  `naba models` (SPEC-PROVIDER-010/011) report bedrock credentials as present when only a profile /
+  static-env / default-credential-chain credential (no bearer token) is configured — the probe
+  shares the invoke-time credential loader and never changes auth-mode selection.
 
 ---
 
