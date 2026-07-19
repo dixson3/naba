@@ -1,1 +1,7 @@
-Set model = gemini-3-pro-image
+{
+  "status": "ok",
+  "data": {
+    "key": "model",
+    "value": "gemini-3-pro-image"
+  }
+}

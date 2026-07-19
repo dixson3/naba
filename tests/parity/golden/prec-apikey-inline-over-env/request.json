@@ -20,7 +20,7 @@
     },
     "headers": {
       "content-type": "application/json",
-      "x-goog-api-key": "env-key-wins"
+      "x-goog-api-key": "inline-key-wins"
     },
     "method": "POST",
     "path": "/models/gemini-3.1-flash-image:generateContent",

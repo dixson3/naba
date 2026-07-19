@@ -11,6 +11,7 @@ use std::process::Command;
 
 use crate::embed;
 use crate::error::{AppError, AppResult};
+use crate::output;
 use crate::version;
 
 /// One of the three write/remove deployment modes driven by [`run`].
@@ -21,6 +22,17 @@ pub enum Mode {
     Remove,
 }
 
+impl Mode {
+    /// The action verb for the `--json` envelope (SPEC-JSON-006).
+    fn action(self) -> &'static str {
+        match self {
+            Mode::Install => "install",
+            Mode::Upgrade => "upgrade",
+            Mode::Remove => "remove",
+        }
+    }
+}
+
 /// Resolved flags a `skills` invocation carries (mirrors Go's package-level `skills*` vars).
 #[derive(Debug, Clone)]
 pub struct Opts {
@@ -29,6 +41,48 @@ pub struct Opts {
     pub target: String,
     pub dry_run: bool,
     pub quiet: bool,
+    /// Emit the universal `--json` envelope (SPEC-JSON-006) instead of the human lines.
+    pub json: bool,
+}
+
+/// One `install`/`upgrade`/`remove` outcome row for the `--json` envelope (SPEC-JSON-006).
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillActionItem {
+    name: String,
+    path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    files: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    removed: Option<bool>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pruned: Vec<String>,
+}
+
+/// The `install`/`upgrade`/`remove` `--json` payload (SPEC-JSON-006).
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillsActionReport {
+    action: &'static str,
+    destination: String,
+    dry_run: bool,
+    skills: Vec<SkillActionItem>,
+}
+
+/// One `status` row for the `--json` envelope (SPEC-JSON-006).
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillStatusItem {
+    name: String,
+    path: String,
+    installed: bool,
+    up_to_date: bool,
+    complete: bool,
+    unmodified: bool,
+}
+
+/// The `status` `--json` payload (SPEC-JSON-006).
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillsStatusReport {
+    destination: String,
+    skills: Vec<SkillStatusItem>,
 }
 
 /// `resolve_dest` mirrors the legacy installer's destination resolution: an explicit
@@ -68,27 +122,57 @@ fn git_root_or_cwd() -> PathBuf {
     std::env::current_dir().unwrap_or_default()
 }
 
-/// Run install / upgrade / remove over every embedded skill (Go's `runSkills`).
+/// Run install / upgrade / remove over every embedded skill (Go's `runSkills`). Under `--json`
+/// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006) instead of the
+/// human lines.
 pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
     let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+    let mut items = Vec::new();
     for name in embed::skill_names() {
-        match mode {
+        let item = match mode {
             Mode::Remove => remove_skill(&name, &dest, opts)?,
             _ => deploy_skill(&name, &dest, mode == Mode::Upgrade, opts)?,
-        }
+        };
+        items.push(item);
     }
-    if !opts.dry_run && !opts.quiet {
+    if opts.json {
+        output::print_ok_json(SkillsActionReport {
+            action: mode.action(),
+            destination: dest.display().to_string(),
+            dry_run: opts.dry_run,
+            skills: items,
+        });
+    } else if !opts.dry_run && !opts.quiet {
         println!("Destination: {}", dest.display());
     }
     Ok(())
 }
 
-/// `skills status`: print a one-line status per embedded skill (Go's `skillsStatusCmd`).
+/// `skills status`: print a one-line status per embedded skill (Go's `skillsStatusCmd`), or the
+/// universal envelope under `--json` (SPEC-JSON-006).
 pub fn status(opts: &Opts) -> AppResult<()> {
     let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+    let mut items = Vec::new();
     for name in embed::skill_names() {
         let st = embed::skill_status(&name, &dest.join(&name));
-        println!("{}", status_line(&name, &st, &dest));
+        if opts.json {
+            items.push(SkillStatusItem {
+                name: name.clone(),
+                path: dest.join(&name).display().to_string(),
+                installed: st.installed,
+                up_to_date: st.up_to_date,
+                complete: st.complete,
+                unmodified: st.unmodified,
+            });
+        } else {
+            println!("{}", status_line(&name, &st, &dest));
+        }
+    }
+    if opts.json {
+        output::print_ok_json(SkillsStatusReport {
+            destination: dest.display().to_string(),
+            skills: items,
+        });
     }
     Ok(())
 }
@@ -119,24 +203,33 @@ fn bool_flag(label: &str, ok: bool) -> String {
 
 /// Write an embedded skill's tree to `<dest>/<name>/`, injecting a fresh integrity marker
 /// into SKILL.md. With `prune=true` (upgrade) it also removes dest files absent from the
-/// embed (rsync --delete parity). Ports Go's `deploySkill`.
-fn deploy_skill(name: &str, dest: &Path, prune: bool, opts: &Opts) -> AppResult<()> {
+/// embed (rsync --delete parity). Ports Go's `deploySkill`. Returns the outcome row for the
+/// `--json` envelope; human lines print only when not `--json`.
+fn deploy_skill(name: &str, dest: &Path, prune: bool, opts: &Opts) -> AppResult<SkillActionItem> {
     let dest_dir = dest.join(name);
     let rels = embed::skill_files(name);
     let hash = embed::embedded_tree_hash(name);
     let marker = embed::format_marker(version::VERSION, &hash);
 
     if opts.dry_run {
-        println!(
-            "(dry run) would write {} file(s) of {:?} -> {}",
-            rels.len(),
-            name,
-            dest_dir.display()
-        );
-        if prune {
-            println!("(dry run) would prune dest files absent from the embed");
+        if !opts.json {
+            println!(
+                "(dry run) would write {} file(s) of {:?} -> {}",
+                rels.len(),
+                name,
+                dest_dir.display()
+            );
+            if prune {
+                println!("(dry run) would prune dest files absent from the embed");
+            }
         }
-        return Ok(());
+        return Ok(SkillActionItem {
+            name: name.to_string(),
+            path: dest_dir.display().to_string(),
+            files: Some(rels.len()),
+            removed: None,
+            pruned: Vec::new(),
+        });
     }
 
     for rel in &rels {
@@ -156,34 +249,44 @@ fn deploy_skill(name: &str, dest: &Path, prune: bool, opts: &Opts) -> AppResult<
         set_mode(&path, 0o644);
     }
 
-    if prune {
-        prune_stale(name, &dest_dir, opts)?;
-    }
-    if !opts.quiet {
+    let pruned = if prune {
+        prune_stale(name, &dest_dir, opts)?
+    } else {
+        Vec::new()
+    };
+    if !opts.json && !opts.quiet {
         println!(
             "OK: {name} -> {} ({} files)",
             dest_dir.display(),
             rels.len()
         );
     }
-    Ok(())
+    Ok(SkillActionItem {
+        name: name.to_string(),
+        path: dest_dir.display().to_string(),
+        files: Some(rels.len()),
+        removed: None,
+        pruned,
+    })
 }
 
 /// Remove files under `dest_dir` that are not part of the embedded skill tree (Go's
-/// `pruneStale`).
-fn prune_stale(name: &str, dest_dir: &Path, opts: &Opts) -> AppResult<()> {
+/// `pruneStale`). Returns the skill-relative paths pruned.
+fn prune_stale(name: &str, dest_dir: &Path, opts: &Opts) -> AppResult<Vec<String>> {
     let want: std::collections::HashSet<String> = embed::skill_files(name).into_iter().collect();
     let mut on_disk = Vec::new();
     walk_files(dest_dir, dest_dir, &mut on_disk)?;
+    let mut pruned = Vec::new();
     for (path, rel) in on_disk {
         if !want.contains(&rel) {
             fs::remove_file(&path).map_err(|e| AppError::file_io(e.to_string()))?;
-            if !opts.quiet {
+            if !opts.json && !opts.quiet {
                 println!("  pruned stale: {rel}");
             }
+            pruned.push(rel);
         }
     }
-    Ok(())
+    Ok(pruned)
 }
 
 /// Recursively collect `(absolute path, skill-relative slash path)` of files under `dir`.
@@ -214,24 +317,34 @@ fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(PathBuf, String)>) -> AppR
 }
 
 /// Remove an installed skill directory (Go's `removeSkill`). Absent → `absent: <dir>`;
-/// dry-run → `(dry run) would remove <dir>`; else recursive delete + `removed: <dir>`.
-fn remove_skill(name: &str, dest: &Path, opts: &Opts) -> AppResult<()> {
+/// dry-run → `(dry run) would remove <dir>`; else recursive delete + `removed: <dir>`. Returns
+/// the outcome row for the `--json` envelope (`removed` = whether the tree was actually deleted).
+fn remove_skill(name: &str, dest: &Path, opts: &Opts) -> AppResult<SkillActionItem> {
     let dest_dir = dest.join(name);
+    let item = |removed: bool| SkillActionItem {
+        name: name.to_string(),
+        path: dest_dir.display().to_string(),
+        files: None,
+        removed: Some(removed),
+        pruned: Vec::new(),
+    };
     if !dest_dir.exists() {
-        if !opts.quiet {
+        if !opts.json && !opts.quiet {
             println!("absent: {}", dest_dir.display());
         }
-        return Ok(());
+        return Ok(item(false));
     }
     if opts.dry_run {
-        println!("(dry run) would remove {}", dest_dir.display());
-        return Ok(());
+        if !opts.json {
+            println!("(dry run) would remove {}", dest_dir.display());
+        }
+        return Ok(item(false));
     }
     fs::remove_dir_all(&dest_dir).map_err(|e| AppError::file_io(e.to_string()))?;
-    if !opts.quiet {
+    if !opts.json && !opts.quiet {
         println!("removed: {}", dest_dir.display());
     }
-    Ok(())
+    Ok(item(true))
 }
 
 /// Set unix file mode (no-op semantics elsewhere). Mirrors Go's explicit `0o644`/`0o755`.
@@ -255,6 +368,7 @@ mod tests {
             target: target.to_string_lossy().into_owned(),
             dry_run: false,
             quiet: false,
+            json: false,
         }
     }
 

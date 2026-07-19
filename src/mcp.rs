@@ -4,9 +4,20 @@
 //! (v2.2, features `server` + `transport-io`). The server registers exactly **8 tools**
 //! (`generate_image`, `edit_image`, `restore_image`, `generate_icon`, `generate_pattern`,
 //! `generate_story`, `generate_diagram`, `list_images`) plus the `file:///{path}` resource
-//! template, and drives the SAME provider/selector/output pipeline the CLI uses
-//! ([`crate::provider`] + [`crate::prompt`] + [`crate::output`]) — no generation logic is
-//! reimplemented here.
+//! template and the `skill://naba/<rel>` skill-resource surface (see below), and drives the
+//! SAME provider/selector/output pipeline the CLI uses ([`crate::provider`] +
+//! [`crate::prompt`] + [`crate::output`]) — no generation logic is reimplemented here.
+//!
+//! # Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
+//!
+//! `resources/list` ([`list_resources`](NabaMcpServer::list_resources)) enumerates the
+//! embedded skill tree (`skills/<name>/…`, via [`crate::embed`]) as concrete MCP resources —
+//! one `skill://<name>/<rel>` URI per file (`SKILL.md`, `commands/*.md`, `README.md`) plus a
+//! compact `skill://<name>` index resource. Listing carries **URIs/paths only** (no file
+//! bodies), so a client discovers skills cheaply and fetches full instruction content ON
+//! DEMAND via `resources/read` of a `skill://<name>/<rel>` URI — the lazy-loading pattern.
+//! Reads are served from the same [`embed::read_skill_file`] / [`embed::skill_files`]
+//! accessors the CLI skill commands use; no content is duplicated.
 //!
 //! # Reserved / slash-matching resource read (SPEC-MCP-012)
 //!
@@ -33,14 +44,15 @@ use serde_json::{json, Map, Value};
 
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, ContentBlock, Implementation, InitializeResult,
-    JsonObject, ListResourceTemplatesResult, ListToolsResult, PaginatedRequestParams,
-    ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents, ResourceTemplate,
-    ServerCapabilities, ServerInfo, Tool,
+    JsonObject, ListResourceTemplatesResult, ListResourcesResult, ListToolsResult,
+    PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResult, Resource,
+    ResourceContents, ResourceTemplate, ServerCapabilities, ServerInfo, Tool,
 };
 use rmcp::service::RequestContext;
 use rmcp::{serve_server, ErrorData as McpError, RoleServer, ServerHandler};
 
 use crate::config::Config;
+use crate::embed;
 use crate::error::{AppError, AppResult};
 use crate::output;
 use crate::prompt;
@@ -103,13 +115,27 @@ impl ServerHandler for NabaMcpServer {
         Ok(ListResourceTemplatesResult::with_all_items(vec![tmpl]))
     }
 
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        // SPEC-MCP-014: enumerate the embedded skill tree as cheap (URI-only) resources.
+        Ok(ListResourcesResult::with_all_items(skill_resources()))
+    }
+
     async fn read_resource(
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
-        // SPEC-MCP-012 (reserved/slash-matching fix): strip `file://` and read the raw path.
         let uri = request.uri;
+        // SPEC-MCP-015: `skill://<name>/<rel>` serves embedded skill content on demand;
+        // `skill://<name>` serves a compact markdown index of that skill's files.
+        if let Some(rest) = uri.strip_prefix("skill://") {
+            return read_skill_resource(&uri, rest);
+        }
+        // SPEC-MCP-012 (reserved/slash-matching fix): strip `file://` and read the raw path.
         let path = uri.strip_prefix("file://").unwrap_or(&uri);
         let data = std::fs::read(path)
             .map_err(|e| McpError::internal_error(format!("read image: {e}"), None))?;
@@ -447,10 +473,11 @@ fn image_content(images: &[(String, String)]) -> Vec<ContentBlock> {
 fn resolve_selection_mcp(quality: &str) -> Result<(Selection, Config), String> {
     let cfg = Config::load().unwrap_or_default();
     let cfg_defaults = cfg.to_config_defaults().map_err(|e| e.message)?;
-    let env_keys = EnvKeys {
-        gemini: opt(cfg.resolve_api_key()),
-        openrouter: opt(cfg.resolve_openrouter_api_key()),
-    };
+    let env_keys = EnvKeys::from_resolved(
+        provider::registry::names()
+            .into_iter()
+            .map(|name| (name.to_string(), cfg.resolve_api_key_for(name))),
+    );
     let inputs = SelectionInputs {
         provider: None,
         model: None,
@@ -540,6 +567,86 @@ fn mime_from_ext(path: &str) -> &'static str {
 }
 
 // ---------------------------------------------------------------------------
+// Skills-as-resources: cheap listing + on-demand read (SPEC-MCP-014/015).
+// ---------------------------------------------------------------------------
+
+/// Enumerate the embedded skill tree as MCP resources (SPEC-MCP-014). Per embedded skill
+/// `<name>`, emit a compact `skill://<name>` index resource followed by one
+/// `skill://<name>/<rel>` resource per file (from [`embed::skill_files`], sorted). Only
+/// URIs/metadata — never file bodies — so `resources/list` stays cheap (lazy loading).
+fn skill_resources() -> Vec<Resource> {
+    let mut out = Vec::new();
+    for name in embed::skill_names() {
+        out.push(
+            Resource::new(format!("skill://{name}"), format!("{name} skills index"))
+                .with_description(format!(
+                    "Index of embedded `{name}` skill files (read on demand)"
+                ))
+                .with_mime_type("text/markdown"),
+        );
+        for rel in embed::skill_files(&name) {
+            out.push(
+                Resource::new(format!("skill://{name}/{rel}"), format!("{name}/{rel}"))
+                    .with_description(format!("Embedded naba skill file `{rel}`"))
+                    .with_mime_type(skill_mime(&rel)),
+            );
+        }
+    }
+    out
+}
+
+/// Serve a `skill://…` read (SPEC-MCP-015). `skill://<name>/<rel>` returns the embedded file
+/// as `TextResourceContents` (MIME by extension); `skill://<name>` returns a generated
+/// markdown index of that skill's files. Unknown skill/file → `resource not found: <uri>`.
+fn read_skill_resource(uri: &str, rest: &str) -> Result<ReadResourceResult, McpError> {
+    let not_found = || McpError::invalid_params(format!("resource not found: {uri}"), None);
+    // Tolerate a trailing slash (some clients normalize `skill://naba` to `skill://naba/`):
+    // an empty `<rel>` collapses to the skill index rather than a missing-file error.
+    let rest = rest.strip_suffix('/').unwrap_or(rest);
+    let contents = match rest.split_once('/') {
+        Some((name, rel)) => {
+            let bytes = embed::read_skill_file(name, rel).ok_or_else(not_found)?;
+            ResourceContents::TextResourceContents {
+                uri: uri.to_string(),
+                mime_type: Some(skill_mime(rel).to_string()),
+                text: String::from_utf8_lossy(bytes).into_owned(),
+                meta: None,
+            }
+        }
+        None => {
+            let files = embed::skill_files(rest);
+            if files.is_empty() {
+                return Err(not_found());
+            }
+            ResourceContents::TextResourceContents {
+                uri: uri.to_string(),
+                mime_type: Some("text/markdown".to_string()),
+                text: skill_index_markdown(rest, &files),
+                meta: None,
+            }
+        }
+    };
+    Ok(ReadResourceResult::new(vec![contents]))
+}
+
+/// MIME for an embedded skill file by extension: `.md` → `text/markdown`, else `text/plain`.
+fn skill_mime(rel: &str) -> &'static str {
+    match Path::new(rel).extension().and_then(|e| e.to_str()) {
+        Some(e) if e.eq_ignore_ascii_case("md") => "text/markdown",
+        _ => "text/plain",
+    }
+}
+
+/// The compact `skill://<name>` index body: a markdown bullet list of each file's read URI.
+fn skill_index_markdown(name: &str, files: &[String]) -> String {
+    let mut s = format!("# naba skill: {name}\n\nAvailable resources (read on demand):\n\n");
+    for rel in files {
+        s.push_str(&format!("- `skill://{name}/{rel}`\n"));
+    }
+    s
+}
+
+// ---------------------------------------------------------------------------
 // Argument accessors (mirror mcp-go's req.GetString / GetInt / GetStringSlice).
 // ---------------------------------------------------------------------------
 
@@ -587,15 +694,6 @@ fn get_i64_slice(args: &Map<String, Value>, key: &str, default: &[i64]) -> Vec<i
             .filter_map(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)))
             .collect(),
         _ => default.to_vec(),
-    }
-}
-
-/// `Some(s)` for a non-empty string, else `None`.
-fn opt(s: String) -> Option<String> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
     }
 }
 
@@ -1103,6 +1201,81 @@ mod tests {
         assert_eq!(mime_from_ext("/a/b.gif"), "image/gif");
         assert_eq!(mime_from_ext("/a/b.webp"), "image/webp");
         assert_eq!(mime_from_ext("/a/b.bin"), "application/octet-stream");
+    }
+
+    #[test]
+    fn skill_resources_enumerate_files_and_index() {
+        // SPEC-MCP-014: listing carries a per-skill index + one URI per embedded file.
+        let resources = skill_resources();
+        let uris: Vec<&str> = resources.iter().map(|r| r.uri.as_str()).collect();
+        // Compact index resource for the naba skill.
+        assert!(
+            uris.contains(&"skill://naba"),
+            "missing skill index: {uris:?}"
+        );
+        // One resource per embedded file, addressed by skill://naba/<rel>.
+        for rel in embed::skill_files("naba") {
+            let uri = format!("skill://naba/{rel}");
+            assert!(uris.contains(&uri.as_str()), "missing {uri}");
+        }
+        // Markdown files advertise the text/markdown MIME.
+        let skill_md = resources
+            .iter()
+            .find(|r| r.uri == "skill://naba/SKILL.md")
+            .expect("SKILL.md resource");
+        assert_eq!(skill_md.mime_type.as_deref(), Some("text/markdown"));
+        // Listing is cheap: no file bodies are attached to the Resource entries.
+    }
+
+    #[test]
+    fn read_skill_resource_returns_file_and_index() {
+        // SPEC-MCP-015: a skill://naba/<rel> read returns the embedded content as text.
+        let uri = "skill://naba/SKILL.md";
+        let result = read_skill_resource(uri, "naba/SKILL.md").unwrap();
+        match &result.contents[0] {
+            ResourceContents::TextResourceContents {
+                uri: u,
+                mime_type,
+                text,
+                ..
+            } => {
+                assert_eq!(u, uri);
+                assert_eq!(mime_type.as_deref(), Some("text/markdown"));
+                let expected = embed::read_skill_file("naba", "SKILL.md").unwrap();
+                assert_eq!(text.as_bytes(), expected);
+            }
+            other => panic!("expected text contents, got {other:?}"),
+        }
+
+        // The compact index (skill://naba) lists every file's read URI.
+        let idx = read_skill_resource("skill://naba", "naba").unwrap();
+        match &idx.contents[0] {
+            ResourceContents::TextResourceContents { text, .. } => {
+                assert!(text.contains("skill://naba/SKILL.md"), "index: {text}");
+            }
+            other => panic!("expected text index, got {other:?}"),
+        }
+
+        // A trailing slash (client URL normalization) still resolves to the index.
+        let idx_slash = read_skill_resource("skill://naba/", "naba/").unwrap();
+        match &idx_slash.contents[0] {
+            ResourceContents::TextResourceContents { text, .. } => {
+                assert!(text.contains("skill://naba/SKILL.md"), "index: {text}");
+            }
+            other => panic!("expected text index, got {other:?}"),
+        }
+
+        // Unknown file / skill -> resource-not-found error, not a panic.
+        assert!(read_skill_resource("skill://naba/nope.md", "naba/nope.md").is_err());
+        assert!(read_skill_resource("skill://ghost", "ghost").is_err());
+    }
+
+    #[test]
+    fn skill_mime_maps_md_and_other() {
+        assert_eq!(skill_mime("SKILL.md"), "text/markdown");
+        assert_eq!(skill_mime("commands/edit.md"), "text/markdown");
+        assert_eq!(skill_mime("data.txt"), "text/plain");
+        assert_eq!(skill_mime("noext"), "text/plain");
     }
 
     #[test]

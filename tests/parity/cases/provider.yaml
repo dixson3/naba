@@ -1,0 +1,42 @@
+# provider / models command groups (SPEC-PROVIDER-010/011, Epic 2). Both are Rust-only [NEW]
+# commands, gated `requires: [provider]` (they skip on the Go baseline, which lacks them).
+cases:
+  # `naba provider` piped -> universal --json envelope (SPEC-JSON-006). The runner scrubs
+  # provider keys from the env (incl. AWS_BEARER_TOKEN_BEDROCK), so all three registered providers
+  # (gemini, openrouter, bedrock) show credentials:false and the default is the autodetect fallback
+  # (gemini) -- deterministic. The bedrock row also pins its registration (SPEC-PROVIDER-012).
+  - id: provider-list-json
+    spec: [SPEC-PROVIDER-010, SPEC-PROVIDER-009, SPEC-PROVIDER-012, SPEC-JSON-006]
+    requires: [provider]
+    argv: ["provider"]
+    provider_mock: false
+    golden: stdout
+
+  # `naba provider` under a PTY -> the human table (no --json). Deterministic (no keys).
+  - id: provider-list-human
+    spec: [SPEC-PROVIDER-010]
+    requires: [provider]
+    argv: ["provider"]
+    provider_mock: false
+    mode: pty
+    golden: stdout
+
+  # `naba models --provider gemini` -> the mock's model list, piped -> --json envelope.
+  - id: models-list-json
+    spec: [SPEC-PROVIDER-011, SPEC-JSON-006]
+    requires: [provider]
+    argv: ["models", "--provider", "gemini"]
+    provider_mock: true
+    gemini_key: smoke-key
+    golden: stdout
+
+  # `naba models` with no resolvable key -> provider-named SPEC-ERR-001 auth error (exit 3).
+  - id: models-missing-key
+    spec: [SPEC-PROVIDER-011, SPEC-ERR-001]
+    requires: [provider]
+    argv: ["models", "--provider", "gemini"]
+    provider_mock: false
+    exit_code: 3
+    golden: none
+    stderr_contains:
+      - "GEMINI_API_KEY not set."

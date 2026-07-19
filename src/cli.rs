@@ -77,12 +77,19 @@ pub enum Commands {
     Diagram(DiagramArgs),
     /// Generate a sequential image series
     Story(StoryArgs),
+    /// List configured providers and their credential status
+    // SPEC-PROVIDER-010: enumerates every registered provider + whether its credentials resolve.
+    Provider,
+    /// List a provider's available models
+    // SPEC-PROVIDER-011: lists the resolved provider's models (global --provider selects it;
+    // default provider when unset). Requires a resolvable key for the target provider.
+    Models,
     /// Manage configuration
     // SPEC-CONFIG-001: the parent `Long` shows the config-file location + valid keys. The path is
     // resolved at runtime (NABA_CONFIG_DIR else ~/.config/naba); help prose is [DIVERGENCE], so the
     // static long_about states the resolution rule rather than a baked absolute path.
     #[command(
-        long_about = "Manage naba configuration.\n\nConfig file: $NABA_CONFIG_DIR/config.yaml (default ~/.config/naba/config.yaml)\nValid keys: api_key, model, provider, default_output_dir, aspect, resolution, quality"
+        long_about = "Manage naba configuration.\n\nConfig file: $NABA_CONFIG_DIR/config.yaml (default ~/.config/naba/config.yaml)\nValid keys: default-provider, <provider>.model, <provider>.api-key, <provider>.api-key-envvar (provider: gemini, openrouter), default_output_dir, aspect, resolution, quality"
     )]
     Config(ConfigArgs),
     /// Check naba's environment health (skills, API key, model, config)

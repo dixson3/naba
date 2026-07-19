@@ -1,8 +1,12 @@
 # version command group (SPEC-VERSION, §3.12).
 cases:
+  # SPEC-VERSION-001 human line. Under a PTY (a chardevice) --json is NOT force-enabled, so
+  # `version` prints the human line (SPEC-GLOBAL-003). Piped, `version` now emits the universal
+  # --json envelope (SPEC-JSON-006) — covered structurally by test_json_envelope.py, whose
+  # build-dependent version/commit/date fields are not golden-pinnable.
   - id: version
-    # SPEC-VERSION-001: "naba <v> (commit: <c>, built: <d>)" -- normalized fields.
     spec: [SPEC-VERSION-001, SPEC-JSON-005]
     argv: ["version"]
     provider_mock: false
+    mode: pty
     golden: stdout

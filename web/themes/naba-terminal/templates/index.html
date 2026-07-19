@@ -32,8 +32,18 @@
   </a>
   <a class="card" href="{{ SITEURL }}/config/#providers">
     <h3><span class="glyph">#</span> multi-provider <span class="card-arrow">&rarr;</span></h3>
-    <p>Route through Google Gemini or OpenRouter. One binary, no runtime, no dependencies.</p>
-    <pre class="mini">naba generate "hero" --provider gemini</pre>
+    <p>Route through Google Gemini, OpenRouter, or AWS Bedrock. One binary, no runtime, no dependencies.</p>
+    <pre class="mini">naba generate "hero" --provider bedrock</pre>
+  </a>
+  <a class="card" href="{{ SITEURL }}/skills/">
+    <h3><span class="glyph">#</span> claude code skills <span class="card-arrow">&rarr;</span></h3>
+    <p>One embedded <code>/naba</code> skill that triggers implicitly on any image request.</p>
+    <pre class="mini">naba skills install</pre>
+  </a>
+  <a class="card" href="{{ SITEURL }}/mcp/">
+    <h3><span class="glyph">#</span> mcp server <span class="card-arrow">&rarr;</span></h3>
+    <p>Expose the image tools to Claude Desktop, with skills as lazily-loaded resources.</p>
+    <pre class="mini">naba mcp</pre>
   </a>
   <a class="card" href="{{ SITEURL }}/config/#self-update">
     <h3><span class="glyph">#</span> self-updating <span class="card-arrow">&rarr;</span></h3>

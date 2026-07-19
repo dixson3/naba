@@ -36,12 +36,26 @@ pub struct Globals {
 pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
     match command {
         Commands::Version => {
-            println!("{}", version::version_line());
+            // SPEC-JSON-006: under --json (incl. the piped auto-enable) emit the universal
+            // envelope; on a TTY print the SPEC-VERSION-001 human line.
+            if globals.json {
+                output::print_ok_json(VersionData {
+                    version: version::VERSION,
+                    commit: version::COMMIT,
+                    date: version::DATE,
+                    host_triple: version::HOST_TRIPLE,
+                    line: version::version_line(),
+                });
+            } else {
+                println!("{}", version::version_line());
+            }
             // Throttled, offline upgrade nudge (SPEC-SELF-006); no-op unless a vendor install has
             // a cached newer release. Honors NABA_NO_UPDATE_CHECK/CI.
             crate::self_cmd::nag::maybe_nag();
             Ok(())
         }
+        Commands::Provider => run_provider(globals),
+        Commands::Models => run_models(globals).await,
         Commands::Generate(args) => run_generate(args, globals).await,
         Commands::Edit(args) => run_edit(args, globals).await,
         Commands::Restore(args) => run_restore(args, globals).await,
@@ -54,15 +68,21 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
             // unset key → exit 1 `key %q is not set`; else print the value.
             ConfigCommand::Get { key } => {
                 let value = config::get_value(&key)?;
-                println!("{value}");
+                if globals.json {
+                    output::print_config_json(&key, &value);
+                } else {
+                    println!("{value}");
+                }
                 Ok(())
             }
             // SPEC-CONFIG-003 / SPEC-ERR-009: set load error → exit 1 `load config: %v`;
             // unknown key → exit 2 `unknown key %q`; save error → exit 10 `save config: %v`;
-            // success (unless --quiet) → `Set %s = %s`.
+            // success → `Set %s = %s` (human) or a JSON envelope (--json, Issue 1.4).
             ConfigCommand::Set { key, value } => {
                 config::set_value(&key, &value)?;
-                if !globals.quiet {
+                if globals.json {
+                    output::print_config_json(&key, &value);
+                } else if !globals.quiet {
                     println!("Set {key} = {value}");
                 }
                 Ok(())
@@ -83,6 +103,7 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                 target: sk.target,
                 dry_run: sk.dry_run,
                 quiet: globals.quiet,
+                json: globals.json,
             };
             match sk.command {
                 SkillsCommand::Install => crate::skills::run(crate::skills::Mode::Install, &opts),
@@ -105,16 +126,173 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
 }
 
 // ---------------------------------------------------------------------------
+// version / provider / models --json data payloads (SPEC-JSON-006)
+// ---------------------------------------------------------------------------
+
+/// `version --json` payload (SPEC-JSON-006). The build-injected `version`/`commit`/`date` are
+/// build-dependent (the parity normalizer stabilizes the rendered `line`).
+#[derive(serde::Serialize)]
+struct VersionData {
+    version: &'static str,
+    commit: &'static str,
+    date: &'static str,
+    host_triple: &'static str,
+    line: String,
+}
+
+/// One provider row for `naba provider` (SPEC-PROVIDER-010).
+#[derive(serde::Serialize)]
+struct ProviderEntry {
+    name: &'static str,
+    default: bool,
+    credentials: bool,
+    model: String,
+}
+
+/// `naba provider --json` payload (SPEC-PROVIDER-010).
+#[derive(serde::Serialize)]
+struct ProviderList {
+    default_provider: String,
+    providers: Vec<ProviderEntry>,
+}
+
+/// `naba models --json` payload (SPEC-PROVIDER-011).
+#[derive(serde::Serialize)]
+struct ModelsList {
+    provider: String,
+    models: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// provider (SPEC-PROVIDER-010) — list registered providers + credential status
+// ---------------------------------------------------------------------------
+
+/// The effective per-provider default model: the configured `providers.<name>.model` when set,
+/// else the provider's compiled-in default (SPEC-CFGSCHEMA-006).
+fn effective_provider_model(cfg: &Config, name: &str, default_model: &str) -> String {
+    let configured = cfg.get(&format!("{name}.model"));
+    if configured.is_empty() {
+        default_model.to_string()
+    } else {
+        configured
+    }
+}
+
+fn run_provider(globals: &Globals) -> AppResult<()> {
+    let cfg = Config::load().unwrap_or_default();
+    let env_keys = resolved_env_keys(&cfg);
+    // The provider a bare image call would pick (config default > env-key autodetect), so the
+    // listing marks it — reusing doctor's shared resolver keeps the two in lockstep.
+    let effective = crate::doctor::resolve_provider(globals.provider.as_deref(), &cfg);
+
+    let entries: Vec<ProviderEntry> = crate::provider::registry::registry()
+        .iter()
+        .map(|spec| ProviderEntry {
+            name: spec.name,
+            default: spec.name == effective,
+            credentials: env_keys.present(spec.name),
+            model: effective_provider_model(&cfg, spec.name, spec.default_model),
+        })
+        .collect();
+
+    if globals.json {
+        output::print_ok_json(ProviderList {
+            default_provider: effective,
+            providers: entries,
+        });
+        return Ok(());
+    }
+
+    let width = entries.iter().map(|e| e.name.len()).max().unwrap_or(0);
+    println!("Providers ({}):", entries.len());
+    for e in &entries {
+        let marker = if e.default { "*" } else { " " };
+        let creds = if e.credentials {
+            "configured"
+        } else {
+            "missing"
+        };
+        println!(
+            "{marker} {:<width$}  credentials: {:<10}  model: {}",
+            e.name,
+            creds,
+            e.model,
+            width = width
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// models (SPEC-PROVIDER-011) — list a provider's models via Provider::list_models
+// ---------------------------------------------------------------------------
+
+async fn run_models(globals: &Globals) -> AppResult<()> {
+    let cfg = Config::load().unwrap_or_default();
+    let env_keys = resolved_env_keys(&cfg);
+
+    // Provider: an explicit global --provider (validated) else the resolved default.
+    let provider = match globals.provider.as_deref().filter(|s| !s.is_empty()) {
+        Some(p) => {
+            if !crate::provider::registry::is_known(p) {
+                return Err(AppError::usage(format!(
+                    "unknown provider {p:?}\n\nValid values: {}",
+                    crate::provider::registry::names().join(", ")
+                )));
+            }
+            p.to_string()
+        }
+        None => crate::doctor::resolve_provider(None, &cfg),
+    };
+
+    // SPEC-ERR-001: listing models is a live API call — an empty resolved key errors (exit 3).
+    let api_key = env_keys.get(&provider).unwrap_or_default().to_string();
+    if api_key.is_empty() {
+        return Err(missing_key_error(&provider));
+    }
+
+    let default_model = crate::provider::registry::find(&provider)
+        .map(|s| s.default_model.to_string())
+        .unwrap_or_default();
+    let model = effective_provider_model(&cfg, &provider, &default_model);
+    let selection = Selection {
+        provider: provider.clone(),
+        model,
+        api_key,
+        quality: None,
+    };
+    let client = build_provider(&selection);
+    let models = client.list_models().await?;
+    let ids: Vec<String> = models.into_iter().map(|m| m.id).collect();
+
+    if globals.json {
+        output::print_ok_json(ModelsList {
+            provider,
+            models: ids,
+        });
+        return Ok(());
+    }
+
+    println!("Models for {provider} ({}):", ids.len());
+    for id in &ids {
+        println!("  {id}");
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Shared image pipeline (generate / edit / restore)
 // ---------------------------------------------------------------------------
 
-/// `Some(s)` for a non-empty string, else `None`.
-fn opt(s: String) -> Option<String> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
-    }
+/// The config-merged resolved credential for every registered provider, as an [`EnvKeys`]
+/// (Issue 2.1 — N-provider). Shared by the image pipeline and the `provider`/`models` commands so
+/// they all agree on which providers have resolvable creds.
+fn resolved_env_keys(cfg: &Config) -> EnvKeys {
+    EnvKeys::from_resolved(
+        crate::provider::registry::names()
+            .into_iter()
+            .map(|name| (name.to_string(), cfg.resolve_api_key_for(name))),
+    )
 }
 
 /// Resolve provider + model + API key for an image command, returning the [`Selection`] and the
@@ -128,12 +306,9 @@ fn resolve_selection_for(globals: &Globals, quality: &str) -> AppResult<(Selecti
     let cfg = Config::load().unwrap_or_default();
     // Resolved config defaults (provider + `model`/`quality`→tier). Invalid config quality → 1.
     let cfg_defaults = cfg.to_config_defaults()?;
-    // Feed the selector the *resolved* keys so config `api_key` (gemini) counts for autodetect
-    // and the resolved key rides onto the Selection (SPEC-CFGSCHEMA-003 env > config).
-    let env_keys = EnvKeys {
-        gemini: opt(cfg.resolve_api_key()),
-        openrouter: opt(cfg.resolve_openrouter_api_key()),
-    };
+    // Feed the selector the *resolved* keys (config-merged) for every registered provider so the
+    // resolved credential counts for autodetect and rides onto the Selection (SPEC-CFGSCHEMA-003).
+    let env_keys = resolved_env_keys(&cfg);
 
     // SPEC-ERR-016 / SPEC-PROVIDER-007: a CLI `--model` without a CLI `--provider` is a usage
     // error (exit 2), enforced by the selector. The command layer routes straight through the

@@ -2,8 +2,9 @@ Title: usage
 Slug: usage
 Subtitle: commands, with the images they make
 
-Every image command routes through one of two providers (Gemini or OpenRouter) — see
-[config](/config/) for provider and key setup. Each example below shows the exact command
+Every image command routes through one of naba's providers (Gemini, OpenRouter, or AWS
+Bedrock) — see [config](/config/) for provider and key setup. Each example below shows the
+exact command
 **and the image it produced**; captions note the prompt and the model used. (These are real
 naba outputs, mostly on the fast `gemini-3.1-flash-image` tier, with one on the higher-quality
 `gemini-3-pro-image` tier.)
@@ -146,6 +147,29 @@ naba diagram "user authentication flow" --type flowchart
   <img src="/images/samples/diagram.jpg" alt="A user authentication flowchart">
   <figcaption><span class="cap-prompt">"user authentication flow" · --type flowchart</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
 </figure>
+
+## provider
+
+List the registered providers and which have resolvable credentials. A `*` marks the
+provider a bare image call would use (the effective default); each row shows its credential
+status and effective default model.
+
+```bash
+naba provider
+naba provider --json          # machine-readable {status, data} envelope
+```
+
+## models
+
+List a provider's available models via a live API call. With no `--provider`, it lists the
+resolved default provider's models; pass `--provider` to target another (it needs a resolvable
+key for that provider).
+
+```bash
+naba models                       # the default provider's models
+naba models --provider bedrock    # a specific provider's models
+naba models --provider openrouter --json
+```
 
 ---
 

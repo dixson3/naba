@@ -28,11 +28,15 @@ use async_trait::async_trait;
 
 use crate::error::AppError;
 
+pub mod bedrock;
 pub mod gemini;
 pub mod openrouter;
+pub mod registry;
 pub mod select;
 
 // Re-exported for the 2.5 selector factory / 2.6 command layer (not yet wired).
+#[allow(unused_imports)]
+pub use bedrock::BedrockProvider;
 #[allow(unused_imports)]
 pub use gemini::{model_for_quality, GeminiProvider};
 #[allow(unused_imports)]

@@ -1,13 +1,14 @@
 # config command group (SPEC-CONFIG, §3.8). config get/set need no provider/key.
 cases:
   - id: config-set
-    spec: [SPEC-CONFIG-003]
+    # SPEC-JSON-006: the config envelope is normalized to {status, data:{key, value}} (Epic 2).
+    spec: [SPEC-CONFIG-003, SPEC-JSON-006]
     argv: ["config", "set", "model", "gemini-3-pro-image"]
     provider_mock: false
     golden: stdout
 
   - id: config-set-then-get
-    spec: [SPEC-CONFIG-002, SPEC-CONFIG-003]
+    spec: [SPEC-CONFIG-002, SPEC-CONFIG-003, SPEC-JSON-006]
     pre_argv:
       - ["config", "set", "model", "gemini-3-pro-image"]
     argv: ["config", "get", "model"]

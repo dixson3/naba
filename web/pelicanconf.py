@@ -7,8 +7,8 @@ SITESUBTITLE = "AI image generation from your terminal"
 # Full-sentence description for meta/OG (crawlers want >=100 chars).
 SITE_DESCRIPTION = (
     "naba is a single-binary Rust CLI for AI image generation across multiple providers "
-    "(Google Gemini and OpenRouter). Generate, edit, restore, and compose images — icons, "
-    "patterns, stories, diagrams — straight from the command line."
+    "(Google Gemini, OpenRouter, and AWS Bedrock). Generate, edit, restore, and compose "
+    "images — icons, patterns, stories, diagrams — straight from the command line."
 )
 SITEURL = ""
 
@@ -63,6 +63,8 @@ MENUITEMS = (
     ("install", "/install/"),
     ("usage", "/usage/"),
     ("config", "/config/"),
+    ("skills", "/skills/"),
+    ("mcp", "/mcp/"),
     ("github", GITHUB_URL),
 )
 

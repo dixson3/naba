@@ -18,10 +18,11 @@ Legend for divergence markers:
 
 ## §1 Command inventory (SPEC-INV)
 
-- **SPEC-INV-001** [PINNED] The binary exposes exactly **12 real command groups**:
+- **SPEC-INV-001** [PINNED] The binary exposes exactly **14 real command groups**:
   `generate`, `edit`, `restore`, `icon`, `pattern`, `diagram`, `story`,
   `config` (subcommands `get`, `set`), `doctor`,
-  `skills` (subcommands `install`, `upgrade`, `remove`, `status`), `mcp`, `version`.
+  `skills` (subcommands `install`, `upgrade`, `remove`, `status`), `provider`, `models`,
+  `mcp`, `version`. (Epic 2 added `provider` and `models`; the count is no longer fixed at 12.)
 - **SPEC-INV-002** [PINNED] `storyboard`, `batch`, and `brand-kit` are **NOT** binary
   subcommands. They are skill-layer composites (the `/naba` skill orchestrates multiple
   real CLI calls). They are out of the binary parity surface and are protected only
@@ -309,9 +310,12 @@ outgoing prompt and the suite asserts it exactly.
 ### §3.12 version (SPEC-VERSION)
 
 - **SPEC-VERSION-001** [PINNED] `Use: "version"`, `Short: "Show version information"`.
-  Output: `naba <Version> (commit: <Commit>, built: <Date>)`. The concrete
+  Output (human / TTY): `naba <Version> (commit: <Commit>, built: <Date>)`. The concrete
   Version/Commit/Date **values** are [DIVERGENCE] (build-injected — §VERSION); the suite
-  pins the *format*, normalizing the three fields.
+  pins the *format*, normalizing the three fields. Under `--json` (incl. the SPEC-GLOBAL-003
+  piped auto-enable) `version` emits the universal envelope (SPEC-JSON-006) instead:
+  `{ "status": "ok", "data": { "version", "commit", "date", "host_triple", "line" } }`, where
+  `line` is the human string above.
 - **SPEC-VERSION-002** [PINNED] The `doctor` `version` check uses a *different* format:
   `naba <Version> (commit <Commit>, built <Date>)` (no colons). Preserve both formats as-is
   (do not unify).
@@ -345,9 +349,10 @@ outgoing prompt and the suite asserts it exactly.
 
 ## §5 Provider layer (SPEC-PROVIDER)
 
-- **SPEC-PROVIDER-001** [NEW] naba supports two providers: **gemini** (current) and
-  **openrouter** (new). Every image path (`generate`, `edit`, `restore`, and the composite
-  commands) routes through the selected provider.
+- **SPEC-PROVIDER-001** [NEW] naba supports multiple providers: **gemini** (current),
+  **openrouter** (new), and **AWS bedrock** (Epic 3). Every image path (`generate`, `edit`,
+  `restore`, and the composite commands) routes through the selected provider. The provider set
+  is the registry (SPEC-PROVIDER-009); the count is not fixed.
 - **SPEC-PROVIDER-002** [PINNED] **Gemini** provider (port of the Go client): base URL
   `https://generativelanguage.googleapis.com/v1beta` (override via `GEMINI_BASE_URL`);
   endpoint `{base}/models/{model}:generateContent`, POST, headers `Content-Type:
@@ -400,33 +405,101 @@ outgoing prompt and the suite asserts it exactly.
   This is documented, not a bug. The mitigation for a user who wants to stay on Gemini is to
   pin `provider: gemini` in config (config beats autodetect). SPEC and the `naba` skill/docs
   must call this out explicitly (Issue 5.2).
+- **SPEC-PROVIDER-009** [NEW] **Provider registry** (Epic 2). The set of providers is a single
+  registered list (`src/provider/registry.rs`), not a fixed pair of hardcoded match arms. Each
+  registration declares the provider's `name`, conventional key env var, compiled-in default
+  model (SPEC-CFGSCHEMA-006), whether `--quality` selects the model (SPEC-PROVIDER-005), whether
+  it rejects the `auto` router (SPEC-PROVIDER-006), and a builder. The registry is the single
+  source of truth the selector, config (`Valid keys:`), doctor, and the `provider`/`models`
+  commands all read; adding a provider (e.g. Bedrock) is one new registration. The provider
+  **count is no longer fixed at two**. **Explicit N-provider autodetect precedence:** the
+  registry's declared order (oldest→newest) is the tie-break — among providers with resolvable
+  creds the one appearing **latest** in the order wins (generalizing SPEC-PROVIDER-008: adding a
+  newer provider's key reroutes to it); with no resolvable creds the fallback is the **first**
+  registered provider. For the two-provider case this reproduces SPEC-PROVIDER-007 exactly
+  (only-gemini→gemini, only-openrouter→openrouter, both→openrouter, neither→gemini).
+- **SPEC-PROVIDER-010** [NEW] **`naba provider`** lists every registered provider with: whether
+  it is the effective default (config `default_provider` > autodetect), whether its credentials
+  resolve (SPEC-CFGSCHEMA-003), and its effective default model. Human output + the universal
+  `--json` envelope (SPEC-JSON-006, `data = {default_provider, providers:[{name, default,
+  credentials, model}]}`). Read-only — no network call.
+- **SPEC-PROVIDER-011** [NEW] **`naba models [--provider <name>]`** lists a provider's models via
+  `Provider::list_models`. The target provider is the global `--provider` when set (validated
+  against the registry; an unknown name is a usage error, exit 2) else the resolved default
+  provider. It is a live API call: an empty resolved key raises the provider-named SPEC-ERR-001
+  "not set" auth error (exit 3). Human output + the universal `--json` envelope (SPEC-JSON-006,
+  `data = {provider, models:[<id>…]}`).
+- **SPEC-PROVIDER-012** [NEW] **AWS Bedrock** provider (Epic 3): a **thin `reqwest`** client over
+  the Bedrock Runtime **`InvokeModel`** REST call (operator decision at the bedrock-transport
+  capability gate — chosen over the ~100-crate `aws-sdk-bedrockruntime`; `aws-sigv4` is pulled in
+  only for the profile signing path, see SPEC-PROVIDER-013). Endpoint host pattern
+  `https://bedrock-runtime.<region>.amazonaws.com`, override via **`BEDROCK_BASE_URL`** (mirrors
+  `GEMINI_BASE_URL`/`OPENROUTER_BASE_URL`, for mockable tests); URL
+  `{base}/model/{modelId}/invoke`, POST, `Content-Type`/`Accept: application/json`. Region default
+  **`us-east-1`** (broadest image-model coverage), from `AWS_REGION` > `AWS_DEFAULT_REGION` > the
+  default. Default model `amazon.nova-canvas-v1:0`. **Two request/response families** (raw
+  per-model JSON body; both return base64 images decoded to bytes): the **Amazon** schema
+  (`amazon.*` — Nova Canvas, Titan Image v1/v2: `{taskType, textToImageParams, imageGenerationConfig}`,
+  edit/restore via `IMAGE_VARIATION`) and the **Stability** schema (`stability.*` — Stable Image
+  Core/Ultra/SD 3.5: `{prompt, aspect_ratio, output_format}`, edit/restore via `mode:
+  "image-to-image"`). Response images come from `{"images":[<b64>]}` (older Stability
+  `{"artifacts":[{"base64":…}]}` also tolerated); no images → exit 5. `list_models` returns the
+  curated image-model set (no network / no credentials). Registered through the Epic-2 registry
+  (`registry.rs`) as one `ProviderSpec` entry; `--quality` is a native request param, not a model
+  tier (SPEC-PROVIDER-005), and Bedrock has no `auto` router. **Edit/restore wire shapes and the
+  SigV4 path are mock/unit-validated only — not exercised against real AWS.**
+- **SPEC-PROVIDER-013** [NEW] **Bedrock auth — two modes.** (a) **api-key bearer**:
+  `Authorization: Bearer <token>`, the token resolved through Epic-1's uniform api-key resolution
+  (`providers.bedrock.api-key` inline > `providers.bedrock.api-key-envvar` > the conventional
+  `AWS_BEARER_TOKEN_BEDROCK`). (b) **AWS profile / SigV4**: sign the request with `aws-sigv4` using
+  credentials from the environment (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`)
+  or a named `~/.aws/credentials` profile (`AWS_PROFILE`); region as in SPEC-PROVIDER-012. **Mode
+  selection** (unit-testable, pure): prefer the bearer path when a non-empty bearer token is
+  resolvable, else fall back to the profile/SigV4 path. Full SSO-token / IMDS credential resolution
+  is intentionally **out of scope** (the heavy `aws-config` path the thin-transport decision
+  avoids).
 
 ---
 
 ## §6 Config schema & precedence (SPEC-CFGSCHEMA)
 
 - **SPEC-CFGSCHEMA-001** [PINNED+NEW] Config file `config.yaml` at `NABA_CONFIG_DIR` (if set)
-  else `<home>/.config/naba`. Keys (YAML, all omitempty):
-  `api_key`, `model`, `default_output_dir`, `aspect`, `resolution`, `quality`, **`provider`
-  [NEW]**. `ValidKeys()` returns exactly this set (order: api_key, model, provider,
-  default_output_dir, aspect, resolution, quality — `provider` is [NEW], placement is
-  [DIVERGENCE]).
+  else `<home>/.config/naba`. The schema is **nested per-provider** (Epic 1). Top level (YAML,
+  all omitempty): `default_provider`, a `providers` map keyed by provider name, and the image
+  defaults `default_output_dir`, `aspect`, `resolution`, `quality`. Each `providers.<name>`
+  entry carries `model`, `api-key`, `api-key-envvar` (all omitempty). The `config get`/`config
+  set` addressable key set (order pinned, drives the `Valid keys:` error lines): `default-provider`,
+  each known provider's `<provider>.model` / `<provider>.api-key` / `<provider>.api-key-envvar`
+  (providers: `gemini`, `openrouter`, `bedrock`), then `default_output_dir`, `aspect`, `resolution`,
+  `quality`. The legacy flat keys `api_key`, `model`, `provider` remain accepted as **aliases**
+  (`api_key` → `gemini.api-key`, `model` → the default provider's `model`, `provider` →
+  `default-provider`) for backward compatibility, but are not advertised in the valid-keys list.
 - **SPEC-CFGSCHEMA-002** [PINNED] Missing config file → zero-value config, no error. `Save()`
   mkdir `0o755`, file `0o644`.
-- **SPEC-CFGSCHEMA-003** [PINNED] API-key precedence: `GEMINI_API_KEY` env > config
-  `api_key`. [NEW] The OpenRouter key is `OPENROUTER_API_KEY` env (there is no config
-  `openrouter_api_key` key in this port — keys stay env-only for OpenRouter unless a later
-  plan adds one).
+- **SPEC-CFGSCHEMA-003** [PINNED] **Uniform api-key precedence** (one resolver for every
+  provider, Epic 1): inline `providers.<name>.api-key` > the env var named by
+  `providers.<name>.api-key-envvar` > the provider's conventional default env var
+  (`GEMINI_API_KEY` for gemini, `OPENROUTER_API_KEY` for openrouter, `AWS_BEARER_TOKEN_BEDROCK`
+  for bedrock's api-key path — SPEC-PROVIDER-013). The conventional env-var
+  names are centralized in one place. Note this **reverses the old flat env-over-config order**:
+  an inline config `api-key` now beats the conventional env var (an explicit per-provider
+  credential is the most specific source). OpenRouter is no longer special-cased — it has a
+  first-class inline `api-key`/`api-key-envvar` like every provider (the old "no
+  `openrouter_api_key` config key" carve-out is dropped).
 - **SPEC-CFGSCHEMA-004** [PINNED] Output-dir precedence: `NABA_OUTPUT_DIR` env > config
   `default_output_dir` > XDG default `<home>/.local/share/naba/images`.
 - **SPEC-CFGSCHEMA-005** [PINNED] **CLI-vs-MCP output-dir asymmetry.** The **CLI** image
   commands do **NOT** consult `NABA_OUTPUT_DIR`/`default_output_dir`/the XDG default — they
   write to `-o` (file or dir) or auto-name in **CWD**. `NABA_OUTPUT_DIR` and the XDG default
   are consumed **only by the MCP server**. Preserve this asymmetry exactly.
-- **SPEC-CFGSCHEMA-006** [PINNED] Model precedence in config (`ResolveModel`): `model` key >
-  `quality`→model > unset. Invalid config `quality` → `"invalid quality %q in config (valid:
-  fast, high)"`. Full CLI model precedence: `--model` (set, non-empty) > `--quality` (set) >
-  config `ResolveModel` > provider default.
+- **SPEC-CFGSCHEMA-006** [PINNED] **Per-provider default model** (Epic 1). Each provider
+  designates its own default model; when `providers.<name>.model` is absent the selector
+  resolves it to that provider's compiled-in default (`gemini::DEFAULT_MODEL`,
+  `openrouter::DEFAULT_MODEL`; later providers register their own) — no provider is ever
+  model-less. Config model precedence for the default provider (`ResolveModel`):
+  `providers.<default>.model` > `quality`→model tier > unset. Invalid config `quality` →
+  `"invalid quality %q in config (valid: fast, high)"`. Full CLI model precedence: `--model`
+  (set, non-empty) > `--quality` (set) > config `ResolveModel` > provider default.
 
 ---
 
@@ -476,6 +549,18 @@ outgoing prompt and the suite asserts it exactly.
 - **SPEC-JSON-005** [PINNED] Nondeterministic fields the suite **normalizes** before
   comparison: `elapsed_ms`, timestamped auto-names/paths, version/commit/date. The parity
   harness has a normalizer (Issue 1.2) that canonicalizes these.
+- **SPEC-JSON-006** [NEW] **Universal `--json` envelope contract** (Epic 2). Every subcommand
+  emits a **documented** JSON structure under `--json` (including the SPEC-GLOBAL-003 piped
+  auto-enable). The **discrete-result** commands — `version`, `config get`/`set`, `skills`
+  (`install`/`upgrade`/`remove`/`status`), `provider`, `models` — use the **common envelope**
+  `{ "status": <string>, "data": <payload>? , "error": <string>? }`: the success path emits
+  `{ "status": "ok", "data": … }` (errors surface as an exit code + a stderr line, so `error` is
+  reserved and normally omitted). The **image** commands keep their `Result` object/array shape
+  (SPEC-JSON-001..003) and **`doctor`** keeps its `{ok, failed, checks}` envelope (SPEC-JSON-004)
+  — these are the pre-existing documented JSON contracts the universal clause **grandfathers**,
+  not rewrites. The Epic-1 provisional `config` envelope (`{status, key, value}`) is **normalized**
+  into the common shape (`{status, data:{key, value}}`). A parity/traceability test enumerates
+  every subcommand and asserts each emits its documented envelope so "universal" is enforced.
 
 ---
 
@@ -515,18 +600,23 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
 
 ## §10 Config migration (SPEC-MIGRATE)
 
-- **SPEC-MIGRATE-001** [NEW/RESOLVED — Concern 5] The schema change is
-  **additive-optional**: `provider` (and `model`, already present) are optional keys. The
-  **default migration is zero-rewrite** — absent keys resolve to defaults on read, and the
-  user's hand-edited `config.yaml` (**including its comments**) is left untouched.
-- **SPEC-MIGRATE-002** [NEW] A file **rewrite** is performed **only** if a genuine structural
-  migration is later required. When it is, migration does a serde round-trip, writes a
-  `.bak` backup first, is **idempotent**, and is graceful on
-  empty/missing/malformed/already-new inputs (no data loss, no crash).
-- **SPEC-MIGRATE-003** [NEW/ACCEPTED — Concern 5] A structural rewrite (if ever triggered)
-  **loses YAML comments** (serde round-trip does not preserve them). This is an accepted
-  loss, mitigated by the `.bak` backup and the zero-rewrite default. Documented here so it
-  is not a surprise.
+- **SPEC-MIGRATE-001** [NEW] The flat→nested schema change (Epic 1) is a **STRUCTURAL**
+  migration, applied automatically on load. The old flat shape (top-level
+  `api_key`/`model`/`provider`) is detected and rewritten into the nested schema. Per-key
+  mapping: `api_key` → `providers.gemini.api-key` (its historical Gemini scope, regardless of
+  the old `provider` value); `model` → `providers.<default>.model`, where `<default>` is the
+  old `provider` value or `gemini` when absent; `provider` → `default_provider`;
+  `aspect`/`resolution`/`quality`/`default_output_dir` → preserved as the top-level image
+  defaults. An image-defaults-only config (no `api_key`/`model`/`provider`) is already
+  schema-valid and is **not** rewritten (byte-identical, comments intact).
+- **SPEC-MIGRATE-002** [NEW] The structural rewrite writes a `config.yaml.bak` backup with the
+  **original bytes** first, then transforms + rewrites `config.yaml`. It is **idempotent** (a
+  migrated file has `providers`/`default_provider` and no flat keys, so a second load no-ops
+  and the `.bak` is never clobbered) and graceful on empty/missing/malformed/already-nested
+  inputs (no data loss, no crash).
+- **SPEC-MIGRATE-003** [NEW/ACCEPTED] The structural rewrite **loses YAML comments** (serde
+  round-trip does not preserve them). This is an accepted loss, mitigated by the `.bak` backup.
+  Documented here so it is not a surprise.
 - **SPEC-MIGRATE-004** [NEW] YAML crate: use `serde_norway`/`yaml_serde`. **`serde_yml` is
   forbidden** (RUSTSEC-2025-0068).
 
@@ -535,7 +625,10 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
 ## §11 MCP surface (SPEC-MCP)
 
 - **SPEC-MCP-001** [PINNED] Server identity `naba` + version; stdio transport; tool and
-  resource capabilities registered (no list-changed notifications).
+  resource capabilities registered (no list-changed notifications). The resource capability
+  covers both the `file:///{path}` template (SPEC-MCP-012) and the concrete skill resources
+  (SPEC-MCP-014) — both are advertised under the single already-enabled `resources`
+  capability, so no handshake change is introduced by the skill surface.
 - **SPEC-MCP-002** [PINNED] Exactly **8 tools**: `generate_image`, `edit_image`,
   `restore_image`, `generate_icon`, `generate_pattern`, `generate_story`,
   `generate_diagram`, `list_images`. Tool/param inventory, enums, defaults, and descriptions
@@ -596,6 +689,23 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
   MCP errors use tool-level error results (not process exit). MCP missing-key message:
   `GEMINI_API_KEY not set. Set it with: export GEMINI_API_KEY=<your-key> or run: naba config
   set api_key <your-key>` [DIVERGENCE for the openrouter provider].
+
+### §11.1 Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
+
+- **SPEC-MCP-014** [NEW] `resources/list` enumerates the **embedded skill tree** as concrete
+  MCP resources so a client discovers skills cheaply and fetches instruction content on
+  demand. For each embedded skill `<name>` (from the binary's `skills/` embed) it emits: a
+  compact index resource — URI `skill://<name>`, name `<name> skills index`, MIME
+  `text/markdown` — followed by one resource per file — URI `skill://<name>/<rel>` for each
+  skill-relative path `<rel>` (sorted: `README.md`, `SKILL.md`, `commands/*.md`), name
+  `<name>/<rel>`, MIME by extension (`.md` → `text/markdown`, else `text/plain`). The listing
+  carries **URIs/metadata only — never file bodies** (the lazy-loading contract).
+- **SPEC-MCP-015** [NEW] `resources/read` resolves the `skill://` scheme: `skill://<name>/<rel>`
+  returns the embedded file content as `TextResourceContents` (`text`, MIME by extension —
+  SPEC-MCP-014), served from the same skill-embed accessors the CLI uses; `skill://<name>`
+  returns a generated markdown index listing every `skill://<name>/<rel>` URI. An unknown
+  skill or file → `resource not found: <uri>`. `file://` reads (SPEC-MCP-012) are unchanged;
+  the eight tools (SPEC-MCP-002) are unaffected.
 
 ---
 
