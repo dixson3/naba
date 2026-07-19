@@ -745,9 +745,13 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
 
 - **SPEC-VERSION-BUILD-001** [DIVERGENCE] Go injects `Version`/`Commit`/`Date` via ldflags
   (`git describe --tags --always --dirty`, `git rev-parse --short HEAD`, UTC date). The Rust
-  port injects the same three via `build.rs`/compile-time env (replacing ldflags — M3). The
-  values are build-dependent; the suite normalizes them (SPEC-JSON-005) and pins only the
-  output *format* (§VERSION).
+  port injects the same three via `build.rs`/compile-time env (replacing ldflags — M3). Version
+  derivation is hardened for release robustness: `git describe --tags --match 'v[0-9]*' --dirty`
+  (version tags only, so a transient non-version tag cannot pollute the version), falling back
+  to `v<CARGO_PKG_VERSION>` when no version tag is reachable (e.g. a shallow CI checkout) rather
+  than a bare commit sha, so a released binary always reports a parseable semver (self-update
+  depends on it). The values are build-dependent; the suite normalizes them (SPEC-JSON-005) and
+  pins only the output *format* (§VERSION).
 
 ---
 

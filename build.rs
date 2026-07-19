@@ -29,8 +29,20 @@ fn utc_date() -> String {
 }
 
 fn main() {
+    // Prefer a version tag (`vX.Y.Z`) reachable from HEAD, with a `-N-g<sha>[-dirty]` suffix
+    // for dev builds. `--match 'v[0-9]*'` ignores non-version tags (e.g. transient backup
+    // tags) so they can never pollute the reported version. When no version tag is reachable
+    // — notably a shallow CI checkout that did not fetch tags — fall back to the crate version
+    // from Cargo.toml (`v<CARGO_PKG_VERSION>`) rather than a bare commit sha, so a release
+    // binary always reports a parseable semver (self-update depends on it). `dev` is only used
+    // if even that is unavailable (never under cargo).
     let version =
-        git(&["describe", "--tags", "--always", "--dirty"]).unwrap_or_else(|| "dev".to_string());
+        git(&["describe", "--tags", "--match", "v[0-9]*", "--dirty"]).unwrap_or_else(|| {
+            match std::env::var("CARGO_PKG_VERSION") {
+                Ok(v) if !v.is_empty() => format!("v{v}"),
+                _ => "dev".to_string(),
+            }
+        });
     let commit = git(&["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "none".to_string());
     let date = utc_date();
 

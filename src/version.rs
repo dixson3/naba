@@ -4,7 +4,8 @@
 //! - `version` subcommand (SPEC-VERSION-001): `naba <V> (commit: <C>, built: <D>)`
 //! - `doctor` version check (SPEC-VERSION-002): `naba <V> (commit <C>, built <D>)`
 
-/// `git describe --tags --always --dirty`, fallback `dev`.
+/// `git describe --tags --match 'v[0-9]*' --dirty` (version tags only), falling back to
+/// `v<CARGO_PKG_VERSION>` when no version tag is reachable (e.g. a shallow CI checkout).
 pub const VERSION: &str = env!("NABA_VERSION");
 /// `git rev-parse --short HEAD`, fallback `none`.
 pub const COMMIT: &str = env!("NABA_COMMIT");
