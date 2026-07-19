@@ -9,7 +9,7 @@ The MCP server reuses the same shared pipeline as CLI commands (DD-001, DD-006):
 ## 2. Use Cases
 
 | ID | Name | Actor | Preconditions | Flow | Postconditions |
-|----|------|-------|---------------|------|----------------|
+|:---|:-----|:------|:--------------|:-----|:---------------|
 | UC-016 | Generate image via MCP | MCP client (AI assistant) | GEMINI_API_KEY set or in config; MCP server running | 1. Client sends `generate_image` tool call with prompt 2. Server resolves API key 3. Prompt enriched 4. Gemini API called 5. Image written to disk 6. Result returned with file path + base64 image | Image file on disk; MCP result with text + image content |
 | UC-017 | Edit image via MCP | MCP client | API key set; input file exists; MCP server running | 1. Client sends `edit_image` with prompt + file path 2. File existence validated 3. Edit prompt enriched 4. Gemini API called with image 5. Result written and returned | Edited image on disk; MCP result returned |
 | UC-018 | Restore image via MCP | MCP client | API key set; input file exists; MCP server running | 1. Client sends `restore_image` with file path and optional prompt 2. Default restoration prompt used if none provided 3. Gemini API called 4. Result returned | Restored image on disk |
@@ -87,6 +87,30 @@ and `quality` params; `generate_icon` exposes `quality` only (its `sizes` are ca
 pixels, not imageConfig). When a tool emits more than one image (`count`/`steps`/`sizes` >
 1), the same `imageConfig` applies to every image. Invalid `aspect`/`resolution`/`quality`
 values are rejected as a tool error before any API call.
+
+### Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
+
+Beyond the 8 tools and the `file:///{path}` image-file template, the server exposes the
+binary's **embedded skill tree** as MCP *resources* so an AI client can discover naba's skill
+instructions cheaply and load full content only when needed:
+
+- **`resources/list` (SPEC-MCP-014)** enumerates, per embedded skill `<name>`, a compact index
+  resource `skill://<name>` plus one `skill://<name>/<rel>` resource per file (`SKILL.md`,
+  `commands/*.md`, `README.md`). The listing returns **URIs and metadata only** — never file
+  bodies — so the round-trip stays small regardless of how large the skill instructions are.
+- **`resources/read` (SPEC-MCP-015)** serves the `skill://` scheme. `skill://<name>/<rel>`
+  returns the embedded file as `TextResourceContents` (MIME by extension: `.md` →
+  `text/markdown`, else `text/plain`); `skill://<name>` returns a generated markdown index of
+  the available URIs. An unknown skill/file yields `resource not found: <uri>`.
+
+Both handlers read from the same skill-embed accessors the CLI's `skills` commands use
+(`skill_names` / `skill_files` / `read_skill_file`) — no instruction content is duplicated in
+the MCP layer. The `resources` capability is already advertised for the `file://` template, so
+the skill surface adds handlers without any handshake change. `file://` image reads and the 8
+tools are unaffected.
+
+This is the **lazy-loading** model: list is O(paths), read is O(one file), and a client pulls
+only the instruction files it actually needs.
 
 ### Testing
 

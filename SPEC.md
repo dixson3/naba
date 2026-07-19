@@ -625,7 +625,10 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
 ## §11 MCP surface (SPEC-MCP)
 
 - **SPEC-MCP-001** [PINNED] Server identity `naba` + version; stdio transport; tool and
-  resource capabilities registered (no list-changed notifications).
+  resource capabilities registered (no list-changed notifications). The resource capability
+  covers both the `file:///{path}` template (SPEC-MCP-012) and the concrete skill resources
+  (SPEC-MCP-014) — both are advertised under the single already-enabled `resources`
+  capability, so no handshake change is introduced by the skill surface.
 - **SPEC-MCP-002** [PINNED] Exactly **8 tools**: `generate_image`, `edit_image`,
   `restore_image`, `generate_icon`, `generate_pattern`, `generate_story`,
   `generate_diagram`, `list_images`. Tool/param inventory, enums, defaults, and descriptions
@@ -686,6 +689,23 @@ All [PINNED] unless the wording is provider-dependent (marked [DIVERGENCE]).
   MCP errors use tool-level error results (not process exit). MCP missing-key message:
   `GEMINI_API_KEY not set. Set it with: export GEMINI_API_KEY=<your-key> or run: naba config
   set api_key <your-key>` [DIVERGENCE for the openrouter provider].
+
+### §11.1 Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
+
+- **SPEC-MCP-014** [NEW] `resources/list` enumerates the **embedded skill tree** as concrete
+  MCP resources so a client discovers skills cheaply and fetches instruction content on
+  demand. For each embedded skill `<name>` (from the binary's `skills/` embed) it emits: a
+  compact index resource — URI `skill://<name>`, name `<name> skills index`, MIME
+  `text/markdown` — followed by one resource per file — URI `skill://<name>/<rel>` for each
+  skill-relative path `<rel>` (sorted: `README.md`, `SKILL.md`, `commands/*.md`), name
+  `<name>/<rel>`, MIME by extension (`.md` → `text/markdown`, else `text/plain`). The listing
+  carries **URIs/metadata only — never file bodies** (the lazy-loading contract).
+- **SPEC-MCP-015** [NEW] `resources/read` resolves the `skill://` scheme: `skill://<name>/<rel>`
+  returns the embedded file content as `TextResourceContents` (`text`, MIME by extension —
+  SPEC-MCP-014), served from the same skill-embed accessors the CLI uses; `skill://<name>`
+  returns a generated markdown index listing every `skill://<name>/<rel>` URI. An unknown
+  skill or file → `resource not found: <uri>`. `file://` reads (SPEC-MCP-012) are unchanged;
+  the eight tools (SPEC-MCP-002) are unaffected.
 
 ---
 

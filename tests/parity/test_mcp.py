@@ -31,6 +31,11 @@ What this file covers
   template metadata (SPEC-MCP-012); ``resources/read`` of a real generated path
   is attempted and asserts blob+MIME on a binary that can serve it, but
   ``xfail``s on the Go build (see the resource-read test docstring).
+- **skills as resources (lazy loading)** — ``resources/list`` enumerates the
+  embedded skill tree as ``skill://naba/<rel>`` URIs plus a ``skill://naba``
+  index, carrying paths only (SPEC-MCP-014); ``resources/read`` of a
+  ``skill://`` URI returns the embedded file's text content on demand, and an
+  unknown skill file yields ``resource not found`` (SPEC-MCP-015).
 
 Skips gracefully (pytest skip, not error) when the ``mcp`` SDK import fails.
 """
@@ -663,3 +668,79 @@ def test_resource_read_blob(naba_bin, output_dir, provider_mock, ext, mime):
     blob = result.contents[0]
     assert blob.mimeType == mime, blob.mimeType
     assert base64.b64decode(blob.blob) == provider_mock.image_bytes
+
+
+# --------------------------------------------------------------------------------------
+# Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
+# --------------------------------------------------------------------------------------
+def _norm(uri) -> str:
+    """Stringify a resource URI, tolerating pydantic AnyUrl trailing-slash normalization."""
+    return str(uri).rstrip("/")
+
+
+def test_resources_list_enumerates_skill_files(naba_bin, output_dir):
+    """SPEC-MCP-014: resources/list enumerates the embedded skill tree (URIs only).
+
+    A compact ``skill://naba`` index resource plus one ``skill://naba/<rel>`` resource
+    per embedded skill file (SKILL.md, README.md, commands/*.md). Listing carries paths /
+    metadata only — the resource entries have no file bodies attached (lazy loading).
+    """
+    async def body(session, init):
+        return (await session.list_resources()).resources
+
+    resources = run_session(naba_bin, make_env(output_dir=output_dir), body)
+    uris = {_norm(r.uri) for r in resources}
+
+    # Compact per-skill index resource.
+    assert "skill://naba" in uris, sorted(uris)
+    # The core skill files are enumerated as skill://naba/<rel> resources.
+    for rel in ("SKILL.md", "README.md", "commands/generate.md", "commands/edit.md"):
+        assert f"skill://naba/{rel}" in uris, f"missing skill://naba/{rel} in {sorted(uris)}"
+
+    # Markdown files advertise text/markdown; the listing carries no bodies.
+    by_uri = {_norm(r.uri): r for r in resources}
+    skill_md = by_uri["skill://naba/SKILL.md"]
+    assert skill_md.mimeType == "text/markdown", skill_md.mimeType
+    # A Resource entry has metadata only — no text/blob content field on the listing.
+    assert not getattr(skill_md, "text", None)
+    assert not getattr(skill_md, "blob", None)
+
+
+def test_resources_read_skill_content(naba_bin, output_dir):
+    """SPEC-MCP-015: resources/read of a skill:// URI returns the embedded content.
+
+    ``skill://naba/SKILL.md`` returns TextResourceContents (the SKILL.md body, MIME
+    text/markdown); the ``skill://naba`` index returns a markdown listing of the URIs.
+    """
+    def read(uri):
+        async def body(session, init):
+            return await session.read_resource(uri)
+        return run_session(naba_bin, make_env(output_dir=output_dir), body)
+
+    # A concrete skill file: full content served on demand.
+    result = read("skill://naba/SKILL.md")
+    assert result.contents, "no resource contents returned"
+    content = result.contents[0]
+    assert content.mimeType == "text/markdown", content.mimeType
+    text = content.text
+    assert text, "expected non-empty skill content"
+    # SKILL.md carries the naba skill frontmatter/name (sanity that we served the real file).
+    assert "naba" in text
+
+    # The compact index lists the file URIs (discovery aid).
+    idx = read("skill://naba")
+    assert idx.contents, "no index contents returned"
+    assert "skill://naba/SKILL.md" in idx.contents[0].text, idx.contents[0].text
+
+
+def test_resources_read_skill_not_found(naba_bin, output_dir):
+    """SPEC-MCP-015: an unknown skill file yields a resource-not-found error."""
+    async def body(session, init):
+        try:
+            return await session.read_resource("skill://naba/does-not-exist.md")
+        except McpError as exc:
+            return ("mcp-error", str(exc))
+
+    result = run_session(naba_bin, make_env(output_dir=output_dir), body)
+    assert isinstance(result, tuple) and result[0] == "mcp-error", result
+    assert "resource not found" in result[1], result[1]
