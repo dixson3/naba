@@ -41,7 +41,7 @@ ID_RE = re.compile(r"SPEC-[A-Z]+(?:-[A-Z]+)*-\d+")
 REQUIRED_PREFIXES = ("PINNED", "NEW")
 
 # Pytest modules whose cited clause ids count as coverage.
-TEST_MODULES = ("test_mcp.py", "test_parity.py", "test_harness.py")
+TEST_MODULES = ("test_mcp.py", "test_parity.py", "test_harness.py", "test_json_envelope.py")
 
 
 def repo_root(start: Path) -> Path:

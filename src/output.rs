@@ -176,39 +176,60 @@ impl DoctorEnvelope {
 }
 
 // ---------------------------------------------------------------------------
-// config get/set --json envelope (Issue 1.4)
+// Universal --json envelope (Issue 2.4 — SPEC-JSON-006)
 // ---------------------------------------------------------------------------
 
-/// The `config get`/`config set` JSON envelope (Issue 1.4). PROVISIONAL: the universal envelope
-/// contract is finalized by Issue 2.4; this uses a `status`/key/value shape consistent with the
-/// other envelopes so 2.4 can normalize it without rework. Serialized 2-space-indented.
+/// The universal machine-readable envelope for the **discrete-result** commands (`version`,
+/// `config get`/`set`, `skills …`, `provider`, `models`): a `status` string plus an optional
+/// `data` payload (success) or `error` message. Because errors normally surface as an exit code +
+/// a stderr line, the success path emits `{ "status": "ok", "data": … }` and `error` is omitted;
+/// the `error` variant exists for completeness and future streaming callers.
+///
+/// The image commands keep their `Result` object/array shape (SPEC-JSON-001..003) and `doctor`
+/// keeps its `{ok, failed, checks}` envelope (SPEC-JSON-004) — those are the pre-existing
+/// documented JSON contracts the universal clause grandfathers rather than rewrites. Serialized
+/// 2-space-indented.
 #[derive(Debug, Clone, Serialize)]
-pub struct ConfigEnvelope {
-    /// `"ok"` on success (the only status this success-path envelope emits; errors surface as
-    /// exit codes + stderr, per the pre-2.4 convention).
+pub struct Envelope<T: Serialize> {
     pub status: String,
-    pub key: String,
-    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
-impl ConfigEnvelope {
-    pub fn ok(key: impl Into<String>, value: impl Into<String>) -> Self {
+impl<T: Serialize> Envelope<T> {
+    /// A success envelope carrying `data`.
+    pub fn ok(data: T) -> Self {
         Self {
             status: "ok".to_string(),
-            key: key.into(),
-            value: value.into(),
+            data: Some(data),
+            error: None,
         }
     }
 
     /// Serialize as 2-space-indented JSON.
     pub fn to_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("ConfigEnvelope serializes")
+        serde_json::to_string_pretty(self).expect("Envelope serializes")
     }
 }
 
-/// Print the `config get`/`config set` JSON envelope to stdout.
+/// Print a universal success envelope (`{ "status": "ok", "data": … }`) to stdout (SPEC-JSON-006).
+pub fn print_ok_json<T: Serialize>(data: T) {
+    println!("{}", Envelope::ok(data).to_json());
+}
+
+/// The `config get`/`config set` data payload: the addressed key + its value.
+#[derive(Debug, Clone, Serialize)]
+struct ConfigData<'a> {
+    key: &'a str,
+    value: &'a str,
+}
+
+/// Print the `config get`/`config set` universal envelope (SPEC-JSON-006). Normalizes the Epic-1
+/// provisional `{status, key, value}` shape into `{status, data: {key, value}}`.
 pub fn print_config_json(key: &str, value: &str) {
-    println!("{}", ConfigEnvelope::ok(key, value).to_json());
+    print_ok_json(ConfigData { key, value });
 }
 
 // ---------------------------------------------------------------------------

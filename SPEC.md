@@ -18,10 +18,11 @@ Legend for divergence markers:
 
 ## §1 Command inventory (SPEC-INV)
 
-- **SPEC-INV-001** [PINNED] The binary exposes exactly **12 real command groups**:
+- **SPEC-INV-001** [PINNED] The binary exposes exactly **14 real command groups**:
   `generate`, `edit`, `restore`, `icon`, `pattern`, `diagram`, `story`,
   `config` (subcommands `get`, `set`), `doctor`,
-  `skills` (subcommands `install`, `upgrade`, `remove`, `status`), `mcp`, `version`.
+  `skills` (subcommands `install`, `upgrade`, `remove`, `status`), `provider`, `models`,
+  `mcp`, `version`. (Epic 2 added `provider` and `models`; the count is no longer fixed at 12.)
 - **SPEC-INV-002** [PINNED] `storyboard`, `batch`, and `brand-kit` are **NOT** binary
   subcommands. They are skill-layer composites (the `/naba` skill orchestrates multiple
   real CLI calls). They are out of the binary parity surface and are protected only
@@ -309,9 +310,12 @@ outgoing prompt and the suite asserts it exactly.
 ### §3.12 version (SPEC-VERSION)
 
 - **SPEC-VERSION-001** [PINNED] `Use: "version"`, `Short: "Show version information"`.
-  Output: `naba <Version> (commit: <Commit>, built: <Date>)`. The concrete
+  Output (human / TTY): `naba <Version> (commit: <Commit>, built: <Date>)`. The concrete
   Version/Commit/Date **values** are [DIVERGENCE] (build-injected — §VERSION); the suite
-  pins the *format*, normalizing the three fields.
+  pins the *format*, normalizing the three fields. Under `--json` (incl. the SPEC-GLOBAL-003
+  piped auto-enable) `version` emits the universal envelope (SPEC-JSON-006) instead:
+  `{ "status": "ok", "data": { "version", "commit", "date", "host_triple", "line" } }`, where
+  `line` is the human string above.
 - **SPEC-VERSION-002** [PINNED] The `doctor` `version` check uses a *different* format:
   `naba <Version> (commit <Commit>, built <Date>)` (no colons). Preserve both formats as-is
   (do not unify).
@@ -400,6 +404,30 @@ outgoing prompt and the suite asserts it exactly.
   This is documented, not a bug. The mitigation for a user who wants to stay on Gemini is to
   pin `provider: gemini` in config (config beats autodetect). SPEC and the `naba` skill/docs
   must call this out explicitly (Issue 5.2).
+- **SPEC-PROVIDER-009** [NEW] **Provider registry** (Epic 2). The set of providers is a single
+  registered list (`src/provider/registry.rs`), not a fixed pair of hardcoded match arms. Each
+  registration declares the provider's `name`, conventional key env var, compiled-in default
+  model (SPEC-CFGSCHEMA-006), whether `--quality` selects the model (SPEC-PROVIDER-005), whether
+  it rejects the `auto` router (SPEC-PROVIDER-006), and a builder. The registry is the single
+  source of truth the selector, config (`Valid keys:`), doctor, and the `provider`/`models`
+  commands all read; adding a provider (e.g. Bedrock) is one new registration. The provider
+  **count is no longer fixed at two**. **Explicit N-provider autodetect precedence:** the
+  registry's declared order (oldest→newest) is the tie-break — among providers with resolvable
+  creds the one appearing **latest** in the order wins (generalizing SPEC-PROVIDER-008: adding a
+  newer provider's key reroutes to it); with no resolvable creds the fallback is the **first**
+  registered provider. For the two-provider case this reproduces SPEC-PROVIDER-007 exactly
+  (only-gemini→gemini, only-openrouter→openrouter, both→openrouter, neither→gemini).
+- **SPEC-PROVIDER-010** [NEW] **`naba provider`** lists every registered provider with: whether
+  it is the effective default (config `default_provider` > autodetect), whether its credentials
+  resolve (SPEC-CFGSCHEMA-003), and its effective default model. Human output + the universal
+  `--json` envelope (SPEC-JSON-006, `data = {default_provider, providers:[{name, default,
+  credentials, model}]}`). Read-only — no network call.
+- **SPEC-PROVIDER-011** [NEW] **`naba models [--provider <name>]`** lists a provider's models via
+  `Provider::list_models`. The target provider is the global `--provider` when set (validated
+  against the registry; an unknown name is a usage error, exit 2) else the resolved default
+  provider. It is a live API call: an empty resolved key raises the provider-named SPEC-ERR-001
+  "not set" auth error (exit 3). Human output + the universal `--json` envelope (SPEC-JSON-006,
+  `data = {provider, models:[<id>…]}`).
 
 ---
 
@@ -490,6 +518,18 @@ outgoing prompt and the suite asserts it exactly.
 - **SPEC-JSON-005** [PINNED] Nondeterministic fields the suite **normalizes** before
   comparison: `elapsed_ms`, timestamped auto-names/paths, version/commit/date. The parity
   harness has a normalizer (Issue 1.2) that canonicalizes these.
+- **SPEC-JSON-006** [NEW] **Universal `--json` envelope contract** (Epic 2). Every subcommand
+  emits a **documented** JSON structure under `--json` (including the SPEC-GLOBAL-003 piped
+  auto-enable). The **discrete-result** commands — `version`, `config get`/`set`, `skills`
+  (`install`/`upgrade`/`remove`/`status`), `provider`, `models` — use the **common envelope**
+  `{ "status": <string>, "data": <payload>? , "error": <string>? }`: the success path emits
+  `{ "status": "ok", "data": … }` (errors surface as an exit code + a stderr line, so `error` is
+  reserved and normally omitted). The **image** commands keep their `Result` object/array shape
+  (SPEC-JSON-001..003) and **`doctor`** keeps its `{ok, failed, checks}` envelope (SPEC-JSON-004)
+  — these are the pre-existing documented JSON contracts the universal clause **grandfathers**,
+  not rewrites. The Epic-1 provisional `config` envelope (`{status, key, value}`) is **normalized**
+  into the common shape (`{status, data:{key, value}}`). A parity/traceability test enumerates
+  every subcommand and asserts each emits its documented envelope so "universal" is enforced.
 
 ---
 

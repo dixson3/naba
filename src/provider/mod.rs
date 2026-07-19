@@ -30,6 +30,7 @@ use crate::error::AppError;
 
 pub mod gemini;
 pub mod openrouter;
+pub mod registry;
 pub mod select;
 
 // Re-exported for the 2.5 selector factory / 2.6 command layer (not yet wired).

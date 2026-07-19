@@ -18,7 +18,9 @@ use crate::config::{self, Config};
 use crate::embed;
 use crate::error::{exit, AppError, AppResult};
 use crate::output::{status, DoctorCheck, DoctorEnvelope};
-use crate::provider::{self, build_provider, gemini, openrouter, Selection};
+use crate::provider::registry;
+use crate::provider::select::EnvKeys;
+use crate::provider::{self, build_provider, gemini, Selection};
 use crate::version;
 
 /// Resolved destination flags for the doctor skills checks (mirror `skills`' scope/surface/target).
@@ -212,17 +214,14 @@ pub(crate) fn resolve_provider(cli_provider: Option<&str>, cfg: &Config) -> Stri
     if !cfg.default_provider.is_empty() {
         return cfg.default_provider.clone();
     }
-    // Autodetect from resolved key presence (matches select::autodetect).
-    let gemini = !cfg
-        .resolve_api_key_for(provider::select::PROVIDER_GEMINI)
-        .is_empty();
-    let openrouter = !cfg
-        .resolve_api_key_for(provider::select::PROVIDER_OPENROUTER)
-        .is_empty();
-    match (gemini, openrouter) {
-        (_, true) => provider::select::PROVIDER_OPENROUTER.to_string(),
-        _ => provider::select::PROVIDER_GEMINI.to_string(),
-    }
+    // Autodetect over the registry from resolved (config-merged) key presence — the SAME scan the
+    // image selector uses (SPEC-PROVIDER-009), so `doctor`/`preflight` never diverge from it.
+    let env = EnvKeys::from_resolved(
+        registry::names()
+            .into_iter()
+            .map(|name| (name.to_string(), cfg.resolve_api_key_for(name))),
+    );
+    provider::select::autodetect_provider(&env).to_string()
 }
 
 /// The resolved API key for the effective provider. `pub(crate)` shared surface (see
@@ -234,20 +233,14 @@ pub(crate) fn provider_api_key(provider: &str, cfg: &Config) -> String {
 /// The env-var name doctor reports for a missing provider key. `pub(crate)` shared surface (see
 /// [`resolve_provider`]).
 pub(crate) fn provider_key_name(provider: &str) -> &'static str {
-    if provider == provider::select::PROVIDER_OPENROUTER {
-        "OPENROUTER_API_KEY"
-    } else {
-        "GEMINI_API_KEY"
-    }
+    registry::conventional_env_var(provider).unwrap_or(crate::config::ENV_API_KEY)
 }
 
-/// The provider's default model.
+/// The provider's compiled-in default model (registry-backed, SPEC-CFGSCHEMA-006).
 fn default_model(provider: &str) -> String {
-    if provider == provider::select::PROVIDER_OPENROUTER {
-        openrouter::DEFAULT_MODEL.to_string()
-    } else {
-        gemini::DEFAULT_MODEL.to_string()
-    }
+    registry::find(provider)
+        .map(|s| s.default_model.to_string())
+        .unwrap_or_else(|| gemini::DEFAULT_MODEL.to_string())
 }
 
 /// Provider-aware model reachability against a `list_models` response. Gemini normalizes the

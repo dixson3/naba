@@ -447,10 +447,11 @@ fn image_content(images: &[(String, String)]) -> Vec<ContentBlock> {
 fn resolve_selection_mcp(quality: &str) -> Result<(Selection, Config), String> {
     let cfg = Config::load().unwrap_or_default();
     let cfg_defaults = cfg.to_config_defaults().map_err(|e| e.message)?;
-    let env_keys = EnvKeys {
-        gemini: opt(cfg.resolve_api_key_for("gemini")),
-        openrouter: opt(cfg.resolve_api_key_for("openrouter")),
-    };
+    let env_keys = EnvKeys::from_resolved(
+        provider::registry::names()
+            .into_iter()
+            .map(|name| (name.to_string(), cfg.resolve_api_key_for(name))),
+    );
     let inputs = SelectionInputs {
         provider: None,
         model: None,
@@ -587,15 +588,6 @@ fn get_i64_slice(args: &Map<String, Value>, key: &str, default: &[i64]) -> Vec<i
             .filter_map(|v| v.as_i64().or_else(|| v.as_f64().map(|f| f as i64)))
             .collect(),
         _ => default.to_vec(),
-    }
-}
-
-/// `Some(s)` for a non-empty string, else `None`.
-fn opt(s: String) -> Option<String> {
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
     }
 }
 

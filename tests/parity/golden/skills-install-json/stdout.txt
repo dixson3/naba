@@ -1,0 +1,15 @@
+{
+  "status": "ok",
+  "data": {
+    "action": "install",
+    "destination": "<SKILLS_DEST>",
+    "dry_run": false,
+    "skills": [
+      {
+        "name": "naba",
+        "path": "<SKILLS_DEST>/naba",
+        "files": 12
+      }
+    ]
+  }
+}

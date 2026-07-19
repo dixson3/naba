@@ -56,7 +56,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, AppResult};
 use crate::provider::gemini;
-use crate::provider::select::{ConfigDefaults, PROVIDER_GEMINI, PROVIDER_OPENROUTER};
+use crate::provider::registry;
+use crate::provider::select::{ConfigDefaults, PROVIDER_GEMINI};
 
 const CONFIG_FILE_NAME: &str = "config.yaml";
 
@@ -71,20 +72,12 @@ pub const ENV_OUTPUT_DIR: &str = "NABA_OUTPUT_DIR";
 /// `NABA_CONFIG_DIR` — config-dir override (SPEC-CFGSCHEMA-001).
 pub const ENV_CONFIG_DIR: &str = "NABA_CONFIG_DIR";
 
-/// The providers naba knows about (Epic 1). The order is load-bearing: it drives the
-/// `Valid keys:` error lines and the per-provider dotted-key surface. Bedrock joins this list
-/// in a later epic — the registry is intentionally extensible.
-pub const KNOWN_PROVIDERS: [&str; 2] = [PROVIDER_GEMINI, PROVIDER_OPENROUTER];
-
-/// The provider's conventional default key env var (SPEC-CFGSCHEMA-003). The single source of
-/// truth for the env-var names — [`Config::resolve_api_key_for`] and the selector both defer
-/// here. Returns `None` for a provider with no conventional key env var.
+/// The provider's conventional default key env var (SPEC-CFGSCHEMA-003), resolved through the
+/// provider registry (Issue 2.1 — the registry is now the single source of truth for the set of
+/// providers + their env-var names). Returns `None` for a provider with no conventional key env
+/// var. [`Config::resolve_api_key_for`] and the selector both defer here / to the registry.
 pub fn conventional_env_var(provider: &str) -> Option<&'static str> {
-    match provider {
-        PROVIDER_GEMINI => Some(ENV_API_KEY),
-        PROVIDER_OPENROUTER => Some(ENV_OPENROUTER_API_KEY),
-        _ => None,
-    }
+    registry::conventional_env_var(provider)
 }
 
 /// Per-provider config entry (SPEC-CFGSCHEMA-001): a default `model` plus an api-key source
@@ -150,9 +143,9 @@ enum PField {
     ApiKeyEnvvar,
 }
 
-/// Whether `name` is a provider naba knows about.
+/// Whether `name` is a provider naba knows about (registry-backed).
 fn is_known_provider(name: &str) -> bool {
-    KNOWN_PROVIDERS.contains(&name)
+    registry::is_known(name)
 }
 
 /// Parse a dotted `<provider>.<field>` key into its parts, or `None` when the provider is
@@ -178,7 +171,7 @@ fn parse_provider_key(key: &str) -> Option<(&str, PField)> {
 /// for backward compatibility but are not advertised here.
 pub fn valid_keys() -> Vec<String> {
     let mut keys = vec!["default-provider".to_string()];
-    for p in KNOWN_PROVIDERS {
+    for p in registry::names() {
         keys.push(format!("{p}.model"));
         keys.push(format!("{p}.api-key"));
         keys.push(format!("{p}.api-key-envvar"));

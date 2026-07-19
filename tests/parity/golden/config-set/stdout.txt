@@ -1,5 +1,7 @@
 {
   "status": "ok",
-  "key": "model",
-  "value": "gemini-3-pro-image"
+  "data": {
+    "key": "model",
+    "value": "gemini-3-pro-image"
+  }
 }

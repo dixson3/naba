@@ -1,0 +1,16 @@
+{
+  "status": "ok",
+  "data": {
+    "destination": "<SKILLS_DEST>",
+    "skills": [
+      {
+        "name": "naba",
+        "path": "<SKILLS_DEST>/naba",
+        "installed": true,
+        "up_to_date": true,
+        "complete": true,
+        "unmodified": true
+      }
+    ]
+  }
+}

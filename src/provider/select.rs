@@ -79,10 +79,15 @@
 //! selector's decision verbatim (so an explicit `--model` truly overrides `--quality`) instead of
 //! re-deriving the model from `req.quality`.
 
-use crate::error::AppError;
-use crate::provider::{gemini, openrouter, GeminiProvider, OpenRouterProvider, Provider};
+use std::collections::BTreeMap;
 
-/// Stable provider identifiers (match `Provider::name`).
+use crate::error::AppError;
+use crate::provider::registry::{self, ProviderSpec};
+use crate::provider::{gemini, openrouter, Provider};
+
+/// Stable provider identifiers (match `Provider::name`). Retained as named constants for the
+/// call sites (config, doctor) that reference a provider by name; the registry is the source of
+/// truth for the *set* of providers.
 pub const PROVIDER_GEMINI: &str = "gemini";
 pub const PROVIDER_OPENROUTER: &str = "openrouter";
 
@@ -102,31 +107,50 @@ pub struct ConfigDefaults {
     pub model: Option<String>,
 }
 
-/// Injectable env-key presence/values. Use [`EnvKeys::from_env`] in production; construct directly
-/// in tests to avoid process-global env races. A key counts as present only when `Some(non-empty)`.
+/// Injectable, N-provider env-key presence/values (Issue 2.1). Holds a resolved credential per
+/// provider name; a provider counts as present only when its key is `Some(non-empty)`. Use
+/// [`EnvKeys::from_env`] in production, or [`EnvKeys::from_resolved`] to inject config-merged
+/// creds (commands / MCP) or hand-built creds (tests), avoiding process-global env races.
 #[derive(Debug, Clone, Default)]
 pub struct EnvKeys {
-    pub gemini: Option<String>,
-    pub openrouter: Option<String>,
+    /// Resolved credential per provider name (empty values are dropped at construction).
+    keys: BTreeMap<String, String>,
 }
 
 impl EnvKeys {
-    /// Read the providers' conventional key env vars from the process environment. The names
-    /// are centralized in [`crate::config`] (SPEC-CFGSCHEMA-003) so config and the selector
-    /// never diverge — no literal `GEMINI_API_KEY`/`OPENROUTER_API_KEY` strings live here.
+    /// Read every registered provider's conventional key env var from the process environment.
+    /// The names live on the registry (SPEC-CFGSCHEMA-003) so config and the selector never
+    /// diverge — no literal env-var strings live here.
     pub fn from_env() -> Self {
-        Self {
-            gemini: std::env::var(crate::config::ENV_API_KEY).ok(),
-            openrouter: std::env::var(crate::config::ENV_OPENROUTER_API_KEY).ok(),
-        }
+        let pairs = registry::registry().iter().filter_map(|spec| {
+            let name = spec.conventional_env_var?;
+            let val = std::env::var(name).ok()?;
+            Some((spec.name.to_string(), val))
+        });
+        Self::from_resolved(pairs)
     }
 
-    fn gemini_present(&self) -> bool {
-        self.gemini.as_deref().is_some_and(|s| !s.is_empty())
+    /// Build from `(provider, resolved-key)` pairs; empty keys are dropped so `present`/`get`
+    /// treat them as absent.
+    pub fn from_resolved<I>(pairs: I) -> Self
+    where
+        I: IntoIterator<Item = (String, String)>,
+    {
+        let keys = pairs.into_iter().filter(|(_, v)| !v.is_empty()).collect();
+        Self { keys }
     }
 
-    fn openrouter_present(&self) -> bool {
-        self.openrouter.as_deref().is_some_and(|s| !s.is_empty())
+    /// The resolved key for `provider`, if present and non-empty.
+    pub fn get(&self, provider: &str) -> Option<&str> {
+        self.keys
+            .get(provider)
+            .map(String::as_str)
+            .filter(|s| !s.is_empty())
+    }
+
+    /// Whether `provider` has a resolvable, non-empty credential.
+    pub fn present(&self, provider: &str) -> bool {
+        self.get(provider).is_some()
     }
 }
 
@@ -148,29 +172,50 @@ fn non_empty(s: Option<&String>) -> Option<&str> {
     s.map(String::as_str).filter(|v| !v.is_empty())
 }
 
-/// Validate a caller-supplied provider name (from CLI or config).
-fn validate_provider(name: &str) -> Result<&'static str, AppError> {
-    match name {
-        PROVIDER_GEMINI => Ok(PROVIDER_GEMINI),
-        PROVIDER_OPENROUTER => Ok(PROVIDER_OPENROUTER),
-        other => Err(AppError::usage(format!(
-            "unknown provider {other:?}\n\nValid values: gemini, openrouter"
-        ))),
-    }
+/// Validate a caller-supplied provider name (from CLI or config) against the registry.
+fn validate_provider(name: &str) -> Result<&'static ProviderSpec, AppError> {
+    registry::find(name).ok_or_else(|| {
+        AppError::usage(format!(
+            "unknown provider {name:?}\n\nValid values: {}",
+            registry::names().join(", ")
+        ))
+    })
 }
 
-/// Autodetect the provider from env-key presence (SPEC-PROVIDER-007/008). Only reached when no
-/// CLI/config provider was given.
-fn autodetect(env: &EnvKeys) -> &'static str {
-    match (env.gemini_present(), env.openrouter_present()) {
-        // Only one key → that provider.
-        (true, false) => PROVIDER_GEMINI,
-        (false, true) => PROVIDER_OPENROUTER,
-        // Both keys, no CLI/config provider → OpenRouter default slug (SPEC-PROVIDER-008).
-        (true, true) => PROVIDER_OPENROUTER,
-        // No keys → gemini fallback; the missing-key error surfaces at call time (SPEC-ERR-001).
-        (false, false) => PROVIDER_GEMINI,
-    }
+/// Autodetect the provider from env-key presence over the registry (SPEC-PROVIDER-007/008/009).
+/// Only reached when no CLI/config provider was given. Among providers with resolvable creds the
+/// one appearing **latest** in the declared registry order wins (generalizing SPEC-PROVIDER-008 —
+/// adding a newer provider's key reroutes to it); with no creds the fallback is the first
+/// registered provider (gemini). For the two-provider case this reproduces the legacy behavior
+/// exactly: only-gemini→gemini, only-openrouter→openrouter, both→openrouter, neither→gemini. The
+/// missing-key error for the fallback surfaces at call time (SPEC-ERR-001).
+fn autodetect(env: &EnvKeys) -> &'static ProviderSpec {
+    let names = registry::names();
+    let name = autodetect_name(&names, |p| env.present(p), registry::fallback());
+    registry::find(name).expect("autodetect yields a registered provider")
+}
+
+/// The autodetected provider name for `env` (SPEC-PROVIDER-009). Public so `doctor` / `preflight`
+/// resolve the effective provider identically to the image selector, over the same registry.
+pub fn autodetect_provider(env: &EnvKeys) -> &'static str {
+    autodetect(env).name
+}
+
+/// Pure autodetect scan (SPEC-PROVIDER-009): given the declared provider `order` (oldest→newest),
+/// the **latest** provider with resolvable creds wins; with none, `fallback`. Factored out of
+/// [`autodetect`] so the N-provider precedence — including a hypothetical third provider slotted
+/// after gemini/openrouter — is unit-testable without mutating the real registry.
+fn autodetect_name<'a>(
+    order: &[&'a str],
+    present: impl Fn(&str) -> bool,
+    fallback: &'a str,
+) -> &'a str {
+    order
+        .iter()
+        .rev()
+        .copied()
+        .find(|p| present(p))
+        .unwrap_or(fallback)
 }
 
 /// Resolve the full [`Selection`] from CLI flags, config defaults, and env keys, applying the
@@ -193,8 +238,8 @@ pub fn resolve_selection(
         ));
     }
 
-    // Provider: CLI > config > autodetect > fallback.
-    let provider = if let Some(p) = cli_provider {
+    // Provider: CLI > config > autodetect > fallback. Every branch resolves to a registry spec.
+    let spec = if let Some(p) = cli_provider {
         validate_provider(p)?
     } else if let Some(p) = non_empty(cfg.provider.as_ref()) {
         validate_provider(p)?
@@ -203,49 +248,50 @@ pub fn resolve_selection(
     };
 
     let cfg_model = non_empty(cfg.model.as_ref());
+    let model = resolve_model_for(spec, cli_model, cli_quality, cfg_model)?;
 
-    let (model, api_key) = match provider {
-        PROVIDER_GEMINI => {
-            // Gemini model: CLI --model > CLI --quality (tier) > config model > default.
-            let model = if let Some(m) = cli_model {
-                m.to_string()
-            } else if let Some(q) = cli_quality {
-                model_for_quality_owned(q)?
-            } else if let Some(m) = cfg_model {
-                m.to_string()
-            } else {
-                gemini::DEFAULT_MODEL.to_string()
-            };
-            (model, env.gemini.clone().unwrap_or_default())
-        }
-        PROVIDER_OPENROUTER => {
-            // OpenRouter model: CLI --model > config model > default slug. --quality never swaps.
-            let model = if let Some(m) = cli_model {
-                m.to_string()
-            } else if let Some(m) = cfg_model {
-                m.to_string()
-            } else {
-                openrouter::DEFAULT_MODEL.to_string()
-            };
-            // SPEC-PROVIDER-006: `auto` must never back an image path — reject early (exit 2).
-            if openrouter::is_auto_router(&model) {
-                return Err(AppError::usage(format!(
-                    "model {model:?} cannot generate images: openrouter/auto is a text-only router\n\nSet an image model, e.g. --model {}",
-                    openrouter::DEFAULT_MODEL
-                )));
-            }
-            (model, env.openrouter.clone().unwrap_or_default())
-        }
-        // validate_provider/autodetect only ever yield the two known names.
-        _ => unreachable!("validated provider name"),
-    };
+    // SPEC-PROVIDER-006: a provider that rejects the `auto` router must never back an image path —
+    // reject early (exit 2), registry-declared so it is not a hardcoded openrouter check here.
+    if spec.rejects_auto_router && openrouter::is_auto_router(&model) {
+        return Err(AppError::usage(format!(
+            "model {model:?} cannot generate images: openrouter/auto is a text-only router\n\nSet an image model, e.g. --model {}",
+            openrouter::DEFAULT_MODEL
+        )));
+    }
+
+    let api_key = env.get(spec.name).unwrap_or_default().to_string();
 
     Ok(Selection {
-        provider: provider.to_string(),
+        provider: spec.name.to_string(),
         model,
         api_key,
         quality: cli_quality.map(str::to_string),
     })
+}
+
+/// Resolve the model for the chosen provider (SPEC-CFGSCHEMA-006 CLI precedence): CLI `--model` >
+/// (for a `quality_selects_model` provider) CLI `--quality` tier > config `model` > the
+/// provider's compiled-in default. The `--quality`→tier step is registry-declared (Gemini maps
+/// it to a model; OpenRouter carries it raw on the request instead), so this is not a hardcoded
+/// per-provider branch.
+fn resolve_model_for(
+    spec: &ProviderSpec,
+    cli_model: Option<&str>,
+    cli_quality: Option<&str>,
+    cfg_model: Option<&str>,
+) -> Result<String, AppError> {
+    if let Some(m) = cli_model {
+        return Ok(m.to_string());
+    }
+    if spec.quality_selects_model {
+        if let Some(q) = cli_quality {
+            return model_for_quality_owned(q);
+        }
+    }
+    if let Some(m) = cfg_model {
+        return Ok(m.to_string());
+    }
+    Ok(spec.default_model.to_string())
 }
 
 /// [`gemini::model_for_quality`] returning an owned `String` (its `&'static str` doesn't unify with
@@ -254,14 +300,12 @@ fn model_for_quality_owned(quality: &str) -> Result<String, AppError> {
     gemini::model_for_quality(quality).map(str::to_string)
 }
 
-/// Build the concrete [`Provider`] from a resolved [`Selection`]. The provider is constructed with
-/// the resolved model and the provider-appropriate API key.
+/// Build the concrete [`Provider`] from a resolved [`Selection`] via the registry builder. The
+/// provider is constructed with the resolved model and the provider-appropriate API key.
 pub fn build_provider(sel: &Selection) -> Box<dyn Provider> {
-    match sel.provider.as_str() {
-        PROVIDER_GEMINI => Box::new(GeminiProvider::new(&sel.api_key, &sel.model)),
-        PROVIDER_OPENROUTER => Box::new(OpenRouterProvider::new(&sel.api_key, &sel.model)),
-        _ => unreachable!("validated provider name"),
-    }
+    registry::find(&sel.provider)
+        .expect("validated provider name")
+        .build(&sel.api_key, &sel.model)
 }
 
 /// The 2.5 factory entry point: resolve precedence and construct the provider (SPEC-PROVIDER-007).
@@ -279,11 +323,7 @@ pub fn select_provider(
 /// ([DIVERGENCE] under multi-provider). The command layer (Issue 4.1) calls this at call time when
 /// [`Selection::api_key`] is empty — the selector never raises it (Go errors at call time).
 pub fn missing_key_error(provider: &str) -> AppError {
-    let key = if provider == PROVIDER_OPENROUTER {
-        "OPENROUTER_API_KEY"
-    } else {
-        "GEMINI_API_KEY"
-    };
+    let key = registry::conventional_env_var(provider).unwrap_or(crate::config::ENV_API_KEY);
     AppError::auth(format!(
         "{key} not set.\n\nSet it with: export {key}=<your-key>\nOr run: naba config set api_key <your-key>"
     ))
@@ -314,10 +354,21 @@ mod tests {
     }
 
     fn env(gemini: Option<&str>, openrouter: Option<&str>) -> EnvKeys {
-        EnvKeys {
-            gemini: gemini.map(str::to_string),
-            openrouter: openrouter.map(str::to_string),
+        let mut pairs = Vec::new();
+        if let Some(g) = gemini {
+            pairs.push((PROVIDER_GEMINI.to_string(), g.to_string()));
         }
+        if let Some(o) = openrouter {
+            pairs.push((PROVIDER_OPENROUTER.to_string(), o.to_string()));
+        }
+        EnvKeys::from_resolved(pairs)
+    }
+
+    /// Build an [`EnvKeys`] from arbitrary `(provider, key)` pairs — used to model an N-provider
+    /// autodetect (including a hypothetical third provider not in the registry, which the scan
+    /// simply never selects because the registry drives the scan).
+    fn env_pairs(pairs: &[(&str, &str)]) -> EnvKeys {
+        EnvKeys::from_resolved(pairs.iter().map(|(p, k)| (p.to_string(), k.to_string())))
     }
 
     fn resolve(i: SelectionInputs, c: ConfigDefaults, e: EnvKeys) -> Selection {
@@ -395,6 +446,75 @@ mod tests {
         assert_eq!(sel.provider, PROVIDER_GEMINI);
         assert_eq!(sel.model, gemini::DEFAULT_MODEL);
         assert_eq!(sel.api_key, "");
+    }
+
+    // ---- N-provider autodetect precedence (SPEC-PROVIDER-009) ----
+
+    #[test]
+    fn autodetect_name_latest_registered_with_creds_wins() {
+        // Two-provider parity: both keys → openrouter (latest registered), matching the legacy
+        // SPEC-PROVIDER-008 reroute.
+        let order = ["gemini", "openrouter"];
+        let present = |set: &'static [&'static str]| move |p: &str| set.contains(&p);
+        assert_eq!(
+            autodetect_name(&order, present(&["gemini", "openrouter"]), "gemini"),
+            "openrouter"
+        );
+        assert_eq!(
+            autodetect_name(&order, present(&["gemini"]), "gemini"),
+            "gemini"
+        );
+        assert_eq!(
+            autodetect_name(&order, present(&["openrouter"]), "gemini"),
+            "openrouter"
+        );
+        assert_eq!(autodetect_name(&order, |_| false, "gemini"), "gemini");
+    }
+
+    #[test]
+    fn autodetect_name_hypothetical_third_provider() {
+        // A registry that later gains a third provider (e.g. bedrock) slots it last; the latest
+        // provider with creds wins, generalizing the reroute rule.
+        let order = ["gemini", "openrouter", "bedrock"];
+        let present = |set: &'static [&'static str]| move |p: &str| set.contains(&p);
+        // All three present → bedrock (latest).
+        assert_eq!(
+            autodetect_name(
+                &order,
+                present(&["gemini", "openrouter", "bedrock"]),
+                "gemini"
+            ),
+            "bedrock"
+        );
+        // gemini + bedrock (no openrouter) → bedrock.
+        assert_eq!(
+            autodetect_name(&order, present(&["gemini", "bedrock"]), "gemini"),
+            "bedrock"
+        );
+        // gemini + openrouter (bedrock absent) → openrouter (unchanged from the 2-provider case).
+        assert_eq!(
+            autodetect_name(&order, present(&["gemini", "openrouter"]), "gemini"),
+            "openrouter"
+        );
+        // Only bedrock → bedrock.
+        assert_eq!(
+            autodetect_name(&order, present(&["bedrock"]), "gemini"),
+            "bedrock"
+        );
+    }
+
+    #[test]
+    fn autodetect_ignores_creds_for_unregistered_providers() {
+        // A credential for a provider not in the registry never wins — the scan is registry-driven,
+        // so a stray `bedrock` cred (before bedrock is registered) falls back to autodetect over
+        // the real registry (gemini/openrouter only).
+        let sel = resolve(
+            inputs(None, None, None),
+            cfg(None, None),
+            env_pairs(&[("bedrock", "b-key"), ("gemini", "g-key")]),
+        );
+        assert_eq!(sel.provider, PROVIDER_GEMINI);
+        assert_eq!(sel.api_key, "g-key");
     }
 
     #[test]

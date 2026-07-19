@@ -17,14 +17,22 @@ from harness import normalize, run_pty
 
 
 def test_version_through_runner(runner):
-    """Exit code + stdout are captured; version matches SPEC-VERSION-001 format."""
-    result = runner.run(["version"])
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip(), "expected non-empty stdout"
+    """Human line (PTY) matches SPEC-VERSION-001; piped emits the SPEC-JSON-006 envelope."""
+    # PTY: --json is NOT force-enabled on a chardevice, so the human line prints.
+    human = run_pty(["version"], binary=runner.binary)
+    assert human.returncode == 0, human.stdout
     # naba <Version> (commit: <Commit>, built: <Date>)
     assert re.match(
-        r"^naba \S+ \(commit: \S+, built: \S+\)$", result.stdout.strip()
-    ), result.stdout
+        r"^naba \S+ \(commit: \S+, built: \S+\)$", human.stdout.strip()
+    ), human.stdout
+    # Piped: the universal --json envelope carries the same line under data.line.
+    piped = runner.run(["version"])
+    assert piped.returncode == 0, piped.stderr
+    payload = json.loads(piped.stdout)
+    assert payload["status"] == "ok"
+    assert re.match(
+        r"^naba \S+ \(commit: \S+, built: \S+\)$", payload["data"]["line"].strip()
+    ), payload
 
 
 def test_generate_help_through_runner(runner):

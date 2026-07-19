@@ -1,10 +1,17 @@
 # skills command group (SPEC-SKILLS, §3.11). --target isolates the destination.
+#
+# The install/upgrade/remove/status commands now emit the universal --json envelope
+# (SPEC-JSON-006) when --json is set (incl. the SPEC-GLOBAL-003 piped auto-enable). The
+# human-line goldens below therefore run under a PTY (a chardevice), where --json is NOT
+# force-enabled, so the human output is exercised exactly as before. The piped JSON-envelope
+# form is pinned by the `*-json` cases (and enumerated by test_json_envelope.py).
 cases:
   - id: skills-status-not-installed
     spec: [SPEC-SKILLS-002, SPEC-SKILLS-006]
     argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-install
@@ -12,6 +19,7 @@ cases:
     argv: ["skills", "install", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-install-dry-run
@@ -19,6 +27,7 @@ cases:
     argv: ["skills", "install", "--target", "{SKILLS_DEST}", "--dry-run"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-status-installed
@@ -29,6 +38,7 @@ cases:
     argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-status-modified
@@ -42,6 +52,7 @@ cases:
     argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-upgrade
@@ -51,6 +62,7 @@ cases:
     argv: ["skills", "upgrade", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-remove
@@ -60,6 +72,7 @@ cases:
     argv: ["skills", "remove", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-remove-absent
@@ -67,6 +80,7 @@ cases:
     argv: ["skills", "remove", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
+    mode: pty
     golden: stdout
 
   - id: skills-remove-dry-run
@@ -74,6 +88,26 @@ cases:
     pre_argv:
       - ["skills", "install", "--target", "{SKILLS_DEST}"]
     argv: ["skills", "remove", "--target", "{SKILLS_DEST}", "--dry-run"]
+    provider_mock: false
+    skills_dest: true
+    mode: pty
+    golden: stdout
+
+  # --- Universal --json envelope (SPEC-JSON-006), piped so --json auto-enables. ---
+  - id: skills-install-json
+    spec: [SPEC-SKILLS-001, SPEC-JSON-006]
+    requires: [provider]
+    argv: ["skills", "install", "--target", "{SKILLS_DEST}"]
+    provider_mock: false
+    skills_dest: true
+    golden: stdout
+
+  - id: skills-status-json
+    spec: [SPEC-SKILLS-006, SPEC-JSON-006]
+    requires: [provider]
+    pre_argv:
+      - ["skills", "install", "--target", "{SKILLS_DEST}"]
+    argv: ["skills", "status", "--target", "{SKILLS_DEST}"]
     provider_mock: false
     skills_dest: true
     golden: stdout
