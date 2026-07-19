@@ -87,7 +87,14 @@ else the profile/SigV4 path):
    above (`providers.bedrock.api-key` / `api-key-envvar` / `AWS_BEARER_TOKEN_BEDROCK`).
 2. **AWS profile / SigV4** — the request is signed with `aws-sigv4` using credentials from the
    environment (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`) or a named
-   `~/.aws/credentials` profile (`AWS_PROFILE`). SSO-token / IMDS resolution is out of scope.
+   profile in the shared-credentials file (`AWS_SHARED_CREDENTIALS_FILE` when set, else
+   `~/.aws/credentials`), selected by `AWS_PROFILE` (default `default`). SSO-token / IMDS resolution
+   is out of scope.
+
+Because bedrock has this second credential path, `naba provider` reports bedrock as
+`credentials: present` (and `naba models --provider bedrock` skips the empty-key error) whenever a
+usable AWS profile / static-env credential resolves, even with no `AWS_BEARER_TOKEN_BEDROCK` /
+`providers.bedrock.api-key` bearer token configured.
 
 Region defaults to **`us-east-1`** and is read from `AWS_REGION` > `AWS_DEFAULT_REGION` > the
 default. The endpoint host is `https://bedrock-runtime.<region>.amazonaws.com` (override via

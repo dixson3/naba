@@ -190,7 +190,7 @@ fn run_provider(globals: &Globals) -> AppResult<()> {
         .map(|spec| ProviderEntry {
             name: spec.name,
             default: spec.name == effective,
-            credentials: env_keys.present(spec.name),
+            credentials: credentials_resolvable(spec.name, &env_keys),
             model: effective_provider_model(&cfg, spec.name, spec.default_model),
         })
         .collect();
@@ -245,9 +245,12 @@ async fn run_models(globals: &Globals) -> AppResult<()> {
         None => crate::doctor::resolve_provider(None, &cfg),
     };
 
-    // SPEC-ERR-001: listing models is a live API call — an empty resolved key errors (exit 3).
+    // SPEC-ERR-001 / SPEC-PROVIDER-013: listing models is a live API call — with no resolvable
+    // credential it errors (exit 3). The gate is credential-*validity*, not just a non-empty bearer
+    // key: bedrock's AWS profile / SigV4 credential counts as present (an empty bearer key is then
+    // fine — the provider signs with SigV4 at invoke time).
     let api_key = env_keys.get(&provider).unwrap_or_default().to_string();
-    if api_key.is_empty() {
+    if !credentials_resolvable(&provider, &env_keys) {
         return Err(missing_key_error(&provider));
     }
 
@@ -293,6 +296,21 @@ fn resolved_env_keys(cfg: &Config) -> EnvKeys {
             .into_iter()
             .map(|name| (name.to_string(), cfg.resolve_api_key_for(name))),
     )
+}
+
+/// Whether ANY credential naba can use is resolvable for `provider` (SPEC-PROVIDER-010/011). For
+/// every provider this is the uniform bearer/api-key resolution (SPEC-CFGSCHEMA-003, already merged
+/// into `env_keys`); for **bedrock** it is ALSO satisfied by a resolvable AWS profile /
+/// default-credential-chain (SigV4) credential (SPEC-PROVIDER-013) — so profile-only bedrock is not
+/// reported as `credentials: missing`. This is the network-free validity probe behind `naba
+/// provider`'s `credentials` column and `naba models`' empty-key gate; it does not change how a
+/// provider authenticates at invoke time (`select_auth_mode` still prefers the bearer path).
+fn credentials_resolvable(provider: &str, env_keys: &EnvKeys) -> bool {
+    if env_keys.present(provider) {
+        return true;
+    }
+    // Bedrock accepts an AWS profile / SigV4 credential in place of the api-key bearer token.
+    provider == "bedrock" && crate::provider::bedrock::aws_credentials_resolvable(None)
 }
 
 /// Resolve provider + model + API key for an image command, returning the [`Selection`] and the
@@ -894,4 +912,118 @@ async fn run_image_input(
         print_results_json(&all);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Mutex, MutexGuard};
+
+    // The bedrock validity probe reads process-global AWS_* env + the shared-credentials file;
+    // serialize the env-touching tests so they don't race.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Isolate the AWS credential env for the duration of a test: clears the static-credential and
+    /// profile env, and points `AWS_SHARED_CREDENTIALS_FILE` at a controlled path so no real
+    /// `~/.aws/credentials` leaks in.
+    struct AwsEnvScope {
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl AwsEnvScope {
+        fn new() -> Self {
+            let guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+            for k in [
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN",
+                "AWS_PROFILE",
+                "AWS_SHARED_CREDENTIALS_FILE",
+            ] {
+                std::env::remove_var(k);
+            }
+            // Neutralize the default ~/.aws/credentials so the "no creds" baseline is hermetic.
+            std::env::set_var("AWS_SHARED_CREDENTIALS_FILE", "/dev/null");
+            Self { _guard: guard }
+        }
+    }
+
+    impl Drop for AwsEnvScope {
+        fn drop(&mut self) {
+            for k in [
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN",
+                "AWS_PROFILE",
+                "AWS_SHARED_CREDENTIALS_FILE",
+            ] {
+                std::env::remove_var(k);
+            }
+        }
+    }
+
+    fn env_with(pairs: &[(&str, &str)]) -> EnvKeys {
+        EnvKeys::from_resolved(pairs.iter().map(|(p, k)| (p.to_string(), k.to_string())))
+    }
+
+    // (a) Bearer/api-key env only: a resolvable bedrock bearer key → present, no AWS creds needed.
+    #[test]
+    fn bedrock_resolvable_with_bearer_key_only() {
+        let _s = AwsEnvScope::new();
+        let env_keys = env_with(&[("bedrock", "bearer-token")]);
+        assert!(credentials_resolvable("bedrock", &env_keys));
+    }
+
+    // (b) Static AWS env keys only (no bearer): present via the SigV4 path.
+    #[test]
+    fn bedrock_resolvable_with_aws_env_keys_only() {
+        let _s = AwsEnvScope::new();
+        std::env::set_var("AWS_ACCESS_KEY_ID", "AKIA_TEST");
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "test-secret");
+        let env_keys = env_with(&[]); // no bearer key for bedrock
+        assert!(credentials_resolvable("bedrock", &env_keys));
+    }
+
+    // (c) A profile in a temp `~/.aws/credentials`-style INI (no bearer, no env keys): present.
+    #[test]
+    fn bedrock_resolvable_with_profile_ini_only() {
+        let _s = AwsEnvScope::new();
+        let dir = std::env::temp_dir().join(format!("naba-creds-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ini = dir.join("credentials");
+        std::fs::write(
+            &ini,
+            "[default]\naws_access_key_id = AKIA_INI\naws_secret_access_key = ini-secret\n",
+        )
+        .unwrap();
+        std::env::set_var("AWS_SHARED_CREDENTIALS_FILE", &ini);
+        let env_keys = env_with(&[]);
+        assert!(credentials_resolvable("bedrock", &env_keys));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // (d) None of bearer / env / profile: NOT resolvable.
+    #[test]
+    fn bedrock_not_resolvable_with_no_credentials() {
+        let _s = AwsEnvScope::new();
+        let env_keys = env_with(&[]);
+        assert!(!credentials_resolvable("bedrock", &env_keys));
+    }
+
+    // gemini/openrouter are unaffected: only the bearer/api-key path counts (an ambient AWS
+    // profile credential must NOT make gemini/openrouter report present).
+    #[test]
+    fn gemini_openrouter_unaffected_by_aws_credentials() {
+        let _s = AwsEnvScope::new();
+        std::env::set_var("AWS_ACCESS_KEY_ID", "AKIA_TEST");
+        std::env::set_var("AWS_SECRET_ACCESS_KEY", "test-secret");
+        // No bearer/api-key for gemini or openrouter → not resolvable despite AWS creds present.
+        let env_keys = env_with(&[]);
+        assert!(!credentials_resolvable("gemini", &env_keys));
+        assert!(!credentials_resolvable("openrouter", &env_keys));
+        // With their own key, they resolve as usual.
+        let env_keys = env_with(&[("gemini", "g-key"), ("openrouter", "or-key")]);
+        assert!(credentials_resolvable("gemini", &env_keys));
+        assert!(credentials_resolvable("openrouter", &env_keys));
+    }
 }

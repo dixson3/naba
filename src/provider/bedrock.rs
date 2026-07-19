@@ -437,41 +437,80 @@ struct AwsCreds {
 /// and IMDS resolution are intentionally out of scope (the heavy `aws-config` path). An
 /// unresolvable credential is an auth error (exit 3).
 fn load_aws_credentials(profile: Option<&str>) -> Result<AwsCreds, AppError> {
-    if let (Ok(id), Ok(secret)) = (
-        std::env::var("AWS_ACCESS_KEY_ID"),
-        std::env::var("AWS_SECRET_ACCESS_KEY"),
-    ) {
-        if !id.is_empty() && !secret.is_empty() {
-            return Ok(AwsCreds {
-                access_key_id: id,
-                secret_access_key: secret,
-                session_token: std::env::var("AWS_SESSION_TOKEN")
-                    .ok()
-                    .filter(|s| !s.is_empty()),
-            });
-        }
-    }
+    resolve_aws_creds_from_env(profile).ok_or_else(|| {
+        AppError::auth(
+            "AWS credentials not found.\n\nSet AWS_BEARER_TOKEN_BEDROCK for the api-key path, or provide AWS credentials (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, or a profile in ~/.aws/credentials).",
+        )
+    })
+}
 
+/// Network-free **validity probe** (SPEC-PROVIDER-013): whether a resolvable AWS profile /
+/// default-credential-chain credential exists for the SigV4 path — the SAME resolution
+/// [`load_aws_credentials`] performs at invoke time (both call [`resolve_aws_creds_from_env`], so
+/// the probe never diverges from the actual credential loader). Exposed so the command layer can
+/// report bedrock credentials as *present* when only an AWS profile / static env credential (and
+/// no api-key bearer token) is configured. This does NOT change auth-mode selection —
+/// [`select_auth_mode`] still prefers the bearer path at invoke time.
+pub fn aws_credentials_resolvable(profile: Option<&str>) -> bool {
+    resolve_aws_creds_from_env(profile).is_some()
+}
+
+/// Gather the process-environment credential sources (static env vars, the resolved profile name,
+/// and the shared-credentials INI) and resolve them through the pure [`resolve_aws_creds`] core.
+/// The single reader shared by [`load_aws_credentials`] and [`aws_credentials_resolvable`].
+fn resolve_aws_creds_from_env(profile: Option<&str>) -> Option<AwsCreds> {
     let profile = profile
         .map(str::to_string)
         .or_else(|| std::env::var("AWS_PROFILE").ok())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "default".to_string());
-    if let Some(creds) = load_profile_credentials(&profile) {
-        return Ok(creds);
-    }
-
-    Err(AppError::auth(
-        "AWS credentials not found.\n\nSet AWS_BEARER_TOKEN_BEDROCK for the api-key path, or provide AWS credentials (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, or a profile in ~/.aws/credentials).",
-    ))
+    let ini = read_credentials_ini();
+    resolve_aws_creds(
+        env_nonempty("AWS_ACCESS_KEY_ID").as_deref(),
+        env_nonempty("AWS_SECRET_ACCESS_KEY").as_deref(),
+        env_nonempty("AWS_SESSION_TOKEN").as_deref(),
+        &profile,
+        ini.as_deref(),
+    )
 }
 
-/// Parse a named section out of `~/.aws/credentials` (a minimal INI reader — no extra crate).
-fn load_profile_credentials(profile: &str) -> Option<AwsCreds> {
+/// Pure credential resolution over already-read inputs (SPEC-PROVIDER-013): the static env
+/// `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`(/`AWS_SESSION_TOKEN`) win; else the named `profile`
+/// in the shared-credentials INI (`ini`, when present). Pure — no env, no filesystem — so both
+/// invoke-time resolution and the validity probe share ONE code path and it is unit-testable.
+fn resolve_aws_creds(
+    env_id: Option<&str>,
+    env_secret: Option<&str>,
+    env_token: Option<&str>,
+    profile: &str,
+    ini: Option<&str>,
+) -> Option<AwsCreds> {
+    if let (Some(id), Some(secret)) = (env_id, env_secret) {
+        if !id.is_empty() && !secret.is_empty() {
+            return Some(AwsCreds {
+                access_key_id: id.to_string(),
+                secret_access_key: secret.to_string(),
+                session_token: env_token.filter(|s| !s.is_empty()).map(str::to_string),
+            });
+        }
+    }
+    ini.and_then(|data| parse_credentials_ini(data, profile))
+}
+
+/// The process-env value of `name`, or `None` when unset or empty.
+fn env_nonempty(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|s| !s.is_empty())
+}
+
+/// Read the shared-credentials INI text: `AWS_SHARED_CREDENTIALS_FILE` (the standard AWS override)
+/// when set, else `$HOME/.aws/credentials`. `None` when no file is configured or it is unreadable.
+fn read_credentials_ini() -> Option<String> {
+    if let Some(path) = env_nonempty("AWS_SHARED_CREDENTIALS_FILE") {
+        return std::fs::read_to_string(path).ok();
+    }
     let home = std::env::var_os("HOME")?;
     let path = std::path::Path::new(&home).join(".aws").join("credentials");
-    let data = std::fs::read_to_string(path).ok()?;
-    parse_credentials_ini(&data, profile)
+    std::fs::read_to_string(path).ok()
 }
 
 /// Extract `profile`'s `aws_access_key_id`/`aws_secret_access_key`(/`aws_session_token`) from an
@@ -1000,6 +1039,46 @@ mod tests {
         // Missing section / missing key → None.
         assert!(parse_credentials_ini(ini, "nope").is_none());
         assert!(parse_credentials_ini("[x]\naws_access_key_id = only-id\n", "x").is_none());
+    }
+
+    // ---- pure AWS credential resolution (SPEC-PROVIDER-013, validity-probe core) ----
+
+    #[test]
+    fn resolve_aws_creds_prefers_static_env_over_profile() {
+        // Static env keys win even when a profile INI is also present.
+        let ini = "[default]\naws_access_key_id = FROM_INI\naws_secret_access_key = ini_secret\n";
+        let c = resolve_aws_creds(
+            Some("AKIA_ENV"),
+            Some("env_secret"),
+            Some("env_tok"),
+            "default",
+            Some(ini),
+        )
+        .unwrap();
+        assert_eq!(c.access_key_id, "AKIA_ENV");
+        assert_eq!(c.secret_access_key, "env_secret");
+        assert_eq!(c.session_token.as_deref(), Some("env_tok"));
+    }
+
+    #[test]
+    fn resolve_aws_creds_falls_back_to_named_profile() {
+        // No static env keys → the named profile in the INI (respecting AWS_PROFILE / default).
+        let ini = "[default]\naws_access_key_id = AKIA_DEF\naws_secret_access_key = def_secret\n[prod]\naws_access_key_id = AKIA_PROD\naws_secret_access_key = prod_secret\n";
+        let d = resolve_aws_creds(None, None, None, "default", Some(ini)).unwrap();
+        assert_eq!(d.access_key_id, "AKIA_DEF");
+        let p = resolve_aws_creds(None, None, None, "prod", Some(ini)).unwrap();
+        assert_eq!(p.access_key_id, "AKIA_PROD");
+    }
+
+    #[test]
+    fn resolve_aws_creds_none_when_nothing_resolves() {
+        // No env keys, no INI → unresolvable.
+        assert!(resolve_aws_creds(None, None, None, "default", None).is_none());
+        // A partial env credential (id but no secret) does not resolve, and the profile is absent.
+        assert!(resolve_aws_creds(Some("AKIA"), None, None, "default", None).is_none());
+        // INI present but the requested profile is missing.
+        let ini = "[other]\naws_access_key_id = x\naws_secret_access_key = y\n";
+        assert!(resolve_aws_creds(None, None, None, "default", Some(ini)).is_none());
     }
 
     // ---- list_models curated set ----

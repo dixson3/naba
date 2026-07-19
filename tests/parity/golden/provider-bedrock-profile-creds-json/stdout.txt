@@ -1,0 +1,26 @@
+{
+  "status": "ok",
+  "data": {
+    "default_provider": "gemini",
+    "providers": [
+      {
+        "name": "gemini",
+        "default": true,
+        "credentials": false,
+        "model": "gemini-3.1-flash-image"
+      },
+      {
+        "name": "openrouter",
+        "default": false,
+        "credentials": false,
+        "model": "google/gemini-3.1-flash-image-preview"
+      },
+      {
+        "name": "bedrock",
+        "default": false,
+        "credentials": true,
+        "model": "amazon.nova-canvas-v1:0"
+      }
+    ]
+  }
+}
