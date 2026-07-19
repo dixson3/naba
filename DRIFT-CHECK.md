@@ -26,8 +26,13 @@ for the plan-004 Go→Rust port + plan-005 self-update/preflight additions** (20
 Go source nodes (`internal/cli/*.go`, `internal/cli/skills.go`, `internal/gemini/client.go`)
 were retargeted to their Rust equivalents (`src/cli.rs`, `src/skills.rs`,
 `src/provider/gemini.rs`), and the plan-005 `self`/`skills preflight` surfaces were added
-(`self-source` node, `e-skill-preflight` / `e-readme-self` edges). The engine enforces this
-manifest; it is a silent no-op only while `approved: no`.
+(`self-source` node, `e-skill-preflight` / `e-readme-self` edges). **Re-approved for the
+plan-006 website (2026-07-19):** the `web/` documentation pages (`web-usage`, `web-config`,
+`web-install`) were added as `derived` nodes that must follow the fixed Rust capability
+sources, so a feature/capability change in the CLI, self-management, or provider client fans
+out to the site docs (`e-web-usage-commands`, `e-web-config-self`, `e-web-config-model`,
+`e-web-install-methods`). The engine enforces this manifest; it is a silent no-op only while
+`approved: no`.
 
 ## 1. Artifact Nodes
 
@@ -47,6 +52,9 @@ manifest; it is a silent no-op only while `approved: no`.
 | `gemini-source` | `src/provider/gemini.rs` (`DEFAULT_MODEL` constant) | source | fixed | required |
 | `ig-configuration` | `docs/specifications/IG/configuration.md` | spec | derived | required |
 | `edd-core` | `docs/specifications/EDD/CORE.md` | spec | derived | required |
+| `web-usage` | `web/content/pages/usage.md` | doc | derived | required |
+| `web-config` | `web/content/pages/config.md` | doc | derived | required |
+| `web-install` | `web/content/pages/install.md` | doc | derived | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -65,6 +73,10 @@ manifest; it is a silent no-op only while `approved: no`.
 | `e-skill-spec` | `skill-md` | `skill-spec` | cross-ref |
 | `e-model-ig-config` | `gemini-source` | `ig-configuration` | contract |
 | `e-model-edd-core` | `gemini-source` | `edd-core` | contract |
+| `e-web-usage-commands` | `cli-source` | `web-usage` | cross-ref |
+| `e-web-config-self` | `self-source` | `web-config` | cross-ref |
+| `e-web-config-model` | `gemini-source` | `web-config` | contract |
+| `e-web-install-methods` | `self-source` | `web-install` | cross-ref |
 
 `e-depends-on-skill` (plan-001) is **deleted**: the composites no longer have sibling skills;
 their dependency is now intra-skill router logic, not a `depends-on-skill` frontmatter edge.
@@ -86,6 +98,10 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-skill-spec` | `field-set-equal` | the subcommand set + tier (inline/composite) in the SKILL.md dispatch table equals the subcommand→CLI-verb map in `docs/specifications/IG/skills.md` §4. Keeps the IG guide in sync with the skill. |
 | `e-model-ig-config` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the default model id stated in `docs/specifications/IG/configuration.md` (the Model Resolution Order built-in default). `gemini-source` is the fixed authority. |
 | `e-model-edd-core` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the **Default model** id stated in `docs/specifications/EDD/CORE.md` §5. `gemini-source` is the fixed authority. |
+| `e-web-usage-commands` | `identifier-matches` | every `naba <verb>` shown on the usage page (`web/content/pages/usage.md` — generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`; a new user-facing command/verb must be reflected on the usage page. `cli-source` is the fixed authority. |
+| `e-web-config-self` | `field-set-subset` | the `naba self …`, `naba doctor`, and `naba skills …` verbs documented on the config page (`web/content/pages/config.md`) correspond to real clap subcommands in `src/cli.rs` / `src/self_cmd/*.rs`; no config-page verb lacks a real command. `self-source` is the fixed authority. |
+| `e-web-config-model` | `value-equal` | the default Gemini model id and `--quality` tier ids (`fast`→flash, `high`→pro) stated on the config page match the `DEFAULT_MODEL` constant and the quality→model mapping in `src/provider/gemini.rs`. `gemini-source` is the fixed authority. |
+| `e-web-install-methods` | `field-set-subset` | the install methods and the `naba skills install`/`upgrade` + `naba self install --from-build` lifecycle documented on the install page (`web/content/pages/install.md`) correspond to real commands in `src/cli.rs` / `src/self_cmd/*.rs`. `self-source`/`cli-source` are the fixed authority. |
 
 ## 4. Referencers (orphan check)
 
@@ -100,6 +116,9 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `gemini-source` | the `DEFAULT_MODEL` constant is consumed by `src/commands.rs`, `src/doctor.rs`, and `src/mcp.rs` (client construction) |
 | `ig-configuration` | referenced by AGENTS.md "Specifications" (docs/specifications/IG) and EDD/CORE |
 | `edd-core` | referenced by AGENTS.md "Specifications" (docs/specifications/EDD) |
+| `web-usage` | the naba website usage page (`web/content/pages/usage.md`), linked from the site nav and `web/README.md` |
+| `web-config` | the naba website config page (`web/content/pages/config.md`), linked from the site nav and `web/README.md` |
+| `web-install` | the naba website install page (`web/content/pages/install.md`), linked from the site nav and `web/README.md` |
 
 ## 5. Required-Section Contracts
 
@@ -125,25 +144,30 @@ A source-node edit fans out to every derived edge it feeds.
 | `src/skills.rs` | `e-installer-skillset` |
 | `README.md` | `e-index-table`, `e-readme-self` |
 | `docs/specifications/IG/skills.md` | `e-skill-spec` |
-| `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight` |
-| `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight` |
-| `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core` |
+| `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight`, `e-web-usage-commands`, `e-web-install-methods` |
+| `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight`, `e-web-config-self`, `e-web-install-methods` |
+| `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core`, `e-web-config-model` |
 | `docs/specifications/IG/configuration.md` | `e-model-ig-config` |
 | `docs/specifications/EDD/CORE.md` | `e-model-edd-core` |
+| `web/content/pages/usage.md` | `e-web-usage-commands` |
+| `web/content/pages/config.md` | `e-web-config-self`, `e-web-config-model` |
+| `web/content/pages/install.md` | `e-web-install-methods` |
 
 ## 7. Fixed-Authority Conflict Policy
 
 Three `fixed` authorities: `cli-source` (`src/cli.rs`), `self-source` (`src/self_cmd/*.rs`,
 `src/preflight.rs`, `src/dirs.rs`), and `gemini-source` (`src/provider/gemini.rs`).
 
-On an `e-cli-subcommand`, `e-skill-preflight`, or `e-readme-self` conflict, the Rust source
-wins: report the `commands/*.md` / `SKILL.md` / README as drifted; never edit the CLI to match a
-doc. **Exception:** if the evidence shows a doc names a verb that genuinely should exist but does
-not (a stale reference on either side), emit a **CONFLICT**, report it to the operator, and
-halt; never silently rewrite either side.
+On an `e-cli-subcommand`, `e-skill-preflight`, `e-readme-self`, `e-web-usage-commands`,
+`e-web-config-self`, or `e-web-install-methods` conflict, the Rust source wins: report the
+`commands/*.md` / `SKILL.md` / README / `web/content/pages/*.md` as drifted; never edit the CLI
+to match a doc. **Exception:** if the evidence shows a doc names a verb that genuinely should
+exist but does not (a stale reference on either side), emit a **CONFLICT**, report it to the
+operator, and halt; never silently rewrite either side.
 
-On an `e-model-ig-config` or `e-model-edd-core` conflict, the Rust `DEFAULT_MODEL` constant
-wins: report the doc (`ig-configuration` / `edd-core`) as drifted and update the doc to match the
+On an `e-model-ig-config`, `e-model-edd-core`, or `e-web-config-model` conflict, the Rust
+`DEFAULT_MODEL` constant wins: report the doc (`ig-configuration` / `edd-core` /
+`web/content/pages/config.md`) as drifted and update the doc to match the
 constant; never edit the constant to match a doc. (The constant is also guarded by a
 compile-time test assertion, so a model change is a deliberate, test-gated edit that the docs
 must follow.)

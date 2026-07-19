@@ -3,8 +3,10 @@ Slug: usage
 Subtitle: commands, with the images they make
 
 Every image command routes through one of two providers (Gemini or OpenRouter) — see
-[config](/config/) for provider and key setup. The examples below show the command and a
-sample of the kind of output it produces.
+[config](/config/) for provider and key setup. Each example below shows the exact command
+**and the image it produced**; captions note the prompt and the model used. (These are real
+naba outputs, mostly on the fast `gemini-3.1-flash-image` tier, with one on the higher-quality
+`gemini-3-pro-image` tier.)
 
 ## generate
 
@@ -12,57 +14,95 @@ Turn a text prompt into an image.
 
 ```bash
 naba generate "a red apple on a white background"
-naba generate "mountain landscape" --style watercolor
-naba generate "city skyline" -n 4 --style pixel-art
-naba generate "wide vista" --aspect 16:9 --resolution 2K
-naba generate "abstract art" -v lighting -v color-palette -o art.png
 ```
 
 <figure class="sample">
-  <img src="/images/samples/generate.jpg" alt="Sample generated image from naba generate">
-  <figcaption>naba generate "a red apple on a white background"</figcaption>
+  <img src="/images/samples/generate.jpg" alt="A red apple on a white background">
+  <figcaption><span class="cap-prompt">"a red apple on a white background"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
+</figure>
+
+```bash
+naba generate "a serene mountain lake" --style watercolor
+```
+
+<figure class="sample">
+  <img src="/images/samples/watercolor.jpg" alt="A serene mountain lake in watercolor style">
+  <figcaption><span class="cap-prompt">"a serene mountain landscape lake, soft watercolor painting style"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
+</figure>
+
+```bash
+naba generate "a futuristic city skyline at dusk" --style pixel-art
+```
+
+<figure class="sample">
+  <img src="/images/samples/pixelart.jpg" alt="A futuristic city skyline at dusk in pixel-art style">
+  <figcaption><span class="cap-prompt">"a futuristic city skyline at dusk, pixel-art style, 16-bit"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
+</figure>
+
+```bash
+naba generate "a sweeping desert canyon vista at golden hour" --quality high --aspect 16:9
+```
+
+<figure class="sample">
+  <img src="/images/samples/vista.jpg" alt="A sweeping desert canyon vista at golden hour">
+  <figcaption><span class="cap-prompt">"a sweeping desert canyon vista at golden hour, ultra detailed" · --aspect 16:9</span><span class="cap-model">gemini-3-pro-image (--quality high)</span></figcaption>
 </figure>
 
 **Aspect ratio & resolution.** `--aspect` and `--resolution` set the Gemini `imageConfig`
 and are available on all generative commands. Valid `--aspect`: `1:1, 2:3, 3:2, 3:4, 4:3,
 4:5, 5:4, 9:16, 16:9, 21:9` (and the wide `1:4 … 8:1` extremes). Valid `--resolution`:
-`512, 1K, 2K, 4K` (uppercase `K`). Invalid values are rejected before the API call.
+`512, 1K, 2K, 4K` (uppercase `K`). On Gemini, `--quality high` selects the
+`gemini-3-pro-image` tier; `--quality fast` (default) is `gemini-3.1-flash-image`.
 
 ## edit
 
 Modify an existing image with a natural-language instruction.
 
 ```bash
-naba edit photo.png "make the sky more dramatic"
-naba edit portrait.jpg "add a hat" -o portrait-hat.png
+naba edit lake.jpg "make the sky dramatic and stormy"
 ```
 
-<figure class="sample">
-  <img src="/images/samples/edit.jpg" alt="Sample edited image from naba edit">
-  <figcaption>naba edit photo.png "make the sky more dramatic"</figcaption>
-</figure>
+<div class="io">
+  <figure class="sample">
+    <img src="/images/samples/edit-before.jpg" alt="Calm mountain lake under a clear sky, before edit">
+    <figcaption><span class="io-tag">before</span> input image</figcaption>
+  </figure>
+  <figure class="sample">
+    <img src="/images/samples/edit-after.jpg" alt="The same lake with a dramatic stormy sky, after edit">
+    <figcaption><span class="io-tag io-after">after</span><span class="cap-prompt">"make the sky dramatic and stormy with heavy clouds"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
+  </figure>
+</div>
 
 ## restore
 
 Enhance or repair an old or degraded image.
 
 ```bash
-naba restore old-photo.jpg
-naba restore blurry.png "sharpen and improve colors"
+naba restore old-photo.jpg "sharpen and improve colors"
 ```
+
+<div class="io">
+  <figure class="sample">
+    <img src="/images/samples/restore-before.jpg" alt="A low-quality, degraded vintage portrait, before restore">
+    <figcaption><span class="io-tag">before</span> degraded input</figcaption>
+  </figure>
+  <figure class="sample">
+    <img src="/images/samples/restore-after.jpg" alt="The restored, sharpened portrait, after restore">
+    <figcaption><span class="io-tag io-after">after</span><span class="cap-prompt">"sharpen, denoise, and improve colors"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
+  </figure>
+</div>
 
 ## icon
 
 Generate app icons in one or more sizes.
 
 ```bash
-naba icon "a music note" --size 64 --size 256 --size 512
-naba icon "rocket ship" --style flat --background white --corners sharp
+naba icon "rocket ship" --style flat --size 512
 ```
 
 <figure class="sample">
-  <img src="/images/samples/icon.jpg" alt="Sample icon set from naba icon">
-  <figcaption>naba icon "rocket ship" --style flat</figcaption>
+  <img src="/images/samples/icon.jpg" alt="A flat-style rocket ship app icon">
+  <figcaption><span class="cap-prompt">"rocket ship" · --style flat</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
 </figure>
 
 ## pattern
@@ -70,13 +110,12 @@ naba icon "rocket ship" --style flat --background white --corners sharp
 Seamless, tileable textures and backgrounds.
 
 ```bash
-naba pattern "tropical leaves" --style floral --colors colorful
-naba pattern "circuit board" --style tech --density dense --colors mono
+naba pattern "circuit board" --style tech --colors mono
 ```
 
 <figure class="sample">
-  <img src="/images/samples/pattern.jpg" alt="Sample seamless pattern from naba pattern">
-  <figcaption>naba pattern "circuit board" --style tech --colors mono</figcaption>
+  <img src="/images/samples/pattern.jpg" alt="A seamless monochrome circuit-board pattern">
+  <figcaption><span class="cap-prompt">"circuit board" · --style tech --colors mono</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
 </figure>
 
 ## story
@@ -84,9 +123,16 @@ naba pattern "circuit board" --style tech --density dense --colors mono
 A sequence of images that tell a visual narrative.
 
 ```bash
-naba story "a cat's journey through a magical forest" --steps 6
-naba story "sunrise to sunset" --steps 4 --transition dramatic
+naba story "a small sailboat's voyage from calm harbor to open sea at sunset" --steps 3
 ```
+
+<div class="sample-grid">
+  <figure class="sample"><img src="/images/samples/story.jpg" alt="Story frame 1: sailboat in a calm harbor"><figcaption>frame 1</figcaption></figure>
+  <figure class="sample"><img src="/images/samples/story-2.jpg" alt="Story frame 2: sailboat heading out"><figcaption>frame 2</figcaption></figure>
+  <figure class="sample"><img src="/images/samples/story-3.jpg" alt="Story frame 3: sailboat on the open sea at sunset"><figcaption>frame 3</figcaption></figure>
+</div>
+
+<p class="cap-model" style="margin-top:6px">"a small sailboat's voyage from calm harbor to open sea at sunset" · --steps 3 · gemini-3.1-flash-image</p>
 
 ## diagram
 
@@ -94,32 +140,15 @@ Rendered technical diagrams from a description.
 
 ```bash
 naba diagram "user authentication flow" --type flowchart
-naba diagram "microservices architecture" --type architecture --complexity comprehensive
-naba diagram "database schema for blog" --type database --style clean
 ```
 
 <figure class="sample">
-  <img src="/images/samples/diagram.jpg" alt="Sample diagram from naba diagram">
-  <figcaption>naba diagram "user authentication flow" --type flowchart</figcaption>
+  <img src="/images/samples/diagram.jpg" alt="A user authentication flowchart">
+  <figcaption><span class="cap-prompt">"user authentication flow" · --type flowchart</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
 </figure>
 
-## self-update
+---
 
-A **vendor** install (the `curl | sh` bootstrap) updates itself in place. Homebrew installs
-are refused with a pointer to `brew upgrade naba`.
-
-```bash
-naba self update            # fetch the latest release, verify sha256, swap in place
-naba self update --check    # report whether an update is available; change nothing
-naba self update --json     # machine-readable envelope
-```
-
-GitHub Releases is the canonical source for every binary and for the self-update manifest —
-this site does not host or mirror binaries.
-
-## health check
-
-```bash
-naba doctor                 # checks skills install, API key, model, config
-naba doctor --json          # structured output
-```
+Managing the binary itself — [`naba self update`](/config/#self-update),
+[`naba doctor`](/config/#health-check-naba-doctor), and the
+[`naba skills`](/config/#claude-code-skills) lifecycle — lives on the [config](/config/) page.
