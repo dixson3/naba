@@ -51,7 +51,11 @@ clean:
 devserver:
 	"$(PELICAN)" -lr "$(INPUTDIR)" -o "$(OUTPUTDIR)" -s "$(CONFFILE)" $(PELICANOPTS)
 
-publish:
+# Production build. Depends on stage_installer so install.sh is always in output/ before
+# the build — a phony target runs only ONCE per make invocation, so staging must precede
+# (not merely be a sibling of) publish, otherwise s3_upload's `sync --delete` would drop
+# install.sh and sync_installer would find no output/install.sh.
+publish: stage_installer
 	"$(PELICAN)" "$(INPUTDIR)" -o "$(OUTPUTDIR)" -s "$(PUBLISHCONF)" $(PELICANOPTS)
 
 # Production build into an isolated dir so the dev output/ tree is never disturbed.
@@ -68,9 +72,9 @@ stage_installer:
 	./scripts/sync_installer.sh
 
 # Re-upload ONLY install.sh with an explicit short Cache-Control (the tree-wide `s3 sync`
-# does not set per-key cache headers) and invalidate that one path. Depends on the object
-# already existing in output/ from a build.
-sync_installer: stage_installer publish
+# does not set per-key cache headers) and invalidate that one path. `publish` already staged
+# it into output/ (publish depends on stage_installer), so no separate stage step here.
+sync_installer: publish
 	aws s3 cp "$(OUTPUTDIR)/install.sh" "s3://$(S3_BUCKET)/install.sh" \
 		--cache-control "max-age=300" --content-type "text/x-shellscript"
 ifneq ($(CF_DISTRIBUTION),)
