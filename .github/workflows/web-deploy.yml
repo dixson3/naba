@@ -1,0 +1,56 @@
+# Manual web deploy for naba.ysapp.net (Pelican -> S3 -> CloudFront).
+#
+# Shape #2: operator-triggered (`workflow_dispatch`) — a "Run workflow" button, NOT
+# auto-on-release (deferred). Auth is GitHub OIDC -> a least-privilege IAM role
+# (no long-lived AWS keys stored in the repo).
+#
+# Requires (repo Settings -> Secrets and variables -> Actions):
+#   - Variable  AWS_DEPLOY_ROLE_ARN : arn of the OIDC deploy role (S3 + CloudFront invalidation)
+#   - Variable  CF_DISTRIBUTION     : CloudFront distribution id (REDACTED-CF-DISTRIBUTION)
+#   - Secret    NABA_GA_MEASUREMENT_ID : GA4 id for the production build (optional; unset -> no gtag)
+#
+# The S3 bucket (naba.ysapp.net) and region (us-east-1) are pinned in web/Makefile /
+# web/scripts/provision_aws.sh; only the account-specific role + distribution come from CI vars.
+name: Deploy web
+
+on:
+  workflow_dispatch:
+
+# OIDC needs id-token: write; checkout needs contents: read. Nothing else.
+permissions:
+  id-token: write
+  contents: read
+
+# Never run two site deploys against the same bucket at once.
+concurrency:
+  group: web-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-web:
+    name: Build + deploy site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pelican
+        run: pip install -r web/requirements.txt
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Build + deploy (S3 sync + CloudFront invalidation)
+        env:
+          # Production-only GA4 id; when unset the base template renders no gtag snippet.
+          NABA_GA_MEASUREMENT_ID: ${{ secrets.NABA_GA_MEASUREMENT_ID }}
+        run: |
+          make -C web deploy CF_DISTRIBUTION="${{ vars.CF_DISTRIBUTION }}"
