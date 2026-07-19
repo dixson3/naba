@@ -3,7 +3,7 @@
 **ID:** plan-006-james-dixson-d333fd
 **Author:** james-dixson
 **Created:** 2026-07-18
-**Status:** approved
+**Status:** complete
 **Fingerprint:** 64beb8c3b4439c3ee6449666f3630c27706697ae5140e1cc70eeda79c39cb445
 **Phase log:**
 - 2026-07-18 scoping: initial scope captured
@@ -13,6 +13,7 @@
 - 2026-07-18 review: red-team pass 2: APPROVE (pass-1 REVISE concerns resolved)
 - 2026-07-18 ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - 2026-07-18 approved: operator approved
+- 2026-07-19 complete: plan complete — site live at naba.ysapp.net, secrets externalized
 
 ## Objective
 Build a bespoke Pelican static website for the naba CLI, styled with a dark
