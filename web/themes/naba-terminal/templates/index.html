@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ SITENAME }} &mdash; {{ SITESUBTITLE }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1 class="hero-name"><span class="glyph">&gt;_</span> naba</h1>
+  <p class="hero-sub">{{ SITESUBTITLE }}</p>
+  <p class="hero-desc">{{ SITE_DESCRIPTION }}</p>
+
+  <div class="term" aria-label="bootstrap install command">
+    <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-title">bash</span></div>
+    <pre class="term-body"><span class="ps1">$</span> curl --proto '=https' --tlsv1.2 -LsSf {{ INSTALL_URL }} | sh</pre>
+  </div>
+
+  <div class="hero-cta">
+    <a class="btn btn-primary" href="{{ SITEURL }}/install/">install guide</a>
+    <a class="btn" href="{{ SITEURL }}/usage/">usage</a>
+    <a class="btn" href="{{ GITHUB_URL }}">github &#8599;</a>
+  </div>
+</section>
+
+<section class="features">
+  <div class="card">
+    <h3><span class="glyph">#</span> generate</h3>
+    <p>Turn a text prompt into an image. Icons, patterns, stories, and diagrams too.</p>
+    <pre class="mini">naba generate "a red apple on white"</pre>
+  </div>
+  <div class="card">
+    <h3><span class="glyph">#</span> edit &amp; restore</h3>
+    <p>Modify an existing image or enhance an old one with a natural-language instruction.</p>
+    <pre class="mini">naba edit photo.png "make the sky dramatic"</pre>
+  </div>
+  <div class="card">
+    <h3><span class="glyph">#</span> multi-provider</h3>
+    <p>Route through Google Gemini or OpenRouter. One binary, no runtime, no dependencies.</p>
+    <pre class="mini">naba generate "hero" --provider gemini</pre>
+  </div>
+  <div class="card">
+    <h3><span class="glyph">#</span> self-updating</h3>
+    <p>A vendor install updates itself in place. GitHub Releases stays canonical for binaries.</p>
+    <pre class="mini">naba self update</pre>
+  </div>
+</section>
+{% endblock %}

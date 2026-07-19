@@ -4,6 +4,9 @@ A standalone CLI (a single Rust binary) for AI image generation with multiple
 providers — **Google Gemini** and **OpenRouter**. Generate, edit, and transform images
 from the command line.
 
+**Website:** [naba.ysapp.net](https://naba.ysapp.net) — docs, usage examples with sample
+output, and a one-line bootstrap install.
+
 ## Install
 
 ### Homebrew (macOS and Linux) — **recommended**
@@ -28,6 +31,20 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dixson3/naba/releases/l
 
 > Available once the first tagged release is published. Homebrew remains the recommended
 > default; use the vendor installer when you want `naba self update`.
+
+### Bootstrap (`naba.ysapp.net`)
+
+A shorter, memorable form of the vendor install. The site hosts `install.sh` — a mirror of
+the cargo-dist installer above — so the first install is just:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://naba.ysapp.net/install.sh | sh
+```
+
+GitHub Releases remains canonical for every binary; the site hosts only this convenience
+`install.sh`. It carries the real installer once the **first cargo-dist release is cut
+([#7](https://github.com/dixson3/naba/issues/7))** — until then it prints a "no release yet"
+notice and exits non-zero, so a premature run fails safely.
 
 ### Cargo
 
