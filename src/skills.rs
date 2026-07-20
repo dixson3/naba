@@ -42,6 +42,10 @@ pub struct Opts {
     /// receipt upsert lands in Epic 2 (Issue 2.2/2.3).
     pub harnesses: Vec<String>,
     pub target: String,
+    /// True when the operator explicitly passed `--harness`/`--surface`/`--target`. A
+    /// **false** value on `upgrade` is the *unqualified* case that enumerates the install
+    /// receipt instead of the default harness (Issue 2.3).
+    pub explicit: bool,
     pub dry_run: bool,
     pub quiet: bool,
     /// Emit the universal `--json` envelope (SPEC-JSON-006) instead of the human lines.
@@ -71,12 +75,16 @@ struct SkillsActionReport {
     skills: Vec<SkillActionItem>,
 }
 
-/// One target's outcome inside a multi-harness action report (plan-008 Issue 2.2/2.3).
+/// One target's outcome inside a multi-harness action report (plan-008 Issue 2.2/2.3). Under
+/// continue-on-error enumeration a failed target carries an `error` instead of `skills`.
 #[derive(Debug, Clone, serde::Serialize)]
 struct SkillsTargetReport {
     harness: String,
     destination: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     skills: Vec<SkillActionItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 /// The multi-target `--json` payload emitted when several harnesses are installed in one
@@ -200,31 +208,101 @@ fn record_target(mode: Mode, harness: &str, scope: &str, dest: &Path) {
     }
 }
 
+/// Resolve the targets a run operates on. An **unqualified `upgrade`** (no `--harness`/
+/// `--surface`/`--target`) enumerates the install receipt — every previously-installed target,
+/// across every harness — migrating an empty registry from a legacy disk scan first (Issue 2.3,
+/// 2.4). Enumerated targets are deduped by resolved absolute path (codex + `agents` share
+/// `.agents/skills`). Every other invocation uses the flag-resolved [`install_targets`].
+fn targets_for(mode: Mode, opts: &Opts) -> AppResult<Vec<(String, PathBuf)>> {
+    if mode == Mode::Upgrade && !opts.explicit {
+        let reg = crate::skills_install::load_or_migrate()?;
+        let mut seen = std::collections::BTreeSet::new();
+        let mut out = Vec::new();
+        for t in reg.targets {
+            let p = PathBuf::from(&t.path);
+            if seen.insert(p.clone()) {
+                out.push((t.harness, p));
+            }
+        }
+        return Ok(out);
+    }
+    install_targets(opts)
+}
+
+/// Deploy/remove all embedded skills for a single target, returning the per-skill items or the
+/// first error. Extracted so the caller can apply continue-on-error across targets (Issue 2.3).
+fn run_one_target(mode: Mode, dest: &Path, opts: &Opts) -> AppResult<Vec<SkillActionItem>> {
+    let mut items = Vec::new();
+    for name in embed::skill_names() {
+        let item = match mode {
+            Mode::Remove => remove_skill(&name, dest, opts)?,
+            _ => deploy_skill(&name, dest, mode == Mode::Upgrade, opts)?,
+        };
+        items.push(item);
+    }
+    Ok(items)
+}
+
 /// Run install / upgrade / remove over every embedded skill (Go's `runSkills`), for each
-/// resolved (harness, dest) target (Issue 2.2 multi-harness install). Under `--json` (incl. the
-/// piped auto-enable) emits the universal envelope (SPEC-JSON-006): the pinned flat shape for a
-/// single target, a `targets` array when several harnesses are installed at once.
+/// resolved (harness, dest) target (Issue 2.2 multi-harness install, Issue 2.3 receipt-driven
+/// upgrade). Multi-target runs are **continue-on-error**: a failing target is skipped-and-
+/// reported and the command still processes the rest, then exits non-zero. Under `--json`
+/// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006): the pinned flat
+/// shape for a single target, a `targets` array otherwise.
 pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
-    let targets = install_targets(opts)?;
-    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>)> = Vec::new();
+    let targets = targets_for(mode, opts)?;
+
+    // Nothing recorded to upgrade: report cleanly rather than silently no-op.
+    if targets.is_empty() {
+        if opts.json {
+            output::print_ok_json(SkillsMultiActionReport {
+                action: mode.action(),
+                dry_run: opts.dry_run,
+                targets: Vec::new(),
+            });
+        } else if !opts.quiet {
+            println!(
+                "No installed skill targets recorded (nothing to {}).",
+                mode.action()
+            );
+        }
+        return Ok(());
+    }
+
+    // A single flag-resolved target keeps the pinned fail-fast + flat-JSON behavior; several
+    // targets (multi-harness install or receipt-driven upgrade) run continue-on-error.
+    let continue_on_error = targets.len() > 1;
+    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>, Option<String>)> = Vec::new();
+    let mut failures = 0usize;
     for (harness, dest) in &targets {
-        let mut items = Vec::new();
-        for name in embed::skill_names() {
-            let item = match mode {
-                Mode::Remove => remove_skill(&name, dest, opts)?,
-                _ => deploy_skill(&name, dest, mode == Mode::Upgrade, opts)?,
-            };
-            items.push(item);
+        match run_one_target(mode, dest, opts) {
+            Ok(items) => {
+                if !opts.dry_run {
+                    record_target(mode, harness, &opts.scope, dest);
+                }
+                per_target.push((harness.clone(), dest.clone(), items, None));
+            }
+            Err(e) if continue_on_error => {
+                failures += 1;
+                eprintln!(
+                    "warning: skipping {} target {} — {e}",
+                    harness,
+                    dest.display()
+                );
+                per_target.push((
+                    harness.clone(),
+                    dest.clone(),
+                    Vec::new(),
+                    Some(e.to_string()),
+                ));
+            }
+            Err(e) => return Err(e),
         }
-        if !opts.dry_run {
-            record_target(mode, harness, &opts.scope, dest);
-        }
-        per_target.push((harness.clone(), dest.clone(), items));
     }
 
     if opts.json {
-        if per_target.len() == 1 {
-            let (_, dest, items) = per_target.into_iter().next().unwrap();
+        if per_target.len() == 1 && per_target[0].3.is_none() {
+            let (_, dest, items, _) = per_target.into_iter().next().unwrap();
             output::print_ok_json(SkillsActionReport {
                 action: mode.action(),
                 destination: dest.display().to_string(),
@@ -234,10 +312,11 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
         } else {
             let targets = per_target
                 .into_iter()
-                .map(|(harness, dest, skills)| SkillsTargetReport {
+                .map(|(harness, dest, skills, error)| SkillsTargetReport {
                     harness,
                     destination: dest.display().to_string(),
                     skills,
+                    error,
                 })
                 .collect();
             output::print_ok_json(SkillsMultiActionReport {
@@ -247,9 +326,20 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
             });
         }
     } else if !opts.dry_run && !opts.quiet {
-        for (_, dest, _) in &per_target {
-            println!("Destination: {}", dest.display());
+        for (_, dest, _, error) in &per_target {
+            match error {
+                None => println!("Destination: {}", dest.display()),
+                Some(e) => println!("Skipped: {} — {e}", dest.display()),
+            }
         }
+    }
+
+    // Continue-on-error still surfaces failure: a non-zero exit if any target failed.
+    if failures > 0 {
+        return Err(AppError::general(format!(
+            "{failures} skill target(s) failed to {}",
+            mode.action()
+        )));
     }
     Ok(())
 }
@@ -472,6 +562,7 @@ mod tests {
             scope: "user".into(),
             harnesses: vec!["claude-code".into()],
             target: target.to_string_lossy().into_owned(),
+            explicit: true,
             dry_run: false,
             quiet: false,
             json: false,
@@ -544,6 +635,7 @@ mod tests {
             scope: "project".into(),
             harnesses: vec!["codex".into(), "agents".into(), "claude-code".into()],
             target: String::new(),
+            explicit: true,
             dry_run: true,
             quiet: true,
             json: false,

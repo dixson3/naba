@@ -110,12 +110,14 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
         }
         Commands::Skills(sk) => {
             warn_surface_deprecated(sk.surface.as_deref(), globals);
+            let explicit = !sk.harness.is_empty() || sk.surface.is_some() || !sk.target.is_empty();
             let harnesses =
                 crate::harness::resolve_harness_list(&sk.harness, sk.surface.as_deref());
             let opts = crate::skills::Opts {
                 scope: sk.scope,
                 harnesses,
                 target: sk.target,
+                explicit,
                 dry_run: sk.dry_run,
                 quiet: globals.quiet,
                 json: globals.json,
