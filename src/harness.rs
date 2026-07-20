@@ -146,6 +146,82 @@ pub fn resolve_single(harness: Option<&str>, surface: Option<&str>) -> String {
 mod tests {
     use super::*;
 
+    /// Descriptor↔SPEC verification (plan-008 Issue 4.2): the shipped [`HARNESSES`] table must
+    /// agree with the pinned SPEC-HARNESS-002 descriptor table in
+    /// `docs/specifications/skills.md`. Parses that markdown table and asserts every row matches
+    /// the compiled descriptor (id, both subpaths, name_transform) and that the counts agree, so
+    /// a drift between code and SPEC fails CI.
+    #[test]
+    fn shipped_descriptor_matches_spec_harness_table() {
+        let spec_path = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/specifications/skills.md");
+        let text =
+            std::fs::read_to_string(spec_path).unwrap_or_else(|e| panic!("read {spec_path}: {e}"));
+
+        // Scope to the SPEC-HARNESS-002 section (between its anchor and SPEC-HARNESS-003).
+        let start = text
+            .find("SPEC-HARNESS-002** [PINNED]")
+            .expect("SPEC-HARNESS-002 section present");
+        let rest = &text[start..];
+        let end = rest.find("SPEC-HARNESS-003").unwrap_or(rest.len());
+        let section = &rest[..end];
+
+        let unbacktick = |s: &str| s.trim().trim_matches('`').trim().to_string();
+
+        // Parse the markdown table rows (skip header + alignment separator).
+        let mut rows: Vec<(String, String, String, Option<String>)> = Vec::new();
+        for line in section.lines() {
+            let l = line.trim();
+            if !l.starts_with('|') {
+                continue;
+            }
+            let cells: Vec<&str> = l.trim_matches('|').split('|').collect();
+            if cells.len() < 5 {
+                continue;
+            }
+            // Row id is the first whitespace token of cell 0, backticks stripped (the `agents`
+            // row carries a trailing "(portable)" annotation). Header/separator rows fall out
+            // via the `lookup` filter below.
+            let id = cells[0]
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_matches('`')
+                .to_string();
+            if lookup(&id).is_none() {
+                continue; // not a descriptor row
+            }
+            let user = unbacktick(cells[1]);
+            let project = unbacktick(cells[2]);
+            let nt_cell = unbacktick(cells[4]);
+            let name_transform = if nt_cell == "(none)" || nt_cell.is_empty() {
+                None
+            } else {
+                Some(nt_cell)
+            };
+            rows.push((id, user, project, name_transform));
+        }
+
+        assert_eq!(
+            rows.len(),
+            HARNESSES.len(),
+            "SPEC-HARNESS-002 table row count must equal the shipped descriptor count"
+        );
+        for h in HARNESSES {
+            let spec_row = rows
+                .iter()
+                .find(|(id, ..)| id == h.id)
+                .unwrap_or_else(|| panic!("SPEC-HARNESS-002 missing row for `{}`", h.id));
+            assert_eq!(spec_row.1, h.user_subpath, "user_subpath for {}", h.id);
+            assert_eq!(
+                spec_row.2, h.project_subpath,
+                "project_subpath for {}",
+                h.id
+            );
+            let shipped_nt = h.name_transform.map(|s| s.to_string());
+            assert_eq!(spec_row.3, shipped_nt, "name_transform for {}", h.id);
+        }
+    }
+
     #[test]
     fn resolve_list_defaults_maps_and_appends_surface() {
         assert_eq!(resolve_harness_list(&[], None), vec!["claude-code"]);
