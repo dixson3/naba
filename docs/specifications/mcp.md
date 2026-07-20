@@ -74,7 +74,11 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
 - **SPEC-MCP-014** [NEW] `resources/list` enumerates the **embedded skill tree** as concrete
   MCP resources so a client discovers skills cheaply and fetches instruction content on
-  demand. For each embedded skill `<name>` (from the binary's `skills/` embed) it emits: a
+  demand. The tree served here is the **`mcp/` render** (the subtractive, MCP-flavored variant
+  produced by the `build.rs` two-tree render — SPEC-EMBED-005), **not** the CLI-flavored `cli/`
+  tree that `skills install` deploys; this fixes the earlier behavior where the MCP surface served
+  CLI-oriented content. For each embedded skill `<name>` (from the binary's `mcp/` skill embed) it
+  emits: a
   compact index resource — URI `skill://<name>`, name `<name> skills index`, MIME
   `text/markdown` — followed by one resource per file — URI `skill://<name>/<rel>` for each
   skill-relative path `<rel>` (sorted: `README.md`, `SKILL.md`, `commands/*.md`), name
@@ -82,7 +86,8 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
   carries **URIs/metadata only — never file bodies** (the lazy-loading contract).
 - **SPEC-MCP-015** [NEW] `resources/read` resolves the `skill://` scheme: `skill://<name>/<rel>`
   returns the embedded file content as `TextResourceContents` (`text`, MIME by extension —
-  SPEC-MCP-014), served from the same skill-embed accessors the CLI uses; `skill://<name>`
+  SPEC-MCP-014), served from the **`mcp/` render** embed (SPEC-EMBED-005), i.e. the MCP-flavored
+  variant rather than the `cli/` tree deployed on disk; `skill://<name>`
   returns a generated markdown index listing every `skill://<name>/<rel>` URI. An unknown
   skill or file → `resource not found: <uri>`. `file://` reads (SPEC-MCP-012) are unchanged;
   the eight tools (SPEC-MCP-002) are unaffected.

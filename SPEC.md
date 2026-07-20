@@ -12,5 +12,5 @@ table of contents.
 - [docs/specifications/exit-and-errors.md](docs/specifications/exit-and-errors.md) — §7 exit-code matrix (SPEC-EXIT), §9 verbatim error strings (SPEC-ERR)
 - [docs/specifications/json-output.md](docs/specifications/json-output.md) — §8 JSON output shapes (SPEC-JSON)
 - [docs/specifications/mcp.md](docs/specifications/mcp.md) — §11 MCP surface (SPEC-MCP)
-- [docs/specifications/skills.md](docs/specifications/skills.md) — §12 skill-embed (SPEC-EMBED), §18 skills preflight (SPEC-PREFLIGHT)
+- [docs/specifications/skills.md](docs/specifications/skills.md) — §12 skill-embed (SPEC-EMBED), §18 skills preflight (SPEC-PREFLIGHT), §19 harness layout (SPEC-HARNESS), §20 skills install receipt (SPEC-INSTALL)
 - [docs/specifications/distribution.md](docs/specifications/distribution.md) — §13 version injection (SPEC-VERSION-BUILD), §15 distribution (SPEC-DIST), §16 XDG directories (SPEC-DIRS), §17 vendor install & self-update (SPEC-SELF)

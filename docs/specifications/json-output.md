@@ -39,3 +39,12 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
   not rewrites. The Epic-1 provisional `config` envelope (`{status, key, value}`) is **normalized**
   into the common shape (`{status, data:{key, value}}`). A parity/traceability test enumerates
   every subcommand and asserts each emits its documented envelope so "universal" is enforced.
+- **SPEC-JSON-007** [NEW — plan-008] **Multi-target `skills install`/`upgrade` JSON.** Under
+  `--json`, a `skills install`/`upgrade` run that resolves to a **single** target emits the pinned
+  **flat** per-target payload (the `{status:"ok", data:{…}}` envelope of SPEC-JSON-006, carrying the
+  one target's action result). A run that resolves to **multiple** harnesses/targets (repeated
+  `--harness`, or the unqualified receipt-driven `upgrade` over recorded targets — SPEC-INSTALL-002)
+  instead emits a **`targets[]` array**, one flat per-target object per resolved target, in
+  first-requested order after resolved-path dedupe (SPEC-HARNESS-005 / SPEC-INSTALL-002). The
+  single-target shape is exactly one element's worth of the multi-target shape, so a consumer can
+  branch on the presence of `targets`.

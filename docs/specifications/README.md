@@ -27,7 +27,7 @@ renumbered, regardless of which file a clause lives in.
 | [exit-and-errors.md](exit-and-errors.md) | §7 Exit-code matrix (SPEC-EXIT), §9 Verbatim error strings (SPEC-ERR) |
 | [json-output.md](json-output.md) | §8 JSON output shapes (SPEC-JSON) |
 | [mcp.md](mcp.md) | §11 MCP surface (SPEC-MCP) |
-| [skills.md](skills.md) | §12 Skill-embed (SPEC-EMBED), §18 Skills preflight (SPEC-PREFLIGHT) |
+| [skills.md](skills.md) | Skills subcommand → CLI-verb map, §12 Skill-embed (SPEC-EMBED), §18 Skills preflight (SPEC-PREFLIGHT), §19 Harness layout (SPEC-HARNESS), §20 Skills install receipt (SPEC-INSTALL) |
 | [distribution.md](distribution.md) | §13 Version injection (SPEC-VERSION-BUILD), §15 Distribution (SPEC-DIST), §16 XDG directories (SPEC-DIRS), §17 Vendor install & self-update (SPEC-SELF) |
 
 ---
@@ -56,3 +56,8 @@ byte-snapshot) test.
   `naba skills preflight` (§18 SPEC-PREFLIGHT) are **Rust-only** additions ported from
   yoshiko-flow. They have **no Go counterpart** and are exempt from the Go-captured parity
   goldens; the parity suite records them as Rust-only.
+- **SPEC-DIVERGE-008** The plan-008 per-harness install layout (§19 SPEC-HARNESS), the
+  skills-install receipt + receipt-driven multi-harness upgrade (§20 SPEC-INSTALL), and the
+  dual-purpose two-tree skill render (SPEC-EMBED-005) are **Rust-only** additions with **no Go
+  counterpart** — exempt from the Go-captured parity goldens and covered by cargo unit tests
+  (`src/harness.rs`, `src/skills.rs`, `src/skills_install.rs`) + the `build.rs` render.

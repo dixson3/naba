@@ -12,8 +12,9 @@ Closes #<!-- issue number, if applicable -->
       `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
       `cargo test`, `uv run tests/parity/check_traceability.py`, and the parity
       suite (`make parity`).
-- [ ] If this changes observable behavior, I updated `SPEC.md` (append-only clause
-      IDs) **and** added/adjusted a parity test that cites the clause.
+- [ ] If this changes observable behavior, I updated the relevant
+      `docs/specifications/*.md` spec (append-only clause IDs) **and** added/adjusted
+      a parity test that cites the clause.
 - [ ] No secrets or account-specific values (API keys, ARNs, account ids, zone/GA
       ids) are committed.
 - [ ] **I understand this change and can explain, defend, and maintain it** —

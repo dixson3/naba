@@ -2,6 +2,35 @@
 
 Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
+## Skills subcommand → CLI-verb map
+
+naba ships a single Claude Code skill, `skills/naba`, invoked as `/naba <subcommand> [args]`.
+The skill is a **packaging layer over the CLI** — it adds no image capability of its own; each
+subcommand maps to one or more real clap commands in `src/cli.rs`. Seven subcommands map 1:1 to a
+single CLI command (**inline** tier); three are **composite** — they orchestrate multiple existing
+verbs via a subagent and have no CLI command of their own. `DRIFT-CHECK.md` edge `e-skill-spec`
+keeps this table, `skills/naba/SKILL.md`, and the `commands/*.md` files in agreement.
+
+| Subcommand   | Tier      | CLI verb(s) invoked                              |
+| :----------- | :-------- | :---------------------------------------------- |
+| `generate`   | inline    | `naba generate`                                 |
+| `edit`       | inline    | `naba edit`                                     |
+| `restore`    | inline    | `naba restore`                                  |
+| `icon`       | inline    | `naba icon`                                      |
+| `pattern`    | inline    | `naba pattern`                                   |
+| `diagram`    | inline    | `naba diagram`                                   |
+| `story`      | inline    | `naba story`                                     |
+| `storyboard` | composite | `naba story`, then `naba edit` per frame        |
+| `batch`      | composite | sequence of `naba generate`/`icon`/`pattern`/…  |
+| `brand-kit`  | composite | `naba icon` + `naba pattern` + `naba generate`  |
+
+`story` is inline despite emitting multiple frames: `naba story` is a **single** CLI invocation
+that loops internally. Inline subcommands run the `naba` call directly in the parent context;
+composite subcommands spawn a subagent (the `Agent` tool) so the per-image loop output stays out
+of the parent context, passing the absolute `${CLAUDE_SKILL_DIR}/commands/<sub>.md` path plus the
+shared guidance. When subcommands are added, removed, or retiered, update this table, `SKILL.md`,
+the `commands/` directory, and the README subcommand table together.
+
 ## §12 Skill-embed (SPEC-EMBED)
 
 - **SPEC-EMBED-001** [PINNED] The binary embeds the `skills/` tree. Marker prefix `<!--
@@ -21,6 +50,15 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
   5.3). Either is acceptable; the choice is recorded in Issue 4.0. The parity suite pins the
   status **semantics** (up-to-date/complete/unmodified flags behave correctly against a
   freshly-installed tree), not the hash literal.
+- **SPEC-EMBED-005** [NEW — plan-008] **Dual-purpose two-tree render.** `skills/naba/SKILL.md`
+  is a **minijinja template** gated by `{% if cli %}` / `{% if mcp %}`; `build.rs` renders the
+  single `skills/` source into two trees under `$OUT_DIR` — `cli/` (embedded via
+  `include_dir!("$OUT_DIR/cli")`, the tree `skills install` deploys) and `mcp/` (the
+  **subtractive**, MCP-flavored render served by the `skill://` MCP resource surface,
+  SPEC-MCP-014/015). Every non-`SKILL.md` file is copied **verbatim** into both trees. The `cli/`
+  render is authored to be **byte-identical to the source**, so the SPEC-EMBED-002 canonical tree
+  hash is **preserved** — existing installs keep matching and no forced post-cutover `upgrade` is
+  triggered by the render.
 
 ---
 
@@ -97,3 +135,30 @@ here is byte-authoritative.
   (`name`, `description`) are **identical across all harnesses** — only the path data differs.
   There is no per-harness content transform; `name_transform` (where present, e.g. `pi`'s
   `lowercase-hyphen,max64`) constrains the on-disk skill **name**, not the manifest body.
+
+---
+
+## §20 Skills install receipt (SPEC-INSTALL) [NEW — plan-008, Rust-only]
+
+Records every place the skill tree was installed so a later `naba skills upgrade` (and the
+post-self-update refresh) can find and refresh **all** of them without the operator re-supplying
+`--harness`/`--scope`/`--target`.
+
+- **SPEC-INSTALL-001** [NEW] **Target registry.** A JSON receipt at
+  `<config_dir>/skills-install.json` (`crate::config::config_dir()`, the same root as the other
+  `self`/`preflight` state — SPEC-DIRS-001) records the set of install **targets**. Each target row
+  carries `{ harness, scope, path }` and is **keyed by `(harness, scope, resolved-path)`**.
+  `install` (and `upgrade` when it resolves an explicit target) **upserts** the target — an upsert
+  on an existing key is idempotent (no duplicate row); a `remove` drops the matching row. The
+  receipt version string is normalized on save.
+- **SPEC-INSTALL-002** [NEW] **Receipt-driven multi-harness upgrade.** An **unqualified**
+  `naba skills upgrade` (no `--harness`/`--scope`/`--target`) enumerates **every recorded target**
+  and refreshes each in turn: **continue-on-error** (a failing target is reported but does not abort
+  the rest) and **dedupe by resolved absolute path** (a path recorded under two harness ids is
+  refreshed once). The post-self-update skills refresh (SPEC-SELF-005) and the `skills preflight`
+  gate (SPEC-PREFLIGHT-003) are **receipt-driven** over this same target set.
+- **SPEC-INSTALL-003** [NEW] **Legacy migration.** When the receipt is absent or empty,
+  `load_or_migrate` **synthesizes** it from a **disk scan** of the legacy install locations
+  (`.claude`/`.agents` skill dirs under `$HOME` and the git root) — any location that already holds
+  an installed skill becomes a recorded target — then persists the synthesized receipt. The scan is
+  **idempotent** (re-running adds nothing new) so an already-migrated repo is a no-op.

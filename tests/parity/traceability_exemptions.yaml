@@ -76,3 +76,27 @@ exemptions:
   SPEC-PREFLIGHT-002: "[NEW/Rust-only] offline auth axis (provider key-present). cargo test src/preflight.rs::auth_axis_key_present_vs_missing (reuses doctor::resolve_provider/provider_api_key)."
   SPEC-PREFLIGHT-003: "[NEW/Rust-only] skills-up-to-date axis. cargo tests src/preflight.rs::skills_axis_all_good_is_ok / skills_axis_reports_first_failure (over embed::skill_status)."
   SPEC-PREFLIGHT-004: "[NEW/Rust-only] binary tri-state axis (unknown non-blocking) + overall status/exit codes. cargo tests src/preflight.rs::binary_axis_absent_cache_is_unknown / stale / fresh + overall_ok_when_auth_and_skills_pass_regardless_of_binary + overall_blocks_on_auth_then_skills."
+
+  # --- [NEW — plan-008] Harness-layout SPEC (SPEC-HARNESS, skills.md §19). Rust-only
+  #     per-harness skills-install descriptor + receipt-driven multi-harness upgrade.
+  #     No Go counterpart, so exempt from the Go-captured parity goldens; each is
+  #     covered by cargo unit tests in src/harness.rs / src/skills.rs / src/skills_install.rs.
+  #     SPEC-HARNESS-002 (the pinned descriptor table) is asserted byte-equal against
+  #     the shipped Rust descriptor by the cargo test below. ---
+  SPEC-HARNESS-001: "[NEW/Rust-only] descriptor model + resolve_dest(scope, harness, target). cargo tests src/harness.rs::resolve_subpath_split_user_vs_project (anchor+subpath join) and src/skills.rs::resolve_dest_target_wins / resolve_dest_harness_paths (--target override + per-harness dest)."
+  SPEC-HARNESS-002: "[PINNED/Rust-only] the five-row descriptor table asserted BYTE-EQUAL against the shipped src/harness.rs descriptor by cargo test harness::tests::shipped_descriptor_matches_spec_harness_table (parses skills.md §19 SPEC-HARNESS-002 table and compares each row); also harness::tests::table_has_five_canonical_rows."
+  SPEC-HARNESS-003: "[NEW/Rust-only] discovery/scope rules (user→\\$HOME, project→git-root-else-cwd, --target override). cargo tests src/harness.rs::resolve_subpath_split_user_vs_project + src/skills.rs::resolve_dest_target_wins."
+  SPEC-HARNESS-004: "[NEW/Rust-only] --surface→--harness migration/alias + default claude-code + legacy uniform fallback. cargo tests src/harness.rs::surface_alias_maps_known_and_passes_through, resolve_single_prefers_harness_then_surface_then_default, resolve_list_defaults_maps_and_appends_surface, unknown_harness_falls_back_to_legacy_uniform_layout."
+  SPEC-HARNESS-005: "[NEW/Rust-only] codex↔agents .agents/skills overlap + dedupe-by-resolved-path (first-requested wins, recorded once). cargo tests src/harness.rs::codex_and_agents_overlap_on_dot_agents + src/skills.rs::install_targets_dedupe_shared_path."
+  SPEC-HARNESS-006: "[NEW/Rust-only] extensibility: a new harness is a single data row. cargo tests src/harness.rs::table_has_five_canonical_rows + lookup_finds_and_misses assert the data-row model; adding a row is a data-only change with no structural code path to golden-pin."
+  SPEC-HARNESS-007: "[NEW/Rust-only] uniform install unit + required frontmatter identical across harnesses; name_transform constrains the on-disk name only. cargo tests src/harness.rs::shipped_descriptor_matches_spec_harness_table (frontmatter_required + name_transform columns) + resolve_subpath_split_user_vs_project (only subpath differs)."
+
+  # --- [NEW — plan-008] Dual-purpose two-tree render + install receipt + multi-target
+  #     JSON. All Rust-only (no Go baseline), covered by build.rs + cargo unit tests in
+  #     src/skills_install.rs / src/skills.rs; the hash-preservation + single-target JSON
+  #     goldens are pinned by tests/parity/cases/skills.yaml. ---
+  SPEC-EMBED-005: "[NEW/plan-008] minijinja SKILL.md template + build.rs two-tree render (cli/ byte-identical → SPEC-EMBED-002 hash preserved; mcp/ subtractive). Rendered at build time by `cargo build` (build.rs render_skill_trees); the byte-identical/hash-preservation invariant is pinned by skills.yaml (SPEC-EMBED-002/003 up-to-date/unmodified against a freshly-installed tree), and the mcp/ served tree by test_mcp.py (SPEC-MCP-014/015). No Go counterpart."
+  SPEC-INSTALL-001: "[NEW/Rust-only] skills-install.json target registry keyed by (harness, scope, path) + idempotent upsert/remove + version normalization. cargo tests src/skills_install.rs::upsert_is_idempotent_on_key, save_then_load_round_trips_and_normalizes_version, missing_file_loads_empty, remove_by_key + src/skills.rs::record_target. On-disk state, not a black-box stdout surface."
+  SPEC-INSTALL-002: "[NEW/Rust-only] unqualified `skills upgrade` enumerates recorded targets, continue-on-error, dedupe by resolved path; post-update refresh + preflight receipt-driven. cargo tests src/skills.rs::install_targets_dedupe_shared_path + targets_for over the receipt; tied to SPEC-SELF-005 (receipt-driven refresh). No Go baseline."
+  SPEC-INSTALL-003: "[NEW/Rust-only] legacy .claude/.agents disk-scan receipt synthesis, idempotent. cargo tests src/skills_install.rs::synthesize_from_legacy_maps_surfaces_and_is_idempotent + load_or_migrate. Rust-only, no Go counterpart."
+  SPEC-JSON-007: "[NEW/Rust-only] skills install/upgrade --json single-target flat shape vs multi-harness targets[] array (first-requested order, resolved-path dedupe). The single-target flat envelope is pinned by tests/parity/cases/skills.yaml (SPEC-JSON-006); the multi-target targets[] aggregation is Rust-only (no Go baseline, needs multiple real harness dirs) and covered by cargo tests in src/skills.rs (targets_for / run over multiple targets)."

@@ -3,18 +3,20 @@
 # requires-python = ">=3.11"
 # dependencies = ["pyyaml"]
 # ///
-"""SPEC <-> test traceability check (plan-004, Issue 5.3).
+"""SPEC <-> test traceability check (plan-004, Issue 5.3; plan-008, Issue 5.3).
 
-Asserts that every **[PINNED]** and **[NEW]** clause in ``SPEC.md`` maps to at
-least one test: a parity case (``tests/parity/cases/*.yaml`` ``spec:`` field), an
-MCP/parity/harness pytest module that cites the clause id, or an explicit,
+Asserts that every **[PINNED]** and **[NEW]** clause in the split spec set
+(``docs/specifications/*.md`` — the per-domain files the monolithic ``SPEC.md``
+was split into in plan-008 Issue 5.1; ``SPEC.md`` is now a redirect stub) maps to
+at least one test: a parity case (``tests/parity/cases/*.yaml`` ``spec:`` field),
+an MCP/parity/harness pytest module that cites the clause id, or an explicit,
 justified exemption in ``tests/parity/traceability_exemptions.yaml`` (for clauses
 covered by cargo unit tests, by ``test_mcp.py`` tool-inventory asserts that do not
 cite a literal id, or that are help-prose/DIVERGENCE clauses pinned only at the
 semantics level).
 
 Exit codes: ``0`` = every required clause covered; ``1`` = one or more uncovered;
-``2`` = usage / IO error (missing SPEC.md, malformed exemptions).
+``2`` = usage / IO error (missing docs/specifications/, malformed exemptions).
 
 Run:  ``uv run tests/parity/check_traceability.py``
       (add ``--json`` for a machine-readable report).
@@ -45,11 +47,12 @@ TEST_MODULES = ("test_mcp.py", "test_parity.py", "test_harness.py", "test_json_e
 
 
 def repo_root(start: Path) -> Path:
-    """Walk up from ``start`` until SPEC.md is found (worktree-agnostic)."""
+    """Walk up from ``start`` until docs/specifications/ is found (worktree-agnostic)."""
     for d in [start, *start.parents]:
-        if (d / "SPEC.md").is_file():
+        if (d / "docs" / "specifications").is_dir():
             return d
-    raise FileNotFoundError("SPEC.md not found walking up from " + str(start))
+    raise FileNotFoundError(
+        "docs/specifications/ not found walking up from " + str(start))
 
 
 def marker_kind(marker: str) -> str:
@@ -57,11 +60,18 @@ def marker_kind(marker: str) -> str:
     return re.split(r"[/+ ]", marker.strip(), maxsplit=1)[0]
 
 
-def parse_clauses(spec: Path) -> dict[str, str]:
-    text = spec.read_text(encoding="utf-8")
+def parse_clauses(spec_dir: Path) -> dict[str, str]:
+    """clause-id -> leading marker, collected over the split spec set.
+
+    Scans the top-level ``docs/specifications/*.md`` files (the per-domain split
+    of the former monolithic ``SPEC.md``). The first bracketed marker seen for a
+    given clause id wins, so a clause is defined once regardless of file order.
+    """
     out: dict[str, str] = {}
-    for m in CLAUSE_RE.finditer(text):
-        out.setdefault(m.group(1), marker_kind(m.group(2)))
+    for spec in sorted(spec_dir.glob("*.md")):
+        text = spec.read_text(encoding="utf-8")
+        for m in CLAUSE_RE.finditer(text):
+            out.setdefault(m.group(1), marker_kind(m.group(2)))
     return out
 
 
@@ -115,11 +125,11 @@ def main(argv: list[str]) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    spec = root / "SPEC.md"
+    spec_dir = root / "docs" / "specifications"
     parity_dir = root / "tests" / "parity"
     exempt_path = parity_dir / "traceability_exemptions.yaml"
 
-    clauses = parse_clauses(spec)
+    clauses = parse_clauses(spec_dir)
     case_refs = parse_case_refs(parity_dir / "cases")
     test_refs = parse_test_refs(parity_dir)
     try:

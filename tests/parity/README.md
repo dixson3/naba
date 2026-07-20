@@ -47,7 +47,8 @@ The `naba_bin` fixture fails fast with a clear message if the binary is missing.
 ## SPEC ↔ test traceability check (`check_traceability.py`)
 
 `check_traceability.py` (Issue 5.3) asserts that every **[PINNED]** and **[NEW]** clause in
-`SPEC.md` maps to at least one test — a parity case (`cases/*.yaml` `spec:` field), a pytest
+the split spec set (`docs/specifications/*.md`) maps to at least one test — a parity case
+(`cases/*.yaml` `spec:` field), a pytest
 module that cites the clause id (`test_mcp.py` / `test_parity.py` / `test_harness.py`), or a
 justified exemption in `traceability_exemptions.yaml`. It exits non-zero (listing the
 uncovered clauses) if coverage is incomplete, and is wired into CI.

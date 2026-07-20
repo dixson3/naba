@@ -46,7 +46,14 @@ via `include_dir!("$OUT_DIR/cli")`, byte-identical to the source, the tree `skil
 deploys) and `mcp/` (the subtractive MCP-flavored render the `skill://` resource surface serves).
 The `e-installer-skillset` contract text was updated accordingly; the source `skills/naba/` dir
 does **not** move (the render targets `$OUT_DIR`), so no `skill-md`/`commands` node glob change is
-needed. The engine enforces this manifest; it is a silent no-op only while `approved: no`.
+needed. **Also re-approved for the plan-008 SPEC split (Issue 5.1–5.3, 2026-07-20):** the
+monolithic `SPEC.md` was split into per-domain files under `docs/specifications/` (`SPEC.md` is now
+a redirect stub), so the three spec nodes that pointed into the retired `IG/`/`EDD/` subtrees were
+re-pointed — `skill-spec` (`IG/skills.md` → `docs/specifications/skills.md`), `ig-configuration`
+(`IG/configuration.md` → `docs/specifications/configuration.md`), and `edd-core` (`EDD/CORE.md` →
+`docs/specifications/configuration.md`) — with their edge, referencer, and trigger-scope rows
+updated to the split-file homes. The engine enforces this manifest; it is a silent no-op only while
+`approved: no`.
 
 ## 1. Artifact Nodes
 
@@ -60,14 +67,14 @@ needed. The engine enforces this manifest; it is a silent no-op only while `appr
 | `skill-readme` | `skills/naba/README.md` | doc | derived | required |
 | `installer` | `src/skills.rs` | source | derived | required |
 | `project-readme` | `README.md` | doc | derived | required |
-| `skill-spec` | `docs/specifications/IG/skills.md` | spec | derived | required |
+| `skill-spec` | `docs/specifications/skills.md` | spec | derived | required |
 | `cli-source` | `src/cli.rs` | source | fixed | required |
 | `self-source` | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | source | fixed | required |
 | `gemini-source` | `src/provider/gemini.rs` (`DEFAULT_MODEL` constant) | source | fixed | required |
 | `mcp-source` | `src/mcp.rs` | source | fixed | required |
 | `provider-source` | `src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs` | source | fixed | required |
-| `ig-configuration` | `docs/specifications/IG/configuration.md` | spec | derived | required |
-| `edd-core` | `docs/specifications/EDD/CORE.md` | spec | derived | required |
+| `ig-configuration` | `docs/specifications/configuration.md` | spec | derived | required |
+| `edd-core` | `docs/specifications/configuration.md` | spec | derived | required |
 | `web-usage` | `web/content/pages/usage.md` | doc | derived | required |
 | `web-config` | `web/content/pages/config.md` | doc | derived | required |
 | `web-install` | `web/content/pages/install.md` | doc | derived | required |
@@ -118,9 +125,9 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-cli-subcommand` | `identifier-matches` | every `naba <verb>` an inline `commands/*.md` invokes (generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`. Composite `commands/*.md` (storyboard/batch/brand-kit) invoke only those same verbs — no new command. CLI source is the fixed authority. |
 | `e-skill-preflight` | `identifier-matches` | the `naba skills preflight` invocation in the SKILL.md `## Preflight` section, and any `naba self …` verb the docs reference, correspond to real clap subcommands in `src/cli.rs` (`SkillsCommand::Preflight`, `Commands::SelfCmd` → `Update`/`Install`/`Uninstall`). CLI source is the fixed authority. |
 | `e-readme-self` | `field-set-equal` | the project README "Self-update" section documents exactly the `naba self` verbs that exist (`update`/`install --from-build`/`uninstall`) and the "Skill-gate preflight" subsection documents `naba skills preflight`; no README-documented `self`/`preflight` verb lacks a real command, and none is omitted. `self-source` is the fixed authority. |
-| `e-skill-spec` | `field-set-equal` | the subcommand set + tier (inline/composite) in the SKILL.md dispatch table equals the subcommand→CLI-verb map in `docs/specifications/IG/skills.md` §4. Keeps the IG guide in sync with the skill. |
-| `e-model-ig-config` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the default model id stated in `docs/specifications/IG/configuration.md` (the Model Resolution Order built-in default). `gemini-source` is the fixed authority. |
-| `e-model-edd-core` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the **Default model** id stated in `docs/specifications/EDD/CORE.md` §5. `gemini-source` is the fixed authority. |
+| `e-skill-spec` | `field-set-equal` | the subcommand set + tier (inline/composite) in the SKILL.md dispatch table equals the subcommand→CLI-verb map in `docs/specifications/skills.md` (the "Skills subcommand → CLI-verb map" section). Keeps the skills spec in sync with the skill. |
+| `e-model-ig-config` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the Gemini default model id stated in `docs/specifications/configuration.md` (the §6 model-resolution built-in default, SPEC-CFGSCHEMA-006). `gemini-source` is the fixed authority. |
+| `e-model-edd-core` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the Gemini default model id stated in `docs/specifications/configuration.md` (the §6 model-resolution built-in default, SPEC-CFGSCHEMA-006). `gemini-source` is the fixed authority. |
 | `e-web-usage-commands` | `identifier-matches` | every `naba <verb>` shown on the usage page (`web/content/pages/usage.md` — generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`; a new user-facing command/verb must be reflected on the usage page. `cli-source` is the fixed authority. |
 | `e-web-config-self` | `field-set-subset` | the `naba self …`, `naba doctor`, and `naba skills …` verbs documented on the config page (`web/content/pages/config.md`) correspond to real clap subcommands in `src/cli.rs` / `src/self_cmd/*.rs`; no config-page verb lacks a real command. `self-source` is the fixed authority. |
 | `e-web-config-model` | `value-equal` | the default Gemini model id and `--quality` tier ids (`fast`→flash, `high`→pro) stated on the config page match the `DEFAULT_MODEL` constant and the quality→model mapping in `src/provider/gemini.rs`. `gemini-source` is the fixed authority. |
@@ -142,8 +149,8 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `self-source` | `naba self` / `naba skills preflight` (`src/self_cmd/`, `src/preflight.rs`, `src/dirs.rs`), referenced by the project README "Self-update" / "Skill-gate preflight" sections, the SKILL.md `## Preflight` section, AGENTS.md "Architecture"/"Distribution", and SPEC §15–§18 |
 | `skill-spec` | referenced by AGENTS.md "Claude Code Skills" section and the SKILL.md drift note |
 | `gemini-source` | the `DEFAULT_MODEL` constant is consumed by `src/commands.rs`, `src/doctor.rs`, and `src/mcp.rs` (client construction) |
-| `ig-configuration` | referenced by AGENTS.md "Specifications" (docs/specifications/IG) and EDD/CORE |
-| `edd-core` | referenced by AGENTS.md "Specifications" (docs/specifications/EDD) |
+| `ig-configuration` | `docs/specifications/configuration.md`, referenced by AGENTS.md "Specifications" |
+| `edd-core` | `docs/specifications/configuration.md`, referenced by AGENTS.md "Specifications" |
 | `mcp-source` | `src/mcp.rs` (the 8 MCP tools + `skill://` resource handlers), consumed by the `naba mcp` command (`src/cli.rs`) and referenced by the website MCP page and the project README "MCP Server" section |
 | `provider-source` | `src/provider/registry.rs` / `src/provider/bedrock.rs` / `src/config.rs`, consumed by `src/commands.rs` (`naba provider`/`naba models`), the selector (`src/provider/select.rs`), and referenced by the website config page + README "Providers"/"Configuration" sections and AGENTS.md |
 | `web-usage` | the naba website usage page (`web/content/pages/usage.md`), linked from the site nav and `web/README.md` |
@@ -175,14 +182,13 @@ A source-node edit fans out to every derived edge it feeds.
 | `skills/naba/README.md` | `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table` |
 | `src/skills.rs` | `e-installer-skillset` |
 | `README.md` | `e-index-table`, `e-readme-self`, `e-readme-web-install` |
-| `docs/specifications/IG/skills.md` | `e-skill-spec` |
+| `docs/specifications/skills.md` | `e-skill-spec` |
 | `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight`, `e-web-usage-commands`, `e-web-install-methods`, `e-web-skills-lifecycle` |
 | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight`, `e-web-config-self`, `e-web-install-methods` |
 | `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core`, `e-web-config-model` |
 | `src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs` | `e-web-config-providers` |
 | `src/mcp.rs` | `e-web-mcp-tools` |
-| `docs/specifications/IG/configuration.md` | `e-model-ig-config` |
-| `docs/specifications/EDD/CORE.md` | `e-model-edd-core` |
+| `docs/specifications/configuration.md` | `e-model-ig-config`, `e-model-edd-core` |
 | `web/content/pages/usage.md` | `e-web-usage-commands` |
 | `web/content/pages/config.md` | `e-web-config-self`, `e-web-config-model`, `e-web-config-providers` |
 | `web/content/pages/install.md` | `e-web-install-methods`, `e-readme-web-install` |
