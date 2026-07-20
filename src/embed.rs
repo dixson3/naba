@@ -373,7 +373,13 @@ mod tests {
     // wiring `naba skills preflight --json` at trigger time), re-hashing the tree. On-disk
     // installs read "outdated" until `naba skills upgrade` — surfaced by the very preflight this
     // change adds (skills axis).
-    const NABA_TREE_HASH: &str = "d5b2fdfe452b2d803670dd781cbf92375f1600ddac6220831cec6aae7fe368c8";
+    // plan-008 re-baselined the hash once more: the `## Preflight`/`## Router`/`Global flags`
+    // sections became `{% if cli %}` template gates (dual-purpose render, Epic 3) — the CLI
+    // render is byte-identical to that gated source, and the `Spec / drift note` was re-pointed
+    // from the retired `IG/skills.md` to `docs/specifications/skills.md` (Issue 5.3). That
+    // content change re-hashes the tree; existing installs read "outdated" until the
+    // receipt-driven `naba skills upgrade` (continue-on-error across every recorded target).
+    const NABA_TREE_HASH: &str = "ef82c28671ab0713dc7ed9f935f1342d1592c28489a78f80e82e490b0cd7fcd5";
 
     #[test]
     fn embedded_hash_matches_go_reference() {

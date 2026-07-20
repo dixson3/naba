@@ -185,6 +185,6 @@ iteration (different style, surgical edit, more frames, etc.).
 ---
 
 **Spec / drift note:** the subcommand set and dispatch model here are specified in
-`docs/specifications/IG/skills.md`; `DRIFT-CHECK.md` edge `e-skill-spec` keeps the two in
+`docs/specifications/skills.md`; `DRIFT-CHECK.md` edge `e-skill-spec` keeps the two in
 sync. When subcommands change, update this dispatch table, the `commands/` dir, the README
-subcommand table, and the IG guide together.
+subcommand table, and the skills spec together.
