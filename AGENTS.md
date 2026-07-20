@@ -18,7 +18,22 @@ make build                                  # build + copy to ./naba
 make parity                                 # parity suite against the Rust binary
 ```
 
-## Architecture
+### Web site (`web/`)
+
+Pelican static site (see `web/README.md`). Use the pinned venv at `web/.venv`.
+
+```bash
+# rebuild output/ after any content/theme/plugin change
+web/.venv/bin/pelican web/content -o web/output -s web/pelicanconf.py
+
+# serve the built output/ for local preview at http://127.0.0.1:8000/
+web/.venv/bin/python3 -m http.server 8000 --bind 127.0.0.1 --directory web/output
+```
+
+Prefer this static serve + manual rebuild over `make devserver` (`pelican -lr`): the
+autoreload server is single-threaded and wedges after a rebuild. Homepage content is markdown,
+not theme HTML: the hero is `web/content/home/hero.md` and the feature cards are
+`web/content/cards/*.md`, both read by the `home_content` plugin (`web/plugins/home_content.py`).
 
 naba is a single Rust binary (ported from Go in plan-004). Module layout:
 
@@ -67,6 +82,9 @@ All image commands follow: resolve provider + API key -> enrich prompt -> call p
 | `CI`                 | When set, suppresses the `self` upgrade nag                  |
 | `GEMINI_BASE_URL`    | Override Gemini API base URL (used by tests)                 |
 | `OPENROUTER_BASE_URL`| Override OpenRouter API base URL (used by tests)             |
+| `NABA_SITE_DOMAIN`   | Bare site host for `web/` (e.g. `naba.ysapp.net`) — S3 bucket + ACM cert + Route53 record; `PUBLISH_URL` derives from it (local `.envrc` + GitHub repo secret) |
+| `PUBLISH_URL`        | Canonical public site URL — Pelican's production `SITEURL` (`publishconf.py`) and the absolute-URL source in dev. Keep `SITEURL` empty in `pelicanconf.py` so dev builds stay relative (local `.envrc` + GitHub repo secret) |
+| `NABA_CF_DISTRIBUTION`| CloudFront distribution id for `web/` deploys (local `.envrc` + GitHub repo secret; `make provision` prints the id to set) |
 | `NABA_HOSTED_ZONE_ID`| Route53 zone id for `web/` provisioning (local `.envrc` + GitHub repo secret; never committed) |
 | `NABA_GA_MEASUREMENT_ID`| GA4 measurement id for the `web/` site — production build only (local `.envrc` + GitHub repo secret; never committed) |
 
@@ -74,11 +92,14 @@ All image commands follow: resolve provider + API key -> enrich prompt -> call p
 
 - **Never commit secrets or account-specific references** — API keys, AWS account ids,
   IAM/profile names, Route53 zone ids, GA measurement ids, ARNs, and similar.
-- Scripts read such values from the **environment** (e.g. `NABA_HOSTED_ZONE_ID`), sourced
-  locally from the gitignored `.envrc` (direnv) and stored canonically as **GitHub repo
-  secrets** (`gh secret set …`). Fail closed when a required value is unset.
-- Generated/captured artifacts that hold ids (e.g. `web/aws-config.mk`,
-  `web/.aws-provision-state.json`) are **gitignored**, never committed.
+- Scripts/config read such values from the **environment** (e.g. `NABA_SITE_DOMAIN`,
+  `PUBLISH_URL`, `NABA_CF_DISTRIBUTION`, `NABA_HOSTED_ZONE_ID`), sourced locally from the
+  gitignored `.envrc` (direnv) and stored canonically as **GitHub repo Secrets**
+  (`gh secret set …`) — **Secrets, not Variables**, since Actions logs on this public repo are
+  world-readable and Secrets are masked there. Fail closed when a required value is unset (e.g.
+  `publishconf.py` raises without `PUBLISH_URL`; `make` aborts with an empty `S3_BUCKET`).
+- Generated/captured artifacts that hold ids (e.g. `web/.aws-provision-state.json`) are
+  **gitignored**, never committed.
 
 ## Providers
 

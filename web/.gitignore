@@ -9,7 +9,6 @@ __pycache__/
 
 # AWS provisioning captured resource ids (account-specific; written by
 # scripts/provision_aws.sh — never commit).
-aws-config.mk
 .aws-provision-state.json
 
 # The hosted install.sh is STAGED at deploy time from a cargo-dist release by

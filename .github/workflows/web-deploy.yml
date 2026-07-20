@@ -11,13 +11,15 @@
 #
 # Auth is GitHub OIDC -> a least-privilege IAM role (no long-lived AWS keys in the repo).
 #
-# Requires (repo Settings -> Secrets and variables -> Actions):
-#   - Variable  AWS_DEPLOY_ROLE_ARN : arn of the OIDC deploy role (S3 + CloudFront invalidation)
-#   - Variable  CF_DISTRIBUTION     : CloudFront distribution id (see gitignored web/aws-config.mk)
-#   - Secret    NABA_GA_MEASUREMENT_ID : GA4 id for the production build (optional; unset -> no gtag)
+# Requires (repo Settings -> Secrets and variables -> Actions -> Secrets). All infra
+# identifiers are Secrets (masked in the public build logs), not Variables:
+#   - AWS_DEPLOY_ROLE_ARN   : arn of the OIDC deploy role (S3 + CloudFront invalidation)
+#   - NABA_SITE_DOMAIN      : bare site host (e.g. naba.ysapp.net) -> S3 bucket + PUBLISH_URL
+#   - NABA_CF_DISTRIBUTION  : CloudFront distribution id (make provision prints it)
+#   - NABA_GA_MEASUREMENT_ID: GA4 id for the production build (optional; unset -> no gtag)
 #
-# The S3 bucket (naba.ysapp.net) and region (us-east-1) are pinned in web/Makefile /
-# web/scripts/provision_aws.sh; only the account-specific role + distribution come from CI vars.
+# PUBLISH_URL (Pelican's production SITEURL) is derived here from NABA_SITE_DOMAIN. The region
+# (us-east-1) is a fixed CloudFront/ACM requirement, pinned in web/scripts/provision_aws.sh.
 name: Deploy web
 
 on:
@@ -61,12 +63,16 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Build + deploy (S3 sync + CloudFront invalidation)
         env:
+          # Bare host -> S3 bucket (Makefile) and, derived below, Pelican's production SITEURL.
+          NABA_SITE_DOMAIN: ${{ secrets.NABA_SITE_DOMAIN }}
+          PUBLISH_URL: https://${{ secrets.NABA_SITE_DOMAIN }}
+          NABA_CF_DISTRIBUTION: ${{ secrets.NABA_CF_DISTRIBUTION }}
           # Production-only GA4 id; when unset the base template renders no gtag snippet.
           NABA_GA_MEASUREMENT_ID: ${{ secrets.NABA_GA_MEASUREMENT_ID }}
         run: |
-          make -C web deploy CF_DISTRIBUTION="${{ vars.CF_DISTRIBUTION }}"
+          make -C web deploy

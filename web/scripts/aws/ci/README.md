@@ -4,19 +4,25 @@ One-time AWS + GitHub setup that lets the `.github/workflows/web-deploy.yml`
 manual workflow deploy the site with **no long-lived AWS keys** — GitHub Actions
 assumes a least-privilege IAM role via OIDC.
 
-Region `us-east-1`, bucket `naba.ysapp.net`. **Account-specific values (AWS
-account id, CloudFront distribution id) are never hardcoded here** — the policy
-documents are `envsubst` templates (`*.json.tmpl`), and the concrete ids come
-from the environment (`aws sts get-caller-identity` and the gitignored
-`web/aws-config.mk` written by `provision_aws.sh`), matching the convention in
-`provision_aws.sh`.
+Region `us-east-1`. **Account-specific / infrastructure values (AWS account id,
+bucket, CloudFront distribution id) are never hardcoded here** — the policy
+documents are `envsubst` templates (`*.json.tmpl`), and the concrete values come
+from the environment (`aws sts get-caller-identity` plus the `NABA_*` vars from
+your gitignored `.envrc`), matching the convention in `provision_aws.sh`.
 
 ## 0. Resolve the account-specific values into the environment
 
+`NABA_SITE_DOMAIN` and `NABA_CF_DISTRIBUTION` come from your `.envrc` (direnv);
+`make provision` prints the distribution id to set. The templates read
+`${SITE_BUCKET}` and `${CF_DISTRIBUTION}`:
+
 ```bash
 export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-export CF_DISTRIBUTION="$(sed -n 's/^CF_DISTRIBUTION=//p' web/aws-config.mk)"
-[ -n "$AWS_ACCOUNT_ID" ] && [ -n "$CF_DISTRIBUTION" ] || { echo "missing account id / distribution id"; }
+: "${NABA_SITE_DOMAIN:?set NABA_SITE_DOMAIN in .envrc}"
+: "${NABA_CF_DISTRIBUTION:?set NABA_CF_DISTRIBUTION in .envrc (see make provision output)}"
+export SITE_BUCKET="$NABA_SITE_DOMAIN"
+export CF_DISTRIBUTION="$NABA_CF_DISTRIBUTION"
+[ -n "$AWS_ACCOUNT_ID" ] || { echo "missing account id"; }
 ```
 
 ## 1. Create the GitHub OIDC provider (once per account)
@@ -59,12 +65,16 @@ Role ARN: `arn:aws:iam::${AWS_ACCOUNT_ID}:role/naba-web-deploy`
 - `deploy-policy.json.tmpl` — what the role may do: S3 write/delete on the site
   bucket + CloudFront invalidation on the one distribution. Nothing else.
 
-## 3. Set the GitHub repo variables + secret
+## 3. Set the GitHub repo secrets
+
+All infra identifiers are **Secrets** (masked in this public repo's Actions logs), not
+Variables. `PUBLISH_URL` is derived from `NABA_SITE_DOMAIN` inside the workflow.
 
 ```bash
-gh variable set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::${AWS_ACCOUNT_ID}:role/naba-web-deploy"
-gh variable set CF_DISTRIBUTION     --body "${CF_DISTRIBUTION}"
-gh secret   set NABA_GA_MEASUREMENT_ID   # paste the GA4 id (optional; unset => no analytics)
+gh secret set AWS_DEPLOY_ROLE_ARN    --body "arn:aws:iam::${AWS_ACCOUNT_ID}:role/naba-web-deploy"
+gh secret set NABA_SITE_DOMAIN       --body "${NABA_SITE_DOMAIN}"
+gh secret set NABA_CF_DISTRIBUTION   --body "${NABA_CF_DISTRIBUTION}"
+gh secret set NABA_GA_MEASUREMENT_ID   # paste the GA4 id (optional; unset => no analytics)
 ```
 
 ## 4. Deploy

@@ -8,12 +8,15 @@ VALIDATEDIR = $(BASEDIR)/output-validate
 CONFFILE = $(BASEDIR)/pelicanconf.py
 PUBLISHCONF = $(BASEDIR)/publishconf.py
 
-S3_BUCKET = naba.ysapp.net
+# Infra identifiers come from the environment (local .envrc / GitHub repo secrets) — never
+# hardcoded here. NABA_SITE_DOMAIN is the S3 bucket / DNS host source of truth; override the
+# bucket explicitly with NABA_S3_BUCKET if it ever differs from the domain.
+S3_BUCKET := $(or $(NABA_S3_BUCKET),$(NABA_SITE_DOMAIN))
 
-# CF_DISTRIBUTION (and other captured ids) are written by scripts/provision_aws.sh to
-# aws-config.mk, which is gitignored (it holds account-specific resource ids). Absent
-# before provisioning — the CloudFront invalidation steps no-op until it exists.
--include $(BASEDIR)/aws-config.mk
+# CF_DISTRIBUTION comes from NABA_CF_DISTRIBUTION (local .envrc / CI secret). Unset before
+# provisioning (scripts/provision_aws.sh prints the id to set) — the CloudFront invalidation
+# steps no-op when it is empty.
+CF_DISTRIBUTION := $(NABA_CF_DISTRIBUTION)
 
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
@@ -71,17 +74,22 @@ validate:
 stage_installer:
 	./scripts/sync_installer.sh
 
+# Fail closed if the bucket is empty (NABA_SITE_DOMAIN / NABA_S3_BUCKET unset) — an empty
+# S3_BUCKET would otherwise expand to an invalid `s3://` target.
+require-bucket:
+	@[ -n "$(S3_BUCKET)" ] || { echo "ERROR: S3_BUCKET is empty — set NABA_SITE_DOMAIN (or NABA_S3_BUCKET) in .envrc or the CI env." >&2; exit 1; }
+
 # Re-upload ONLY install.sh with an explicit short Cache-Control (the tree-wide `s3 sync`
 # does not set per-key cache headers) and invalidate that one path. `publish` already staged
 # it into output/ (publish depends on stage_installer), so no separate stage step here.
-sync_installer: publish
+sync_installer: require-bucket publish
 	aws s3 cp "$(OUTPUTDIR)/install.sh" "s3://$(S3_BUCKET)/install.sh" \
 		--cache-control "max-age=300" --content-type "text/x-shellscript"
 ifneq ($(CF_DISTRIBUTION),)
 	aws cloudfront create-invalidation --distribution-id $(CF_DISTRIBUTION) --paths "/install.sh"
 endif
 
-s3_upload: publish
+s3_upload: require-bucket publish
 	aws s3 sync "$(OUTPUTDIR)"/ "s3://$(S3_BUCKET)" --delete
 ifneq ($(CF_DISTRIBUTION),)
 	aws cloudfront create-invalidation --distribution-id $(CF_DISTRIBUTION) --paths "/*"
@@ -102,4 +110,4 @@ provision:
 	./scripts/provision_aws.sh
 
 .PHONY: help html clean devserver publish validate stage_installer sync_installer \
-	s3_upload invalidate deploy provision
+	s3_upload invalidate deploy provision require-bucket

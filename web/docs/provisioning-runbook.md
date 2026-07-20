@@ -28,9 +28,11 @@ teardown inverse. The mechanics live in [`scripts/provision_aws.sh`](../scripts/
 | 5 | CloudFront distribution | OAC S3 origin, short-TTL `/install.sh` behavior, 403/404 -> `/404.html` |
 | 6 | Route53 A/ALIAS `naba.ysapp.net` | points at the distribution |
 
-Captured ids are written to `aws-config.mk` (feeds the Makefile's `CF_DISTRIBUTION`) and
-`.aws-provision-state.json` (both gitignored). Re-running is safe: each resource is looked
-up and reused, so no second certificate or duplicate distribution is ever created.
+Captured ids are persisted to `.aws-provision-state.json` (gitignored). Re-running is safe:
+each resource is looked up and reused, so no second certificate or duplicate distribution is
+ever created. At the end the script prints the CloudFront distribution id to set as
+`NABA_CF_DISTRIBUTION` (local `.envrc` + `gh secret set NABA_CF_DISTRIBUTION …`) — the Makefile
+and CI read it from the environment.
 
 ## Run it
 
@@ -90,4 +92,5 @@ aws s3api delete-bucket --bucket naba.ysapp.net
 # 6. Remove the ACM validation CNAME from Route53 (Action=DELETE).
 ```
 
-Then delete the local `aws-config.mk` and `.aws-provision-state.json`.
+Then delete the local `.aws-provision-state.json` and unset `NABA_CF_DISTRIBUTION` (remove it
+from `.envrc` and `gh secret delete NABA_CF_DISTRIBUTION`).

@@ -38,3 +38,6 @@
 
 # Skill runtime state + local config (yf-plan; Surface Convention §6)
 /.beads/formulas/
+
+# Playwright MCP scratch (screenshots, snapshots, console logs) — not source
+.playwright-mcp/

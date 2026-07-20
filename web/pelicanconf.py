@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 AUTHOR = "James Dixson"
@@ -10,13 +11,19 @@ SITE_DESCRIPTION = (
     "(Google Gemini, OpenRouter, and AWS Bedrock). Generate, edit, restore, and compose "
     "images — icons, patterns, stories, diagrams — straight from the command line."
 )
+# Canonical public site URL, from the environment (local .envrc / CI). Kept as a separate
+# setting because SITEURL must stay EMPTY in dev — a non-empty SITEURL makes Pelican anchor
+# every generated link on it (absolute prod URLs under the dev server). publishconf.py sets
+# SITEURL = PUBLISH_URL for the production build; here it only feeds absolute-URL needs.
+PUBLISH_URL = os.environ.get("PUBLISH_URL", "")
 SITEURL = ""
 
 # The GitHub project — canonical for binaries + self-update.
 GITHUB_URL = "https://github.com/dixson3/naba"
 GITHUB_RELEASES_URL = "https://github.com/dixson3/naba/releases"
-# The short, memorable bootstrap install command surfaced on the site.
-INSTALL_URL = "https://naba.ysapp.net/install.sh"
+# The short, memorable bootstrap install command surfaced on the site. Uses PUBLISH_URL (not
+# SITEURL) so the hero renders the real absolute install URL even under the dev server.
+INSTALL_URL = (PUBLISH_URL or SITEURL) + "/install.sh"
 
 PATH = "content"
 OUTPUT_PATH = "output"
@@ -31,8 +38,11 @@ TRANSLATION_FEED_ATOM = None
 AUTHOR_FEED_ATOM = None
 AUTHOR_FEED_RSS = None
 
-# Sitemap only — a small static docs site.
-PLUGINS = ["pelican.plugins.sitemap"]
+# Sitemap only — a small static docs site. `home_content` is a local plugin that
+# reads content/home/hero.md + content/cards/*.md and exposes them to the index
+# template as HOME_HERO / HOME_CARDS (homepage content = markdown, theme = structure).
+PLUGIN_PATHS = ["plugins"]
+PLUGINS = ["pelican.plugins.sitemap", "home_content"]
 SITEMAP = {
     "format": "xml",
     "priorities": {"articles": 0.5, "indexes": 0.5, "pages": 0.8},
@@ -50,7 +60,10 @@ ARTICLE_URL = "posts/{slug}/"
 ARTICLE_SAVE_AS = "posts/{slug}/index.html"
 
 # Pages ARE the site — surface them, drive nav explicitly via MENUITEMS below.
+# No articles/blog: keep ARTICLE_PATHS empty so content/cards/*.md (read by the
+# home_content plugin, not the article generator) is not scanned as an article.
 DIRECT_TEMPLATES = ["index"]
+ARTICLE_PATHS = ["_no_articles"]
 DISPLAY_PAGES_ON_MENU = False
 DISPLAY_CATEGORIES_ON_MENU = False
 

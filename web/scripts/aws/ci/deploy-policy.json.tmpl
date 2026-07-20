@@ -5,7 +5,7 @@
       "Sid": "SiteBucketList",
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::naba.ysapp.net"
+      "Resource": "arn:aws:s3:::${SITE_BUCKET}"
     },
     {
       "Sid": "SiteObjectWrite",
@@ -15,7 +15,7 @@
         "s3:PutObject",
         "s3:DeleteObject"
       ],
-      "Resource": "arn:aws:s3:::naba.ysapp.net/*"
+      "Resource": "arn:aws:s3:::${SITE_BUCKET}/*"
     },
     {
       "Sid": "CloudFrontInvalidate",

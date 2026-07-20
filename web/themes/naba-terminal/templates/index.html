@@ -1,54 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{{ SITENAME }} &mdash; {{ SITESUBTITLE }}{% endblock %}
+{% block description %}{{ HOME_HERO.description_text }}{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <h1 class="hero-name"><span class="glyph">&gt;_</span> naba</h1>
+  <h1 class="hero-name"><span class="glyph">{{ HOME_HERO.glyph|e }}</span> {{ HOME_HERO.name|e }}</h1>
   <p class="hero-sub">{{ SITESUBTITLE }}</p>
-  <p class="hero-desc">{{ SITE_DESCRIPTION }}</p>
+  <p class="hero-desc">{{ HOME_HERO.description_html }}</p>
 
   <div class="term" aria-label="bootstrap install command">
     <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-title">bash</span></div>
-    <pre class="term-body"><span class="ps1">$</span> curl --proto '=https' --tlsv1.2 -LsSf {{ INSTALL_URL }} | sh</pre>
+    <pre class="term-body"><span class="ps1">$</span> {{ HOME_HERO.install_cmd|e }}</pre>
   </div>
 
   <div class="hero-cta">
-    <a class="btn btn-primary" href="{{ SITEURL }}/install/">install guide</a>
-    <a class="btn" href="{{ SITEURL }}/usage/">usage</a>
-    <a class="btn" href="{{ GITHUB_URL }}">github &#8599;</a>
+    {% for cta in HOME_HERO.ctas %}
+    <a class="btn{% if cta.primary %} btn-primary{% endif %}" href="{{ SITEURL if cta.href.startswith('/') else '' }}{{ cta.href|e }}">{{ cta.label|e }}{% if cta.external %} &#8599;{% endif %}</a>
+    {% endfor %}
   </div>
 </section>
 
 <section class="features">
-  <a class="card" href="{{ SITEURL }}/usage/#generate">
-    <h3><span class="glyph">#</span> generate <span class="card-arrow">&rarr;</span></h3>
-    <p>Turn a text prompt into an image. Icons, patterns, stories, and diagrams too.</p>
-    <pre class="mini">naba generate "a red apple on white"</pre>
+  {% for card in HOME_CARDS %}
+  <a class="card" href="{{ SITEURL }}{{ card.href|e }}">
+    <h3><span class="glyph">{{ card.glyph|e }}</span> {{ card.title|e }} <span class="card-arrow">&rarr;</span></h3>
+    {{ card.body }}
+    <pre class="mini">{{ card.command|e }}</pre>
   </a>
-  <a class="card" href="{{ SITEURL }}/usage/#edit">
-    <h3><span class="glyph">#</span> edit &amp; restore <span class="card-arrow">&rarr;</span></h3>
-    <p>Modify an existing image or enhance an old one with a natural-language instruction.</p>
-    <pre class="mini">naba edit photo.png "make the sky dramatic"</pre>
-  </a>
-  <a class="card" href="{{ SITEURL }}/config/#providers">
-    <h3><span class="glyph">#</span> multi-provider <span class="card-arrow">&rarr;</span></h3>
-    <p>Route through Google Gemini, OpenRouter, or AWS Bedrock. One binary, no runtime, no dependencies.</p>
-    <pre class="mini">naba generate "hero" --provider bedrock</pre>
-  </a>
-  <a class="card" href="{{ SITEURL }}/skills/">
-    <h3><span class="glyph">#</span> claude code skills <span class="card-arrow">&rarr;</span></h3>
-    <p>One embedded <code>/naba</code> skill that triggers implicitly on any image request.</p>
-    <pre class="mini">naba skills install</pre>
-  </a>
-  <a class="card" href="{{ SITEURL }}/mcp/">
-    <h3><span class="glyph">#</span> mcp server <span class="card-arrow">&rarr;</span></h3>
-    <p>Expose the image tools to Claude Desktop, with skills as lazily-loaded resources.</p>
-    <pre class="mini">naba mcp</pre>
-  </a>
-  <a class="card" href="{{ SITEURL }}/config/#self-update">
-    <h3><span class="glyph">#</span> self-updating <span class="card-arrow">&rarr;</span></h3>
-    <p>A vendor install updates itself in place. GitHub Releases stays canonical for binaries.</p>
-    <pre class="mini">naba self update</pre>
-  </a>
+  {% endfor %}
 </section>
 {% endblock %}
