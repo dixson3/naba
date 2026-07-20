@@ -16,6 +16,7 @@ mod dirs;
 mod doctor;
 mod embed;
 mod error;
+mod harness;
 mod mcp;
 mod output;
 mod preflight;
