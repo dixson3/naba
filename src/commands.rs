@@ -136,6 +136,7 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                             .cloned()
                             .unwrap_or_else(|| crate::harness::DEFAULT_HARNESS.to_string()),
                         target: opts.target.clone(),
+                        explicit: opts.explicit,
                     };
                     crate::preflight::run(&pf, globals)
                 }

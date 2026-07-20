@@ -335,41 +335,26 @@ pub async fn run_inner<F: Fetcher>(
 /// Post-update skills refresh (SPEC-SELF-005): re-deploy the embedded skills from the freshly
 /// swapped-in binary so the on-disk skill trees match the new version.
 ///
-/// `dest` is the swap destination (the new binary's path, captured before the swap). For each
-/// **present** surface under `$HOME` (`.claude`, `.agents`) it execs
-/// `<dest> skills upgrade --scope user --surface <surface>`. Fail-soft: a non-zero child exits
-/// non-zero here, but the swap is never rolled back.
+/// `dest` is the swap destination (the new binary's path, captured before the swap). It execs a
+/// single unqualified `<dest> skills upgrade`, which enumerates **every** recorded install
+/// target from the skills-install receipt — migrating an empty receipt from a legacy `.claude`/
+/// `.agents` disk scan first (plan-008 Issue 2.5, replacing the old present-surfaces heuristic).
+/// The child upgrade is itself continue-on-error across targets; a non-zero child exits non-zero
+/// here, but the swap is never rolled back.
 fn post_update_skills_refresh(dest: &Path, globals: &Globals) -> AppResult<()> {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_default();
-    for surface in present_surfaces(&home) {
-        if !globals.quiet {
-            eprintln!("Refreshing {surface} skills from the updated binary...");
-        }
-        let status = std::process::Command::new(dest)
-            .args(["skills", "upgrade", "--scope", "user", "--surface", surface])
-            .status()
-            .map_err(|e| AppError::general(format!("exec skills upgrade ({surface}): {e}")))?;
-        if !status.success() {
-            return Err(AppError::general(format!(
-                "post-update skills upgrade failed for surface {surface}"
-            )));
-        }
+    if !globals.quiet {
+        eprintln!("Refreshing installed skills from the updated binary...");
+    }
+    let status = std::process::Command::new(dest)
+        .args(["skills", "upgrade"])
+        .status()
+        .map_err(|e| AppError::general(format!("exec skills upgrade: {e}")))?;
+    if !status.success() {
+        return Err(AppError::general(
+            "post-update skills upgrade failed".to_string(),
+        ));
     }
     Ok(())
-}
-
-/// Surfaces whose root dir exists under `home` (`.claude` → `claude`, `.agents` → `agents`).
-/// Only present surfaces get a post-update refresh (SPEC-SELF-005).
-fn present_surfaces(home: &Path) -> Vec<&'static str> {
-    let mut out = Vec::new();
-    for (dir, surface) in [(".claude", "claude"), (".agents", "agents")] {
-        if home.join(dir).is_dir() {
-            out.push(surface);
-        }
-    }
-    out
 }
 
 /// A unique scratch dir under the system temp for extraction.
@@ -635,23 +620,6 @@ mod tests {
         // 0.1.0 is NOT newer; a later release is.
         assert!(!is_newer("0.1.0", "0.1.0-5-gabcdef-dirty"));
         assert!(is_newer("0.2.0", "0.1.0-5-gabcdef-dirty"));
-    }
-
-    #[test]
-    fn present_surfaces_detects_existing_dirs() {
-        let d = std::env::temp_dir().join(format!("naba-surfaces-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(d.join(".claude")).unwrap();
-        // Only .claude exists → only "claude".
-        assert_eq!(present_surfaces(&d), vec!["claude"]);
-        // Add .agents → both, in fixed order.
-        std::fs::create_dir_all(d.join(".agents")).unwrap();
-        assert_eq!(present_surfaces(&d), vec!["claude", "agents"]);
-        // Neither present.
-        let empty = d.join("empty");
-        std::fs::create_dir_all(&empty).unwrap();
-        assert!(present_surfaces(&empty).is_empty());
-        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
