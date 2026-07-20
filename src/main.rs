@@ -24,6 +24,7 @@ mod prompt;
 mod provider;
 mod self_cmd;
 mod skills;
+mod skills_install;
 mod version;
 
 use std::io::{stdin, stdout, IsTerminal, Write};
