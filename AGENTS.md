@@ -149,7 +149,7 @@ inline subcommands map 1:1 to CLI commands and three composites (`storyboard`, `
 `brand-kit`) dispatch a subagent. `skills/naba/SKILL.md` runs `naba skills preflight --json` at
 trigger time (SPEC-PREFLIGHT). Shared guidance lives once in `skills/naba/SKILL.md`;
 per-subcommand detail in `skills/naba/commands/*.md`. See
-`docs/specifications/IG/skills.md`.
+`docs/specifications/skills.md`.
 
 ## Specifications
 
@@ -163,10 +163,11 @@ docs/diary - implementation diary
 docs/plans - archive of all implementation plans
 docs/research - research used in design and implementation
 docs/todos - historical todos
-docs/specifications - specification collection (source of implementation requirements)
-  EDD/ - engineering design document
-  IG/  - implementation guides for key subsystems
-  PRD.md - the functional/non-functional product requirements
+docs/specifications - per-domain UX-contract specs (source of implementation requirements);
+    stable append-only clause IDs (SPEC-<AREA>-NNN). README.md is the index; the former
+    monolithic SPEC.md is now a redirect stub. Domain files: commands.md, image-config.md,
+    providers.md, configuration.md, exit-and-errors.md, json-output.md, mcp.md, skills.md,
+    distribution.md
 ```
 
 ## Agent Operating Conventions

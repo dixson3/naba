@@ -13,7 +13,7 @@
 //! Overall `status` is `ok` unless auth or skills fails; the binary axis never blocks. Exit code
 //! is non-zero on any non-`ok` status (doctor/preflight convention).
 //!
-//! The scope/surface/target destination resolution is shared with `skills`/`doctor`
+//! The scope/harness/target destination resolution is shared with `skills`/`doctor`
 //! ([`crate::skills::resolve_dest`]); the provider resolution is shared with `doctor`
 //! ([`crate::doctor::resolve_provider`]).
 
@@ -29,8 +29,49 @@ use crate::version;
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
-    pub surface: String,
+    pub harness: String,
     pub target: String,
+    /// True when `--harness`/`--surface`/`--target` was explicitly given. When **false**, the
+    /// skills axis is driven off the install receipt — every recorded target — instead of the
+    /// single default-harness dest (plan-008 Issue 2.5).
+    pub explicit: bool,
+}
+
+/// The destinations the skills axis checks: every recorded receipt target for an unqualified
+/// invocation (migrating an empty receipt from a legacy disk scan first), else the single
+/// resolved dest. Deduped by absolute path.
+fn skills_dests(opts: &Opts) -> Vec<std::path::PathBuf> {
+    if !opts.explicit {
+        if let Ok(reg) = crate::skills_install::load_or_migrate() {
+            if !reg.targets.is_empty() {
+                let mut seen = std::collections::BTreeSet::new();
+                let mut out = Vec::new();
+                for t in reg.targets {
+                    let p = std::path::PathBuf::from(t.path);
+                    if seen.insert(p.clone()) {
+                        out.push(p);
+                    }
+                }
+                return out;
+            }
+        }
+    }
+    match crate::skills::resolve_dest(&opts.scope, &opts.harness, &opts.target) {
+        Ok(d) => vec![d],
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Field-wise AND of two [`embed::SkillStatus`] flags — the worst (least-healthy) status across
+/// several install targets: a skill is `installed`/`up_to_date`/… only if it is so at **every**
+/// recorded target.
+fn worst_status(a: embed::SkillStatus, b: embed::SkillStatus) -> embed::SkillStatus {
+    embed::SkillStatus {
+        installed: a.installed && b.installed,
+        up_to_date: a.up_to_date && b.up_to_date,
+        complete: a.complete && b.complete,
+        unmodified: a.unmodified && b.unmodified,
+    }
 }
 
 // ---- axes ---------------------------------------------------------------------------------
@@ -157,16 +198,28 @@ pub fn run(opts: &Opts, globals: &Globals) -> AppResult<()> {
     let key_name = crate::doctor::provider_key_name(&provider);
     let auth = auth_axis(&provider, &key, key_name);
 
-    // Skills axis (embed status against the resolved dest).
-    let per_skill = match crate::skills::resolve_dest(&opts.scope, &opts.surface, &opts.target) {
-        Ok(dest) => embed::skill_names()
+    // Skills axis: embed status aggregated (worst-across-targets) over the receipt-recorded
+    // destinations (Issue 2.5), or the single resolved dest when qualified / receipt empty.
+    let dests = skills_dests(opts);
+    let per_skill: Vec<(String, embed::SkillStatus)> = if dests.is_empty() {
+        Vec::new()
+    } else {
+        embed::skill_names()
             .into_iter()
             .map(|name| {
-                let st = embed::skill_status(&name, &dest.join(&name));
+                let st = dests
+                    .iter()
+                    .map(|dest| embed::skill_status(&name, &dest.join(&name)))
+                    .reduce(worst_status)
+                    .unwrap_or(embed::SkillStatus {
+                        installed: false,
+                        up_to_date: false,
+                        complete: false,
+                        unmodified: false,
+                    });
                 (name, st)
             })
-            .collect(),
-        Err(_) => Vec::new(),
+            .collect()
     };
     let skills = skills_axis(per_skill);
 

@@ -29,8 +29,8 @@ What this file covers
   clamp, and the empty / missing-dir / no-output-dir messages (SPEC-MCP-011).
 - **resources** — ``resources/templates/list`` pins the ``file:///{path}``
   template metadata (SPEC-MCP-012); ``resources/read`` of a real generated path
-  is attempted and asserts blob+MIME on a binary that can serve it, but
-  ``xfail``s on the Go build (see the resource-read test docstring).
+  asserts blob+MIME on the shipped Rust binary (which serves slash paths), with a
+  dynamic ``xfail`` guard for servers that cannot (see the resource-read docstring).
 - **skills as resources (lazy loading)** — ``resources/list`` enumerates the
   embedded skill tree as ``skill://naba/<rel>`` URIs plus a ``skill://naba``
   index, carrying paths only (SPEC-MCP-014); ``resources/read`` of a

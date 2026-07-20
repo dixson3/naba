@@ -244,14 +244,16 @@ every binary and for the self-update manifest — the website hosts no binaries.
 
 The `/naba` skill tree is embedded in the binary, so `naba skills` works offline and always
 matches the binary's version. See the [Skills page](/skills/) for the full subcommand set,
-implicit triggering, the claude vs agents surface, user vs project scope, and the whole
-install / upgrade / status / remove / preflight lifecycle. The short form:
+implicit triggering, the five install harnesses (`--harness`, repeatable) and their idiomatic
+paths, user vs project scope, and the whole install / upgrade / status / remove / preflight
+lifecycle. The short form:
 
 ```bash
-naba skills install                  # default: user scope -> ~/.claude/skills
-naba skills upgrade                  # rewrite from the embedded tree, pruning stale files
-naba skills status                   # report up-to-date / complete / unmodified
-naba skills status --json            # machine-readable envelope
+naba skills install                       # default: claude-code harness, user scope -> ~/.claude/skills
+naba skills install --harness opencode    # install into another harness (repeatable flag)
+naba skills upgrade                       # refresh every previously-installed harness target
+naba skills status                        # report up-to-date / complete / unmodified
+naba skills status --json                 # machine-readable envelope
 ```
 
 ## Health check (`naba doctor`)
@@ -259,9 +261,9 @@ naba skills status --json            # machine-readable envelope
 `naba doctor` validates your environment and exits non-zero if any check fails:
 
 ```bash
-naba doctor                  # checks skills install, API key, model, config
-naba doctor --json           # structured output
-naba doctor --surface agents # check the agents-surface install instead
+naba doctor                    # checks skills install, API key, model, config
+naba doctor --json             # structured output
+naba doctor --harness opencode # check a specific harness's install instead
 ```
 
 It reports: skills installed and matching this binary; the **effective provider's** API key

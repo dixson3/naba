@@ -1,5 +1,4 @@
-# naba build: the shipped `naba` is a single Rust binary. (The legacy Go source and its
-# `*-go` parity-baseline targets were retired once Rust parity was trusted — see CI.)
+# naba build: the shipped `naba` is a single Rust binary. There is no Go build path.
 
 # --- Rust (product / shipped binary) ------------------------------------------------
 .PHONY: build test lint fmt clean install parity traceability

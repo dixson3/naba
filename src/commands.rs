@@ -33,6 +33,14 @@ pub struct Globals {
     pub provider: Option<String>,
 }
 
+/// Emit a one-line deprecation notice when the legacy `--surface` flag is used (plan-008,
+/// Issue 1.2). Suppressed under `--quiet` and `--json` so machine consumers are unaffected.
+fn warn_surface_deprecated(surface: Option<&str>, globals: &Globals) {
+    if surface.is_some() && !globals.quiet && !globals.json {
+        eprintln!("warning: --surface is deprecated; use --harness instead");
+    }
+}
+
 pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
     match command {
         Commands::Version => {
@@ -89,18 +97,27 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
             }
         },
         Commands::Doctor(args) => {
+            warn_surface_deprecated(args.surface.as_deref(), globals);
             let opts = crate::doctor::Opts {
                 scope: args.scope,
-                surface: args.surface,
+                harness: crate::harness::resolve_single(
+                    args.harness.as_deref(),
+                    args.surface.as_deref(),
+                ),
                 target: args.target,
             };
             crate::doctor::run(&opts, globals).await
         }
         Commands::Skills(sk) => {
+            warn_surface_deprecated(sk.surface.as_deref(), globals);
+            let explicit = !sk.harness.is_empty() || sk.surface.is_some() || !sk.target.is_empty();
+            let harnesses =
+                crate::harness::resolve_harness_list(&sk.harness, sk.surface.as_deref());
             let opts = crate::skills::Opts {
                 scope: sk.scope,
-                surface: sk.surface,
+                harnesses,
                 target: sk.target,
+                explicit,
                 dry_run: sk.dry_run,
                 quiet: globals.quiet,
                 json: globals.json,
@@ -113,8 +130,13 @@ pub async fn dispatch(command: Commands, globals: &Globals) -> AppResult<()> {
                 SkillsCommand::Preflight => {
                     let pf = crate::preflight::Opts {
                         scope: opts.scope.clone(),
-                        surface: opts.surface.clone(),
+                        harness: opts
+                            .harnesses
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| crate::harness::DEFAULT_HARNESS.to_string()),
                         target: opts.target.clone(),
+                        explicit: opts.explicit,
                     };
                     crate::preflight::run(&pf, globals)
                 }

@@ -38,10 +38,9 @@ A quick orientation so you know where things live and what is authoritative.
 |:--|:--|
 | `src/` | The CLI. Submodules: `provider/` (gemini, openrouter, bedrock, `registry`, `select`), `self_cmd/` (self update/install), `mcp.rs` (MCP server), `skills.rs`/`embed.rs` (embedded skill tree), `config.rs`, `commands.rs`, `cli.rs`, `error.rs`, `output.rs`. |
 | `tests/parity/` | Black-box parity/regression suite (Python + pytest, fully mocked — **no API keys needed**). Drives the built binary and snapshots stdout/stderr/exit code/files/HTTP. |
-| `SPEC.md` | **Authoritative UX contract.** Stable, append-only clause IDs (`SPEC-<AREA>-NNN`). |
-| `DRIFT-CHECK.md` | Manifest declaring which docs must stay in agreement with the code (skill files, IG, README, website). |
+| `docs/specifications/` | **Authoritative UX contract**, split per-domain (`commands.md`, `providers.md`, `configuration.md`, `mcp.md`, `skills.md`, `distribution.md`, …; `README.md` is the index). Stable, append-only clause IDs (`SPEC-<AREA>-NNN`). `SPEC.md` at the repo root is now a redirect stub. |
+| `DRIFT-CHECK.md` | Manifest declaring which docs must stay in agreement with the code (skill files, split specs, README, website). |
 | `skills/naba/` | The embedded Claude Code skill (`/naba <subcommand>`), compiled into the binary. |
-| `docs/specifications/` | Source-of-truth specs (`PRD.md`, `EDD/`, `IG/` implementation guides). |
 | `docs/plans/` | Sequenced archive of implementation plans. |
 | `web/` | Pelican static site for naba.ysapp.net (S3 + CloudFront). |
 | `.beads/` | Local issue database (see [Issues](#submitting-issues)). |
@@ -49,11 +48,12 @@ A quick orientation so you know where things live and what is authoritative.
 
 ### Spec-driven development (important)
 
-naba is **spec-first**. `SPEC.md` and `docs/specifications/` are the source of
-truth; the code implements them and the parity suite proves it.
+naba is **spec-first**. The per-domain specs under `docs/specifications/` are the
+source of truth; the code implements them and the parity suite proves it.
 
-- **Every behavior change updates `SPEC.md`** — clause IDs are append-only, never
-  renumbered — **and adds or adjusts a parity test** that cites the clause.
+- **Every behavior change updates the relevant `docs/specifications/*.md` file** —
+  clause IDs are append-only, never renumbered — **and adds or adjusts a parity
+  test** that cites the clause.
 - `tests/parity/check_traceability.py` enforces that **every `[PINNED]` / `[NEW]`
   SPEC clause maps to a test** (a parity case's `spec:` field, a test module, or a
   justified entry in `traceability_exemptions.yaml`). A change that adds a clause

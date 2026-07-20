@@ -37,8 +37,15 @@ impl Mode {
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
-    pub surface: String,
+    /// One or more resolved harness ids (`--harness`, repeatable; alias-mapped from the
+    /// deprecated `--surface`). Epic 1 resolves the first; the multi-target install loop +
+    /// receipt upsert lands in Epic 2 (Issue 2.2/2.3).
+    pub harnesses: Vec<String>,
     pub target: String,
+    /// True when the operator explicitly passed `--harness`/`--surface`/`--target`. A
+    /// **false** value on `upgrade` is the *unqualified* case that enumerates the install
+    /// receipt instead of the default harness (Issue 2.3).
+    pub explicit: bool,
     pub dry_run: bool,
     pub quiet: bool,
     /// Emit the universal `--json` envelope (SPEC-JSON-006) instead of the human lines.
@@ -58,13 +65,35 @@ struct SkillActionItem {
     pruned: Vec<String>,
 }
 
-/// The `install`/`upgrade`/`remove` `--json` payload (SPEC-JSON-006).
+/// The `install`/`upgrade`/`remove` `--json` payload (SPEC-JSON-006) for a **single** target —
+/// the pinned flat shape (`--target` or a single `--harness`).
 #[derive(Debug, Clone, serde::Serialize)]
 struct SkillsActionReport {
     action: &'static str,
     destination: String,
     dry_run: bool,
     skills: Vec<SkillActionItem>,
+}
+
+/// One target's outcome inside a multi-harness action report (plan-008 Issue 2.2/2.3). Under
+/// continue-on-error enumeration a failed target carries an `error` instead of `skills`.
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillsTargetReport {
+    harness: String,
+    destination: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    skills: Vec<SkillActionItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+/// The multi-target `--json` payload emitted when several harnesses are installed in one
+/// invocation (plan-008 Issue 2.2). The SPEC fold for this shape is Issue 5.5.
+#[derive(Debug, Clone, serde::Serialize)]
+struct SkillsMultiActionReport {
+    action: &'static str,
+    dry_run: bool,
+    targets: Vec<SkillsTargetReport>,
 }
 
 /// One `status` row for the `--json` envelope (SPEC-JSON-006).
@@ -85,24 +114,36 @@ struct SkillsStatusReport {
     skills: Vec<SkillStatusItem>,
 }
 
-/// `resolve_dest` mirrors the legacy installer's destination resolution: an explicit
-/// `target` wins; otherwise the anchor is `$HOME` (user scope) or the git root / cwd
-/// (project scope), joined with `.<surface>/skills` (SPEC-SKILLS-003). Shared by
-/// `naba skills` and `naba doctor`.
-pub fn resolve_dest(scope: &str, surface: &str, target: &str) -> AppResult<PathBuf> {
+/// `resolve_dest` is harness-aware (plan-008, Issue 1.3): an explicit `target` wins; otherwise
+/// the anchor is `$HOME` (user scope) or the git root / cwd (project scope), joined with the
+/// harness's scope-appropriate subpath from the [`crate::harness`] descriptor table
+/// (SPEC-SKILLS harness-layout). A canonical harness (`claude-code`, `opencode`, `pi`, `codex`,
+/// `agents`) uses its idiomatic subpath; an unknown/legacy id falls back to the uniform
+/// `.<id>/skills` layout so deprecated `--surface` values still resolve to their historical
+/// directory. Shared by `naba skills`, `naba doctor`, and `naba skills preflight`.
+pub fn resolve_dest(scope: &str, harness: &str, target: &str) -> AppResult<PathBuf> {
     if !target.is_empty() {
         return Ok(PathBuf::from(target));
     }
     let anchor = if scope == "project" {
         git_root_or_cwd()
     } else {
-        let home = std::env::var_os("HOME")
+        std::env::var_os("HOME")
             .map(PathBuf::from)
             .filter(|p| !p.as_os_str().is_empty())
-            .ok_or_else(|| AppError::general("$HOME is not defined"))?;
-        home
+            .ok_or_else(|| AppError::general("$HOME is not defined"))?
     };
-    Ok(anchor.join(format!(".{surface}")).join("skills"))
+    Ok(anchor.join(crate::harness::resolve_subpath(scope, harness)))
+}
+
+/// The harness a single-dest `skills`/`doctor`/`preflight` operation resolves against. Epic 1
+/// uses the first requested harness (default `claude-code`); the multi-harness install loop is
+/// Issue 2.2.
+fn primary_harness(harnesses: &[String]) -> &str {
+    harnesses
+        .first()
+        .map(String::as_str)
+        .unwrap_or(crate::harness::DEFAULT_HARNESS)
 }
 
 /// Git repository root (`git rev-parse --show-toplevel`), falling back to the current
@@ -122,28 +163,183 @@ fn git_root_or_cwd() -> PathBuf {
     std::env::current_dir().unwrap_or_default()
 }
 
-/// Run install / upgrade / remove over every embedded skill (Go's `runSkills`). Under `--json`
-/// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006) instead of the
-/// human lines.
-pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
-    let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+/// The (harness, destination) targets a `skills` invocation operates on, deduped by resolved
+/// absolute path (plan-008 Issue 2.2/2.3). A `--target` override collapses to a single target
+/// under the primary harness; otherwise every requested `--harness` resolves to its idiomatic
+/// dest, and paths shared by two harnesses (codex + portable `agents` both → `.agents/skills`)
+/// are deployed **once**.
+fn install_targets(opts: &Opts) -> AppResult<Vec<(String, PathBuf)>> {
+    if !opts.target.is_empty() {
+        let h = primary_harness(&opts.harnesses).to_string();
+        return Ok(vec![(h, PathBuf::from(&opts.target))]);
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for h in &opts.harnesses {
+        let dest = resolve_dest(&opts.scope, h, "")?;
+        if seen.insert(dest.clone()) {
+            out.push((h.clone(), dest));
+        }
+    }
+    Ok(out)
+}
+
+/// Record (or, on remove, drop) a target in the skills-install registry (Issue 2.2). Best-effort:
+/// a registry read/write failure is reported to stderr but never fails the deploy that already
+/// succeeded — the on-disk skills are the source of truth, the registry is a convenience index.
+fn record_target(mode: Mode, harness: &str, scope: &str, dest: &Path) {
+    let path = dest.display().to_string();
+    let result = (|| -> AppResult<()> {
+        let mut reg = crate::skills_install::Registry::load()?;
+        let changed = match mode {
+            // Install and upgrade both assert "this target now carries naba's skills".
+            Mode::Install | Mode::Upgrade => {
+                reg.upsert(crate::skills_install::Target::new(harness, scope, &path))
+            }
+            Mode::Remove => reg.remove(harness, scope, &path),
+        };
+        if changed {
+            reg.save()?;
+        }
+        Ok(())
+    })();
+    if let Err(e) = result {
+        eprintln!("warning: could not update skills-install registry: {e}");
+    }
+}
+
+/// Resolve the targets a run operates on. An **unqualified `upgrade`** (no `--harness`/
+/// `--surface`/`--target`) enumerates the install receipt — every previously-installed target,
+/// across every harness — migrating an empty registry from a legacy disk scan first (Issue 2.3,
+/// 2.4). Enumerated targets are deduped by resolved absolute path (codex + `agents` share
+/// `.agents/skills`). Every other invocation uses the flag-resolved [`install_targets`].
+fn targets_for(mode: Mode, opts: &Opts) -> AppResult<Vec<(String, PathBuf)>> {
+    if mode == Mode::Upgrade && !opts.explicit {
+        let reg = crate::skills_install::load_or_migrate()?;
+        let mut seen = std::collections::BTreeSet::new();
+        let mut out = Vec::new();
+        for t in reg.targets {
+            let p = PathBuf::from(&t.path);
+            if seen.insert(p.clone()) {
+                out.push((t.harness, p));
+            }
+        }
+        return Ok(out);
+    }
+    install_targets(opts)
+}
+
+/// Deploy/remove all embedded skills for a single target, returning the per-skill items or the
+/// first error. Extracted so the caller can apply continue-on-error across targets (Issue 2.3).
+fn run_one_target(mode: Mode, dest: &Path, opts: &Opts) -> AppResult<Vec<SkillActionItem>> {
     let mut items = Vec::new();
     for name in embed::skill_names() {
         let item = match mode {
-            Mode::Remove => remove_skill(&name, &dest, opts)?,
-            _ => deploy_skill(&name, &dest, mode == Mode::Upgrade, opts)?,
+            Mode::Remove => remove_skill(&name, dest, opts)?,
+            _ => deploy_skill(&name, dest, mode == Mode::Upgrade, opts)?,
         };
         items.push(item);
     }
+    Ok(items)
+}
+
+/// Run install / upgrade / remove over every embedded skill (Go's `runSkills`), for each
+/// resolved (harness, dest) target (Issue 2.2 multi-harness install, Issue 2.3 receipt-driven
+/// upgrade). Multi-target runs are **continue-on-error**: a failing target is skipped-and-
+/// reported and the command still processes the rest, then exits non-zero. Under `--json`
+/// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006): the pinned flat
+/// shape for a single target, a `targets` array otherwise.
+pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
+    let targets = targets_for(mode, opts)?;
+
+    // Nothing recorded to upgrade: report cleanly rather than silently no-op.
+    if targets.is_empty() {
+        if opts.json {
+            output::print_ok_json(SkillsMultiActionReport {
+                action: mode.action(),
+                dry_run: opts.dry_run,
+                targets: Vec::new(),
+            });
+        } else if !opts.quiet {
+            println!(
+                "No installed skill targets recorded (nothing to {}).",
+                mode.action()
+            );
+        }
+        return Ok(());
+    }
+
+    // A single flag-resolved target keeps the pinned fail-fast + flat-JSON behavior; several
+    // targets (multi-harness install or receipt-driven upgrade) run continue-on-error.
+    let continue_on_error = targets.len() > 1;
+    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>, Option<String>)> = Vec::new();
+    let mut failures = 0usize;
+    for (harness, dest) in &targets {
+        match run_one_target(mode, dest, opts) {
+            Ok(items) => {
+                if !opts.dry_run {
+                    record_target(mode, harness, &opts.scope, dest);
+                }
+                per_target.push((harness.clone(), dest.clone(), items, None));
+            }
+            Err(e) if continue_on_error => {
+                failures += 1;
+                eprintln!(
+                    "warning: skipping {} target {} — {e}",
+                    harness,
+                    dest.display()
+                );
+                per_target.push((
+                    harness.clone(),
+                    dest.clone(),
+                    Vec::new(),
+                    Some(e.to_string()),
+                ));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
     if opts.json {
-        output::print_ok_json(SkillsActionReport {
-            action: mode.action(),
-            destination: dest.display().to_string(),
-            dry_run: opts.dry_run,
-            skills: items,
-        });
+        if per_target.len() == 1 && per_target[0].3.is_none() {
+            let (_, dest, items, _) = per_target.into_iter().next().unwrap();
+            output::print_ok_json(SkillsActionReport {
+                action: mode.action(),
+                destination: dest.display().to_string(),
+                dry_run: opts.dry_run,
+                skills: items,
+            });
+        } else {
+            let targets = per_target
+                .into_iter()
+                .map(|(harness, dest, skills, error)| SkillsTargetReport {
+                    harness,
+                    destination: dest.display().to_string(),
+                    skills,
+                    error,
+                })
+                .collect();
+            output::print_ok_json(SkillsMultiActionReport {
+                action: mode.action(),
+                dry_run: opts.dry_run,
+                targets,
+            });
+        }
     } else if !opts.dry_run && !opts.quiet {
-        println!("Destination: {}", dest.display());
+        for (_, dest, _, error) in &per_target {
+            match error {
+                None => println!("Destination: {}", dest.display()),
+                Some(e) => println!("Skipped: {} — {e}", dest.display()),
+            }
+        }
+    }
+
+    // Continue-on-error still surfaces failure: a non-zero exit if any target failed.
+    if failures > 0 {
+        return Err(AppError::general(format!(
+            "{failures} skill target(s) failed to {}",
+            mode.action()
+        )));
     }
     Ok(())
 }
@@ -151,7 +347,7 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
 /// `skills status`: print a one-line status per embedded skill (Go's `skillsStatusCmd`), or the
 /// universal envelope under `--json` (SPEC-JSON-006).
 pub fn status(opts: &Opts) -> AppResult<()> {
-    let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+    let dest = resolve_dest(&opts.scope, primary_harness(&opts.harnesses), &opts.target)?;
     let mut items = Vec::new();
     for name in embed::skill_names() {
         let st = embed::skill_status(&name, &dest.join(&name));
@@ -364,8 +560,9 @@ mod tests {
     fn opts(target: &Path) -> Opts {
         Opts {
             scope: "user".into(),
-            surface: "claude".into(),
+            harnesses: vec!["claude-code".into()],
             target: target.to_string_lossy().into_owned(),
+            explicit: true,
             dry_run: false,
             quiet: false,
             json: false,
@@ -374,21 +571,82 @@ mod tests {
 
     #[test]
     fn resolve_dest_target_wins() {
-        let d = resolve_dest("user", "claude", "/tmp/explicit").unwrap();
+        let d = resolve_dest("user", "claude-code", "/tmp/explicit").unwrap();
         assert_eq!(d, PathBuf::from("/tmp/explicit"));
     }
 
+    /// The harness-layout gate test (SKILL.md Capability Gate: Harness path validation, the
+    /// CI baseline sourced from Issue 1.3): `resolve_dest` produces the correct idiomatic path
+    /// for every harness × scope, matching the descriptor table.
     #[test]
-    fn resolve_dest_user_scope_joins_surface_skills() {
-        // With an explicit HOME the user anchor is $HOME/.<surface>/skills.
-        let prev = std::env::var_os("HOME");
+    fn resolve_dest_harness_paths() {
+        let prev_home = std::env::var_os("HOME");
         std::env::set_var("HOME", "/home/tester");
-        let d = resolve_dest("user", "agents", "").unwrap();
-        assert_eq!(d, PathBuf::from("/home/tester/.agents/skills"));
-        match prev {
+
+        // User scope: anchored at $HOME, per-harness idiomatic subpath.
+        let user_cases = [
+            ("claude-code", "/home/tester/.claude/skills"),
+            ("opencode", "/home/tester/.config/opencode/skills"),
+            ("pi", "/home/tester/.pi/agent/skills"),
+            ("codex", "/home/tester/.agents/skills"),
+            ("agents", "/home/tester/.agents/skills"),
+            // legacy --surface value maps through the alias before resolution
+            ("claude", "/home/tester/.claude/skills"),
+        ];
+        for (harness, expect) in user_cases {
+            let h = crate::harness::surface_alias(harness);
+            assert_eq!(
+                resolve_dest("user", &h, "").unwrap(),
+                PathBuf::from(expect),
+                "user harness {harness}"
+            );
+        }
+
+        std::env::set_var("HOME", "/home/tester2");
+        // Project scope is anchored at the git root/cwd; assert the trailing subpath per harness.
+        let proj_cases = [
+            ("claude-code", ".claude/skills"),
+            ("opencode", ".opencode/skills"),
+            ("pi", ".pi/skills"),
+            ("codex", ".agents/skills"),
+            ("agents", ".agents/skills"),
+        ];
+        for (harness, sub) in proj_cases {
+            let d = resolve_dest("project", harness, "").unwrap();
+            assert!(
+                d.ends_with(sub),
+                "project harness {harness}: {} should end with {sub}",
+                d.display()
+            );
+        }
+
+        match prev_home {
             Some(v) => std::env::set_var("HOME", v),
             None => std::env::remove_var("HOME"),
         }
+    }
+
+    #[test]
+    fn install_targets_dedupe_shared_path() {
+        // codex and the portable `agents` harness both resolve to `.agents/skills`; the shared
+        // path must be deployed once (Issue 2.2/2.3 dedupe). Order-preserving: first wins. Uses
+        // project scope (git-root/cwd anchor) to avoid racing the shared $HOME with other tests.
+        let o = Opts {
+            scope: "project".into(),
+            harnesses: vec!["codex".into(), "agents".into(), "claude-code".into()],
+            target: String::new(),
+            explicit: true,
+            dry_run: true,
+            quiet: true,
+            json: false,
+        };
+        let targets = install_targets(&o).unwrap();
+        let ids: Vec<&str> = targets.iter().map(|(h, _)| h.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["codex", "claude-code"],
+            "agents deduped against codex path"
+        );
     }
 
     #[test]

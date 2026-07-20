@@ -74,9 +74,10 @@ unless you pass `--binary-only`) so the installed skill always matches the binar
 shells out to the `naba` CLI, so the binary must be installed (above) and a provider API key
 set — see [config](/config/).
 
-Detailed skill options (`--scope`, `--surface`, `--target`, `status`, `remove`, `preflight`)
-and implicit triggering live on the [skills](/skills/) page; the `naba doctor` health check is
-on the [config](/config/#health-check-naba-doctor) page.
+Detailed skill options (`--scope`, `--harness` — repeatable, to install to several agent
+harnesses at once — `--target`, `status`, `remove`, `preflight`) and implicit triggering live on
+the [skills](/skills/) page; the `naba doctor` health check is on the
+[config](/config/#health-check-naba-doctor) page.
 
 Once installed, set an API key and try your first command — see [usage](/usage/) and
 [config](/config/).

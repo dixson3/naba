@@ -16,6 +16,7 @@ mod dirs;
 mod doctor;
 mod embed;
 mod error;
+mod harness;
 mod mcp;
 mod output;
 mod preflight;
@@ -23,6 +24,7 @@ mod prompt;
 mod provider;
 mod self_cmd;
 mod skills;
+mod skills_install;
 mod version;
 
 use std::io::{stdin, stdout, IsTerminal, Write};

@@ -379,18 +379,22 @@ pub enum ConfigCommand {
     },
 }
 
-// ---- doctor (SPEC-DOCTOR) — shares scope/surface/target semantics with skills ----
+// ---- doctor (SPEC-DOCTOR) — shares scope/harness/target semantics with skills ----
 #[derive(Args, Debug)]
 pub struct DoctorArgs {
     /// user → $HOME; project → git root (else cwd)
     #[arg(long, default_value = "user")]
     pub scope: String,
 
-    /// claude → <root>/.claude/skills; agents → <root>/.agents/skills
-    #[arg(long, default_value = "claude")]
-    pub surface: String,
+    /// target harness: claude-code | opencode | pi | codex | agents (default: claude-code)
+    #[arg(long)]
+    pub harness: Option<String>,
 
-    /// override skills destination directory (takes precedence over scope/surface)
+    /// deprecated alias for --harness (claude → claude-code, agents → agents)
+    #[arg(long, hide = true)]
+    pub surface: Option<String>,
+
+    /// override skills destination directory (takes precedence over scope/harness)
     #[arg(long, default_value = "")]
     pub target: String,
 }
@@ -402,11 +406,16 @@ pub struct SkillsArgs {
     #[arg(long, global = true, default_value = "user")]
     pub scope: String,
 
-    /// claude → <root>/.claude/skills; agents → <root>/.agents/skills
-    #[arg(long, global = true, default_value = "claude")]
-    pub surface: String,
+    /// target harness (repeatable): claude-code | opencode | pi | codex | agents
+    /// (default: claude-code). Give multiple times to install for several harnesses.
+    #[arg(long, global = true)]
+    pub harness: Vec<String>,
 
-    /// override skills destination directory (takes precedence over scope/surface)
+    /// deprecated alias for --harness (claude → claude-code, agents → agents)
+    #[arg(long, global = true, hide = true)]
+    pub surface: Option<String>,
+
+    /// override skills destination directory (takes precedence over scope/harness)
     #[arg(long, global = true, default_value = "")]
     pub target: String,
 

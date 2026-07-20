@@ -41,6 +41,9 @@ pub const FROM_BUILD_MARKER_FILE: &str = "naba-from-build.json";
 /// The update-check cache basename under the cache dir.
 pub const UPDATE_CHECK_FILE: &str = "update-check.json";
 
+/// The skills-install target registry filename (plan-008 Issue 2.1).
+pub const SKILLS_INSTALL_FILE: &str = "skills-install.json";
+
 /// `$HOME`, or an empty path when unset (matches [`crate::config`]'s error-swallowing resolution).
 fn home_dir() -> PathBuf {
     std::env::var_os("HOME")
@@ -100,6 +103,13 @@ pub fn receipt_path() -> PathBuf {
 /// naba's own from-build marker path (`<config_dir>/naba-from-build.json`).
 pub fn from_build_marker_path() -> PathBuf {
     config_dir().join(FROM_BUILD_MARKER_FILE)
+}
+
+/// The skills-install target registry path (`<config_dir>/skills-install.json`, plan-008
+/// Issue 2.1). Records which harness/scope/path targets `naba skills install` wrote to, so an
+/// unqualified `naba skills upgrade` can re-hit every previously-installed target.
+pub fn skills_install_path() -> PathBuf {
+    config_dir().join(SKILLS_INSTALL_FILE)
 }
 
 /// The update-check cache path (`<cache_dir>/update-check.json`), read by `skills preflight`'s

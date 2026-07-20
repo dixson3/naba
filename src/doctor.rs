@@ -23,11 +23,11 @@ use crate::provider::select::EnvKeys;
 use crate::provider::{self, build_provider, gemini, Selection};
 use crate::version;
 
-/// Resolved destination flags for the doctor skills checks (mirror `skills`' scope/surface/target).
+/// Resolved destination flags for the doctor skills checks (mirror `skills`' scope/harness/target).
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
-    pub surface: String,
+    pub harness: String,
     pub target: String,
 }
 
@@ -146,7 +146,7 @@ async fn checks(opts: &Opts, globals: &Globals) -> Vec<DoctorCheck> {
     }
 
     // 6. Skills installed and matching the embedded binary.
-    match crate::skills::resolve_dest(&opts.scope, &opts.surface, &opts.target) {
+    match crate::skills::resolve_dest(&opts.scope, &opts.harness, &opts.target) {
         Err(e) => add(
             "skills",
             status::FAIL,
