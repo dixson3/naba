@@ -46,48 +46,65 @@ The skill **skips** requests for editable diagram *source* (d2/mermaid text) —
 produces a rendered image, not editable source. Explicit `/naba <subcommand>` invocation always
 works too, and is the reliable trigger when you want a specific subcommand.
 
-## Surfaces: claude vs agents
+## Harnesses: one tree, five idiomatic homes
 
-The same embedded skill tree can install to two surfaces:
+The same embedded skill tree can install to several agent **harnesses**, each at its own
+idiomatic skills path. Select a harness with `--harness <name>`; the flag is **repeatable**, so
+one `install` can write to several harnesses at once. Supported values and their install paths:
 
-| Surface | Flag | Destination |
-|:--------|:-----|:------------|
-| **claude** (default) | `--surface claude` | `<root>/.claude/skills` — the Claude Code skill directory |
-| **agents** | `--surface agents` | `<root>/.agents/skills` — the generic agents surface |
+| Harness | Flag | Project-scope path | User-scope path |
+|:--------|:-----|:-------------------|:----------------|
+| **claude-code** (default) | `--harness claude-code` | `<root>/.claude/skills` | `~/.claude/skills` |
+| **opencode** | `--harness opencode` | `<root>/.opencode/skills` | `~/.config/opencode/skills` |
+| **pi** | `--harness pi` | `<root>/.pi/skills` | `~/.pi/agent/skills` |
+| **codex** | `--harness codex` | `<root>/.agents/skills` | `~/.agents/skills` |
+| **agents** (portable) | `--harness agents` | `<root>/.agents/skills` | `~/.agents/skills` |
 
-The `claude` surface is the default; use `--surface agents` for harnesses that read the generic
-`.agents/skills` location.
+The `claude-code` harness is the default. The portable **`agents`** harness writes the generic
+`.agents/skills` location that opencode, pi, and codex all read, so it is the one-shot way to
+cover multiple generic harnesses. Install to several at once by repeating the flag:
+
+```bash
+naba skills install --harness claude-code --harness opencode --harness pi
+```
+
+> The old `--surface claude|agents` flag still works as a deprecated hidden alias
+> (`claude` → `claude-code`, `agents` → `agents`) and prints a deprecation notice. Prefer
+> `--harness`.
 
 ## Scopes: user vs project
 
-Scope chooses the `<root>` the surface installs under:
+Scope chooses the `<root>` each harness installs under:
 
 | Scope | Flag | Root |
 |:------|:-----|:-----|
 | **user** (default) | `--scope user` | `$HOME` (e.g. `~/.claude/skills`) |
 | **project** | `--scope project` | the git root (else the current directory) |
 
-For a fully explicit destination, `--target DIR` overrides scope/surface entirely.
+For a fully explicit destination, `--target DIR` overrides scope/harness entirely.
 
 ## Lifecycle
 
 ```bash
-naba skills install                  # default: user scope -> ~/.claude/skills
-naba skills install --dry-run        # show what would be written, change nothing
-naba skills install --scope project  # install into <git-root>/.claude/skills
-naba skills install --surface agents # install into ~/.agents/skills (agents surface)
-naba skills install --target DIR     # install into an explicit directory
-naba skills upgrade                  # rewrite from the embedded tree, pruning stale files
-naba skills remove                   # remove the naba skill again
-naba skills status                   # report up-to-date / complete / unmodified
-naba skills preflight --json         # fast, offline skill-gate (see below)
+naba skills install                       # default: claude-code harness, user scope -> ~/.claude/skills
+naba skills install --dry-run             # show what would be written, change nothing
+naba skills install --scope project       # install into <git-root>/.claude/skills
+naba skills install --harness opencode    # install into ~/.config/opencode/skills
+naba skills install --harness claude-code --harness pi  # repeatable: several harnesses at once
+naba skills install --target DIR          # install into an explicit directory
+naba skills upgrade                       # refresh every previously-installed harness target
+naba skills remove                        # remove the naba skill again
+naba skills status                        # report up-to-date / complete / unmodified
+naba skills preflight --json              # fast, offline skill-gate (see below)
 ```
 
 Every verb accepts `--json` for a machine-readable `{status, data}` envelope, plus the shared
-`--scope`, `--surface`, `--target`, and `--dry-run` flags.
+`--scope`, `--harness` (repeatable), `--target`, and `--dry-run` flags.
 
 Run **`naba skills upgrade`** after any `naba` upgrade (a `self update` already does this unless
-you pass `--binary-only`) so the installed skill always matches the binary.
+you pass `--binary-only`) so the installed skill always matches the binary. With no flags,
+`upgrade` refreshes **every** harness target you previously installed to — tracked in an install
+receipt — and continues on error, so a multi-harness install stays in sync in one call.
 
 ### Integrity marker
 
