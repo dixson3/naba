@@ -3,7 +3,8 @@
 **ID:** plan-008-james-dixson-24173a
 **Author:** james-dixson
 **Created:** 2026-07-20
-**Status:** approved
+**Status:** executing
+**Epic:** naba-mol-q2e
 **Fingerprint:** 1c740f70c64af025f039363e84567c14060c6e146a6509c19809377eaf1ee8b9
 **Phase log:**
 - 2026-07-20 scoping: initial scope captured
@@ -15,6 +16,8 @@
 - 2026-07-20 review: red-team pass-3 — APPROVE (blocker closed via edges; no cycle; 2 optional polish applied)
 - 2026-07-20 ready-for-approval: ready-check green — pass-3 APPROVE + audit pass
 - 2026-07-20 approved: operator approved
+- 2026-07-20 intake: epic naba-mol-q2e poured
+- 2026-07-20 executing: start gate resolved
 
 ## Objective
 
