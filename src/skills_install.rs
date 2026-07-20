@@ -148,6 +148,89 @@ fn tmp_sibling(path: &Path) -> PathBuf {
     PathBuf::from(s)
 }
 
+// ---------------------------------------------------------------------------
+// Migration: synthesize the first registry from a legacy disk scan (Issue 2.4)
+// ---------------------------------------------------------------------------
+
+/// The two historically-shipped surface dirs and the harness id each maps to. The pre-plan
+/// installer only ever wrote `.claude/skills` (surface `claude` → `claude-code`) and
+/// `.agents/skills` (surface `agents` → portable `agents`).
+const LEGACY_SURFACES: &[(&str, &str)] = &[
+    ("claude-code", ".claude/skills"),
+    ("agents", ".agents/skills"),
+];
+
+/// Legacy install candidates to probe, at both scopes: `(harness, scope, dir)`.
+fn legacy_candidates(home: &Path, git_root: Option<&Path>) -> Vec<(String, String, PathBuf)> {
+    let mut out = Vec::new();
+    for (harness, sub) in LEGACY_SURFACES {
+        out.push((harness.to_string(), "user".to_string(), home.join(sub)));
+    }
+    if let Some(root) = git_root {
+        for (harness, sub) in LEGACY_SURFACES {
+            out.push((harness.to_string(), "project".to_string(), root.join(sub)));
+        }
+    }
+    out
+}
+
+/// True if `dir` holds an installed naba skill (any embedded skill present as a
+/// `<dir>/<name>/SKILL.md`). Cheap existence probe — no hashing.
+fn has_installed_skill(dir: &Path) -> bool {
+    crate::embed::skill_names()
+        .iter()
+        .any(|name| dir.join(name).join("SKILL.md").is_file())
+}
+
+impl Registry {
+    /// Synthesize registry rows from a legacy on-disk scan (Issue 2.4). For each legacy surface
+    /// dir that actually contains an installed skill and is not already recorded, upsert a
+    /// target. Returns the number of rows added. Idempotent — a second call adds nothing.
+    pub fn synthesize_from_legacy(&mut self, home: &Path, git_root: Option<&Path>) -> usize {
+        let mut added = 0;
+        for (harness, scope, dir) in legacy_candidates(home, git_root) {
+            if has_installed_skill(&dir) {
+                let path = dir.display().to_string();
+                if self.upsert(Target::new(harness, scope, path)) {
+                    added += 1;
+                }
+            }
+        }
+        added
+    }
+}
+
+/// Load the registry and, **if it is empty**, synthesize it from a legacy disk scan of the real
+/// `$HOME` + git root, persisting any rows found (Issue 2.4). A non-empty registry is returned
+/// untouched. This is the migration seam `upgrade`/`preflight` drive off (Issue 2.5).
+pub fn load_or_migrate() -> AppResult<Registry> {
+    let mut reg = Registry::load()?;
+    if reg.targets.is_empty() {
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        if let Some(home) = home {
+            let git_root = git_root();
+            let added = reg.synthesize_from_legacy(&home, git_root.as_deref());
+            if added > 0 {
+                reg.save()?;
+            }
+        }
+    }
+    Ok(reg)
+}
+
+/// Git repository root (`git rev-parse --show-toplevel`), or `None` when not in a repo.
+fn git_root() -> Option<PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!s.is_empty()).then(|| PathBuf::from(s))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +299,40 @@ mod tests {
         assert!(reg.remove("pi", "user", "/h/.pi/agent/skills"));
         assert!(!reg.remove("pi", "user", "/h/.pi/agent/skills"));
         assert_eq!(reg.targets.len(), 0);
+    }
+
+    #[test]
+    fn synthesize_from_legacy_maps_surfaces_and_is_idempotent() {
+        let root = std::env::temp_dir().join(format!("naba-migrate-{}", std::process::id()));
+        let home = root.join("home");
+        let repo = root.join("repo");
+        let _ = std::fs::remove_dir_all(&root);
+        // Plant a legacy user-scope .claude install and a project-scope .agents install.
+        for dir in [
+            home.join(".claude/skills/naba"),
+            repo.join(".agents/skills/naba"),
+        ] {
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("SKILL.md"), b"---\nname: naba\n---\n").unwrap();
+        }
+        // A legacy .agents user dir with NO installed skill must not be recorded.
+        std::fs::create_dir_all(home.join(".agents/skills")).unwrap();
+
+        let mut reg = Registry::default();
+        let added = reg.synthesize_from_legacy(&home, Some(&repo));
+        assert_eq!(added, 2, "claude-code(user) + agents(project)");
+        let mapped: Vec<(&str, &str)> = reg
+            .targets
+            .iter()
+            .map(|t| (t.harness.as_str(), t.scope.as_str()))
+            .collect();
+        assert!(mapped.contains(&("claude-code", "user")));
+        assert!(mapped.contains(&("agents", "project")));
+
+        // Idempotent: a second scan adds nothing.
+        assert_eq!(reg.synthesize_from_legacy(&home, Some(&repo)), 0);
+        assert_eq!(reg.targets.len(), 2);
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
