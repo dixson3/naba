@@ -7,7 +7,7 @@ installer** below is the recommended way in; other paths follow.
 
 ## Bootstrap (curl | sh) — recommended
 
-The short, memorable one-liner. It fetches the vendor installer (a mirror of cargo-dist's
+This fetches the vendor installer (a mirror of cargo-dist's
 `naba-installer.sh`), drops the binary in `~/.local/bin`, and records an install receipt so
 naba can update itself later with [`naba self update`](/config/#self-update).
 
@@ -17,10 +17,8 @@ curl --proto '=https' --tlsv1.2 -LsSf https://naba.ysapp.net/install.sh | sh
 
 > This bootstrap script is a byte-for-byte mirror of the cargo-dist installer published on
 > GitHub Releases — it in turn fetches sha256-checksummed release tarballs from GitHub.
-> **GitHub Releases remains canonical for every binary; this domain hosts only the
-> convenience `install.sh`.** Until the first tagged release is cut, the script prints a
-> "no release yet" notice and exits non-zero so a premature run fails safely — browse
-> [github.com/dixson3/naba/releases](https://github.com/dixson3/naba/releases) for status.
+> **GitHub Releases** remains canonical for every binary; the `naba.ysapp.net` domain hosts only the
+> convenience `install.sh`.
 
 ## Alternatives
 
