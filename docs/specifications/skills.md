@@ -28,7 +28,7 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
 - **SPEC-PREFLIGHT-001** [PINNED] `naba skills preflight [--json]` is a fast skill-gate emitting an
   envelope `{command:"skills preflight", status, axes:{auth, skills, binary}}` with three axes.
-  It shares scope/surface/target resolution with `skills`/`doctor` and provider resolution with
+  It shares scope/harness/target resolution with `skills`/`doctor` and provider resolution with
   `doctor` (`resolve_provider`/`provider_api_key`/`provider_key_name`, promoted to `pub(crate)`).
 - **SPEC-PREFLIGHT-002** [PINNED] **auth** axis: offline provider **key-present** (no network on
   the hot path) — resolves the effective provider and checks its key

@@ -4,11 +4,14 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
 ## §1 Command inventory (SPEC-INV)
 
-- **SPEC-INV-001** [PINNED] The binary exposes exactly **14 real command groups**:
+- **SPEC-INV-001** [PINNED] The binary exposes exactly **15 real command groups**:
   `generate`, `edit`, `restore`, `icon`, `pattern`, `diagram`, `story`,
   `config` (subcommands `get`, `set`), `doctor`,
-  `skills` (subcommands `install`, `upgrade`, `remove`, `status`), `provider`, `models`,
-  `mcp`, `version`. (Epic 2 added `provider` and `models`; the count is no longer fixed at 12.)
+  `skills` (subcommands `install`, `upgrade`, `remove`, `status`, `preflight`), `provider`,
+  `models`, `mcp`,
+  `self` (subcommands `update`, `install`, `uninstall`; see distribution.md §17 SPEC-SELF),
+  `version`. (Epic 2 added `provider` and `models`; plan-005 added `self`; the count is no
+  longer fixed at 12.)
 - **SPEC-INV-002** [PINNED] `storyboard`, `batch`, and `brand-kit` are **NOT** binary
   subcommands. They are skill-layer composites (the `/naba` skill orchestrates multiple
   real CLI calls). They are out of the binary parity surface and are protected only
@@ -38,7 +41,10 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
   The `--model` help string is [DIVERGENCE] (reworded to drop "Gemini", per multi-provider).
 - **SPEC-GLOBAL-002** [NEW] Add a global `--provider` flag (string, default `""`, help
-  `Provider: gemini or openrouter`). See §PROVIDER for resolution.
+  `Provider: gemini or openrouter`). The help prose is [DIVERGENCE] (SPEC-DIVERGE-001/004) and
+  lags the registry — the **runtime-valid** provider set is the registry (SPEC-PROVIDER-009):
+  `gemini`, `openrouter`, `bedrock` (an unknown name is a usage error, exit 2). See §PROVIDER
+  for resolution.
 - **SPEC-GLOBAL-003** [PINNED] TTY autodetect at startup (root `PersistentPreRun`
   equivalent): if **stdout** is not a character device, force `--json` true. If **stdin**
   is not a character device, force `--no-input` true. Detection is on the stream mode
@@ -235,8 +241,9 @@ outgoing prompt and the suite asserts it exactly.
 
 - **SPEC-DOCTOR-001** [PINNED] `Use: "doctor"`, no args, `Short: "Check naba's environment
   health (skills, API key, model, config)"`.
-- **SPEC-DOCTOR-002** [PINNED] Flags: `--scope` (string, `"user"`), `--surface` (string,
-  `"claude"`), `--target` (string, `""`) — same semantics as `skills` (§3.11).
+- **SPEC-DOCTOR-002** [PINNED] Flags: `--scope` (string, `"user"`), `--harness` (string,
+  default `claude-code`) with a deprecated hidden `--surface` alias (`claude → claude-code`,
+  `agents → agents`), `--target` (string, `""`) — same semantics as `skills` (§3.11).
 - **SPEC-DOCTOR-003** [PINNED] Check statuses: `pass` / `warn` / `fail`. Each check is
   `{name, status, detail}`.
 - **SPEC-DOCTOR-004** [PINNED] Checks, in order: `version`; `config`; `api_key`;
@@ -268,18 +275,22 @@ outgoing prompt and the suite asserts it exactly.
   | Flag | Type | Default | Help (verbatim) |
   |:--|:--|:--|:--|
   | `--scope` | string | `"user"` | `user → $HOME; project → git root (else cwd)` |
-  | `--surface` | string | `"claude"` | `claude → <root>/.claude/skills; agents → <root>/.agents/skills` |
-  | `--target` | string | `""` | `override skills destination directory (takes precedence over scope/surface)` |
+  | `--harness` | []string (repeatable) | `["claude-code"]` | `target harness (repeatable): claude-code \| opencode \| pi \| codex \| agents (default: claude-code). Give multiple times to install for several harnesses.` |
+  | `--surface` | string | — | deprecated, hidden alias for `--harness` (`claude → claude-code`, `agents → agents`) |
+  | `--target` | string | `""` | `override skills destination directory (takes precedence over scope/harness)` |
   | `--dry-run` | bool | `false` | `print the actions that would be taken; change nothing` |
 
 - **SPEC-SKILLS-002** [PINNED] Subcommands (all no-args): `install` (`Install embedded
   skills to the resolved destination`); `upgrade` (`Rewrite installed skills from the
   embedded tree and prune stale files`); `remove` (`Remove installed skills from the
   destination`); `status` (`Report whether installed skills are up-to-date, complete, and
-  unmodified`).
-- **SPEC-SKILLS-003** [PINNED] Destination resolution `resolveDest(scope, surface, target)`:
-  non-empty `--target` wins; else anchor = `$HOME` (scope `user`) or git-root-else-cwd
-  (scope `project`), joined with `.<surface>/skills`.
+  unmodified`); `preflight` (`Fast skill-gate: validate provider key + skills/binary
+  freshness`; see skills.md §18 SPEC-PREFLIGHT).
+- **SPEC-SKILLS-003** [PINNED] Destination resolution `resolve_dest(scope, harness, target)`:
+  non-empty `--target` wins; else the anchor (`$HOME` for scope `user`, git-root-else-cwd for
+  scope `project`) is joined with the harness's scope-appropriate subpath per the
+  SPEC-HARNESS-002 descriptor table (skills.md §19). A legacy/unknown harness value falls back
+  to the uniform `.<value>/skills` layout (SPEC-HARNESS-004).
 - **SPEC-SKILLS-004** [PINNED] `install`/`upgrade` write each embedded file (dirs `0o755`,
   files `0o644`) and inject the skill marker into `SKILL.md` (§EMBED). `upgrade` also prunes
   dest files absent from the embed (`  pruned stale: %s`). Output: `OK: %s -> %s (%d

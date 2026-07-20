@@ -90,9 +90,11 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
   deferred follow-on bead cuts that release and verifies it live.
 - **SPEC-SELF-005** [PINNED] After a successful swap (unless `--binary-only`), a **post-update
   skills refresh** execs the swap-destination binary (captured **before** the swap, since
-  `self_replace` staleness) → `naba skills upgrade --scope user --surface <surface>` for each
-  present surface (`.claude`/`.agents` under `$HOME`). Fail-soft: a failure exits non-zero but
-  never rolls back the swap.
+  `self_replace` staleness) as a single unqualified `naba skills upgrade`, which enumerates
+  **every** recorded install target from the skills-install receipt — migrating an empty
+  receipt from a legacy `.claude`/`.agents` disk scan first (plan-008 Issue 2.5, replacing the
+  old per-present-surface heuristic). Fail-soft: the child upgrade is continue-on-error across
+  targets and a failure exits non-zero but never rolls back the swap.
 - **SPEC-SELF-006** [PINNED] `naba self` maintains an offline update-check cache
   (`~/.cache/naba/update-check.json`) and a **throttled** upgrade nag fired from `version`/`doctor`:
   it nags only for a nag-eligible (vendor) install when the cache reports a newer release, at most
