@@ -13,7 +13,7 @@
 //! Overall `status` is `ok` unless auth or skills fails; the binary axis never blocks. Exit code
 //! is non-zero on any non-`ok` status (doctor/preflight convention).
 //!
-//! The scope/surface/target destination resolution is shared with `skills`/`doctor`
+//! The scope/harness/target destination resolution is shared with `skills`/`doctor`
 //! ([`crate::skills::resolve_dest`]); the provider resolution is shared with `doctor`
 //! ([`crate::doctor::resolve_provider`]).
 

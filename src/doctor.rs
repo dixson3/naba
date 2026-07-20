@@ -23,7 +23,7 @@ use crate::provider::select::EnvKeys;
 use crate::provider::{self, build_provider, gemini, Selection};
 use crate::version;
 
-/// Resolved destination flags for the doctor skills checks (mirror `skills`' scope/surface/target).
+/// Resolved destination flags for the doctor skills checks (mirror `skills`' scope/harness/target).
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
