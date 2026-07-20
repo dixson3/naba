@@ -16,7 +16,7 @@
 //! compact `skill://<name>` index resource. Listing carries **URIs/paths only** (no file
 //! bodies), so a client discovers skills cheaply and fetches full instruction content ON
 //! DEMAND via `resources/read` of a `skill://<name>/<rel>` URI — the lazy-loading pattern.
-//! Reads are served from the same [`embed::read_skill_file`] / [`embed::skill_files`]
+//! Reads are served from the MCP render via [`embed::read_skill_file_mcp`] / [`embed::skill_files_mcp`]
 //! accessors the CLI skill commands use; no content is duplicated.
 //!
 //! # Reserved / slash-matching resource read (SPEC-MCP-012)
@@ -584,7 +584,7 @@ fn skill_resources() -> Vec<Resource> {
                 ))
                 .with_mime_type("text/markdown"),
         );
-        for rel in embed::skill_files(&name) {
+        for rel in embed::skill_files_mcp(&name) {
             out.push(
                 Resource::new(format!("skill://{name}/{rel}"), format!("{name}/{rel}"))
                     .with_description(format!("Embedded naba skill file `{rel}`"))
@@ -605,7 +605,7 @@ fn read_skill_resource(uri: &str, rest: &str) -> Result<ReadResourceResult, McpE
     let rest = rest.strip_suffix('/').unwrap_or(rest);
     let contents = match rest.split_once('/') {
         Some((name, rel)) => {
-            let bytes = embed::read_skill_file(name, rel).ok_or_else(not_found)?;
+            let bytes = embed::read_skill_file_mcp(name, rel).ok_or_else(not_found)?;
             ResourceContents::TextResourceContents {
                 uri: uri.to_string(),
                 mime_type: Some(skill_mime(rel).to_string()),
@@ -614,7 +614,7 @@ fn read_skill_resource(uri: &str, rest: &str) -> Result<ReadResourceResult, McpE
             }
         }
         None => {
-            let files = embed::skill_files(rest);
+            let files = embed::skill_files_mcp(rest);
             if files.is_empty() {
                 return Err(not_found());
             }
@@ -1214,7 +1214,7 @@ mod tests {
             "missing skill index: {uris:?}"
         );
         // One resource per embedded file, addressed by skill://naba/<rel>.
-        for rel in embed::skill_files("naba") {
+        for rel in embed::skill_files_mcp("naba") {
             let uri = format!("skill://naba/{rel}");
             assert!(uris.contains(&uri.as_str()), "missing {uri}");
         }
@@ -1241,8 +1241,19 @@ mod tests {
             } => {
                 assert_eq!(u, uri);
                 assert_eq!(mime_type.as_deref(), Some("text/markdown"));
-                let expected = embed::read_skill_file("naba", "SKILL.md").unwrap();
+                // MCP serves the MCP render (plan-008 Issue 3.4, SPEC-MCP-014/015), not the
+                // CLI tree.
+                let expected = embed::read_skill_file_mcp("naba", "SKILL.md").unwrap();
                 assert_eq!(text.as_bytes(), expected);
+                // The MCP variant is subtractive: no CLI router / preflight / Bash mechanics.
+                assert!(
+                    !text.contains("## Router") && !text.contains("## Preflight"),
+                    "MCP SKILL.md must drop the CLI router/preflight sections"
+                );
+                assert!(
+                    text.contains("### Prompt engineering"),
+                    "MCP SKILL.md keeps the shared prompt guidance"
+                );
             }
             other => panic!("expected text contents, got {other:?}"),
         }

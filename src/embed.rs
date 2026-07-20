@@ -28,10 +28,19 @@ use sha2::{Digest, Sha256};
 
 use crate::error::{AppError, AppResult};
 
-/// The embedded `skills/` tree. `include_dir!` embeds every regular file; Go's
-/// `//go:embed skills` excludes dotfile / underscore-prefixed entries, so
-/// [`skill_files`] replicates that exclusion when enumerating the canonical tree.
-static SKILLS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/skills");
+/// The embedded **CLI** skills tree — the `cli/` render of `skills/` produced by `build.rs`
+/// (plan-008 Epic 3), embedded from `$OUT_DIR/cli`. `include_dir!` embeds every regular file;
+/// Go's `//go:embed skills` excluded dotfile / underscore-prefixed entries, so [`skill_files`]
+/// replicates that exclusion when enumerating the canonical tree. This is the tree
+/// `skills install` deploys; the CLI render is byte-identical to the source, preserving the
+/// pinned tree hash.
+static SKILLS: Dir<'static> = include_dir!("$OUT_DIR/cli");
+
+/// The embedded **MCP** skills tree — the `mcp/` render of `skills/` (plan-008 Epic 3, Issue
+/// 3.4), embedded from `$OUT_DIR/mcp`. Served by the MCP `skill://` resource surface so hosts
+/// get MCP-flavored skill content (no CLI router / preflight / Bash mechanics), fixing
+/// SPEC-MCP-014/015. Never written to disk by `skills install`.
+static SKILLS_MCP: Dir<'static> = include_dir!("$OUT_DIR/mcp");
 
 /// Opens the hidden integrity marker injected into a deployed SKILL.md
 /// (SPEC-EMBED-001). Mirrors Go's `MarkerPrefix`.
@@ -60,8 +69,19 @@ pub fn skill_names() -> Vec<String> {
 /// `//go:embed` default set exactly — the canonical tree (and therefore its hash) must
 /// contain the same files Go embeds, or the digest will not match.
 pub fn skill_files(name: &str) -> Vec<String> {
+    skill_files_in(&SKILLS, name)
+}
+
+/// Like [`skill_files`], but enumerates the **MCP** render (`mcp/` tree) served by the
+/// `skill://` resource surface (plan-008 Issue 3.4).
+pub fn skill_files_mcp(name: &str) -> Vec<String> {
+    skill_files_in(&SKILLS_MCP, name)
+}
+
+/// Shared enumeration over an embedded skill tree (the CLI `cli/` or MCP `mcp/` render).
+fn skill_files_in(root: &Dir<'static>, name: &str) -> Vec<String> {
     let mut rels = Vec::new();
-    if let Some(dir) = SKILLS.get_dir(name) {
+    if let Some(dir) = root.get_dir(name) {
         let mut files = Vec::new();
         collect_files(dir, &mut files);
         let prefix = format!("{name}/");
@@ -79,10 +99,18 @@ pub fn skill_files(name: &str) -> Vec<String> {
 }
 
 /// Returns the bytes of a file within an embedded skill, addressed by a skill-relative
-/// slash path, or `None` when absent.
+/// slash path, or `None` when absent (CLI `cli/` tree).
 pub fn read_skill_file(name: &str, rel: &str) -> Option<&'static [u8]> {
     let path = format!("{name}/{}", rel.replace('\\', "/"));
     SKILLS.get_file(&path).map(File::contents)
+}
+
+/// Like [`read_skill_file`], but reads from the **MCP** render (`mcp/` tree) — the content the
+/// `skill://` resource surface serves so MCP hosts get MCP-flavored skill text, not the CLI
+/// router/preflight/Bash mechanics (plan-008 Issue 3.4, SPEC-MCP-014/015).
+pub fn read_skill_file_mcp(name: &str, rel: &str) -> Option<&'static [u8]> {
+    let path = format!("{name}/{}", rel.replace('\\', "/"));
+    SKILLS_MCP.get_file(&path).map(File::contents)
 }
 
 /// Canonical hash of an embedded skill tree (marker-free — repo source carries no

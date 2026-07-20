@@ -27,6 +27,7 @@ One skill for the whole `naba` image toolkit. Invoked as `/naba <subcommand> [ar
 This file is the single source of truth for the router and the shared guidance below;
 each subcommand's unique detail (usage, flags, examples) lives in `commands/<sub>.md`.
 
+{% if cli %}
 ## Preflight
 
 At trigger time — **before** dispatching any subcommand — run the fast skill-gate once and
@@ -103,6 +104,7 @@ The subagent's own grant supplies its file-writing tools (`Bash` for the `naba` 
 tier) and `Agent` (to spawn). Do not rely on the child having `Glob` — write each item to an
 explicit `-o "<dir>/<name>.png"` and list results with `Bash` (`ls`) so the composite works
 even when the subagent lacks a `Glob` grant.
+{% endif %}
 
 ## Shared guidance
 
@@ -146,6 +148,7 @@ explicit `-o "<dir>/<name>.png"` rooted at the CWD (e.g. `./<set-name>/`) so fil
 collide. Never inject a global or home-dir output path (`~/Downloads`, etc.); let the CWD
 default stand unless the user or context specifies otherwise.
 
+{% if cli %}
 ### Global flags
 
 Available on every `naba` subcommand:
@@ -158,6 +161,7 @@ Available on every `naba` subcommand:
 | `--provider` |      | Provider: `gemini` or `openrouter`. |
 | `--model`    | `-m` | Override the model (requires `--provider`). |
 | `--preview`  |      | Open the result in the system viewer. |
+{% endif %}
 
 ### Provider selection
 
