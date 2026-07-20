@@ -39,8 +39,14 @@ Bedrock + the nested per-provider config schema) — feeding two new `derived` w
 (`web-skills`, `web-mcp`) plus the rewritten config page, via `e-web-config-providers`,
 `e-web-skills-lifecycle`, `e-web-skills-subcommands`, and `e-web-mcp-tools`; and a
 README ↔ web install/config sync edge (`e-readme-web-install`) was added so the project README
-and the site's install/config pages stay in agreement. The engine enforces this manifest; it is
-a silent no-op only while `approved: no`.
+and the site's install/config pages stay in agreement. **Re-approved for the plan-008 dual-purpose
+skills render (2026-07-20):** `skills/naba/SKILL.md` is now a **minijinja template** gated by
+`{% if cli %}`; `build.rs` renders it into two embedded trees under `$OUT_DIR` — `cli/` (embedded
+via `include_dir!("$OUT_DIR/cli")`, byte-identical to the source, the tree `skills install`
+deploys) and `mcp/` (the subtractive MCP-flavored render the `skill://` resource surface serves).
+The `e-installer-skillset` contract text was updated accordingly; the source `skills/naba/` dir
+does **not** move (the render targets `$OUT_DIR`), so no `skill-md`/`commands` node glob change is
+needed. The engine enforces this manifest; it is a silent no-op only while `approved: no`.
 
 ## 1. Artifact Nodes
 
@@ -107,7 +113,7 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-readme-prereqs` | `field-set-subset` | the `skills/naba/README.md` Prerequisites match the SKILL.md frontmatter `depends-on-tool` (`[naba]`). Source is frontmatter `depends-on-tool`, not a prereq script. |
 | `e-readme-usage` | `section-present` | the `skills/naba/README.md` Subcommands table lists every `skills/naba/commands/<sub>.md` (one `/naba <sub>` row per command file). |
 | `e-readme-desc` | `value-equal` | the `skills/naba/README.md` intro/description matches the SKILL.md `description` intent. |
-| `e-installer-skillset` | `field-set-equal` | the `naba skills` installer (`src/skills.rs`, operating over the binary-embedded `skills/` tree in `src/embed.rs`) deploys exactly the on-disk skill set — one dir per `skills/*/` (one skill: `naba`) — and on `install`/`upgrade` injects the integrity marker into the deployed `SKILL.md`. The embed is the compile-time `include_dir!("skills")`; the deployed set equals the source set by construction. |
+| `e-installer-skillset` | `field-set-equal` | the `naba skills` installer (`src/skills.rs`, operating over the binary-embedded skill tree in `src/embed.rs`) deploys exactly the skill set — one dir per skill (one skill: `naba`) — and on `install`/`upgrade` injects the integrity marker into the deployed `SKILL.md`. `skills/naba/SKILL.md` is a **minijinja template**; `build.rs` renders it into `$OUT_DIR/cli` + `$OUT_DIR/mcp`, and the embed is `include_dir!("$OUT_DIR/cli")` — the installer deploys the **rendered `cli/` tree** (byte-identical to the source, so the deployed file set still equals the `skills/naba/` source set by construction). The MCP `skill://` surface serves the parallel `mcp/` render. |
 | `e-index-table` | `field-set-equal` | the project README "Subcommands" table lists exactly the subcommands in the SKILL.md dispatch table / `skills/naba/commands/` dir (same set, no extras or omissions). |
 | `e-cli-subcommand` | `identifier-matches` | every `naba <verb>` an inline `commands/*.md` invokes (generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`. Composite `commands/*.md` (storyboard/batch/brand-kit) invoke only those same verbs — no new command. CLI source is the fixed authority. |
 | `e-skill-preflight` | `identifier-matches` | the `naba skills preflight` invocation in the SKILL.md `## Preflight` section, and any `naba self …` verb the docs reference, correspond to real clap subcommands in `src/cli.rs` (`SkillsCommand::Preflight`, `Commands::SelfCmd` → `Update`/`Install`/`Uninstall`). CLI source is the fixed authority. |
