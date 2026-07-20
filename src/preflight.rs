@@ -29,7 +29,7 @@ use crate::version;
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
-    pub surface: String,
+    pub harness: String,
     pub target: String,
 }
 
@@ -158,7 +158,7 @@ pub fn run(opts: &Opts, globals: &Globals) -> AppResult<()> {
     let auth = auth_axis(&provider, &key, key_name);
 
     // Skills axis (embed status against the resolved dest).
-    let per_skill = match crate::skills::resolve_dest(&opts.scope, &opts.surface, &opts.target) {
+    let per_skill = match crate::skills::resolve_dest(&opts.scope, &opts.harness, &opts.target) {
         Ok(dest) => embed::skill_names()
             .into_iter()
             .map(|name| {

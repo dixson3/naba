@@ -116,9 +116,55 @@ pub fn resolve_subpath(scope: &str, harness: &str) -> String {
     format!(".{harness}/skills")
 }
 
+/// Resolve the effective harness list from repeatable `--harness` values plus a deprecated
+/// single `--surface`. Every value is alias-mapped (`claude`→`claude-code`); an empty result
+/// defaults to [`DEFAULT_HARNESS`]. Used by the multi-target `skills` group.
+pub fn resolve_harness_list(harness: &[String], surface: Option<&str>) -> Vec<String> {
+    let mut out: Vec<String> = harness.iter().map(|h| surface_alias(h)).collect();
+    if let Some(s) = surface {
+        out.push(surface_alias(s));
+    }
+    if out.is_empty() {
+        out.push(DEFAULT_HARNESS.to_string());
+    }
+    out
+}
+
+/// Resolve a single harness id from an optional `--harness` and deprecated `--surface`
+/// (`--harness` wins). Used by single-dest consumers like `doctor`.
+pub fn resolve_single(harness: Option<&str>, surface: Option<&str>) -> String {
+    if let Some(h) = harness {
+        return surface_alias(h);
+    }
+    if let Some(s) = surface {
+        return surface_alias(s);
+    }
+    DEFAULT_HARNESS.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_list_defaults_maps_and_appends_surface() {
+        assert_eq!(resolve_harness_list(&[], None), vec!["claude-code"]);
+        assert_eq!(
+            resolve_harness_list(&["opencode".into(), "claude".into()], None),
+            vec!["opencode", "claude-code"]
+        );
+        assert_eq!(
+            resolve_harness_list(&["pi".into()], Some("agents")),
+            vec!["pi", "agents"]
+        );
+    }
+
+    #[test]
+    fn resolve_single_prefers_harness_then_surface_then_default() {
+        assert_eq!(resolve_single(Some("codex"), None), "codex");
+        assert_eq!(resolve_single(None, Some("claude")), "claude-code");
+        assert_eq!(resolve_single(None, None), "claude-code");
+    }
 
     #[test]
     fn table_has_five_canonical_rows() {
@@ -128,7 +174,10 @@ mod tests {
 
     #[test]
     fn lookup_finds_and_misses() {
-        assert_eq!(lookup("opencode").unwrap().project_subpath, ".opencode/skills");
+        assert_eq!(
+            lookup("opencode").unwrap().project_subpath,
+            ".opencode/skills"
+        );
         assert!(lookup("nope").is_none());
     }
 
@@ -141,7 +190,10 @@ mod tests {
 
     #[test]
     fn resolve_subpath_split_user_vs_project() {
-        assert_eq!(resolve_subpath("user", "opencode"), ".config/opencode/skills");
+        assert_eq!(
+            resolve_subpath("user", "opencode"),
+            ".config/opencode/skills"
+        );
         assert_eq!(resolve_subpath("project", "opencode"), ".opencode/skills");
         assert_eq!(resolve_subpath("user", "pi"), ".pi/agent/skills");
         assert_eq!(resolve_subpath("project", "pi"), ".pi/skills");

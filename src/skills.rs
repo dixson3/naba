@@ -37,7 +37,10 @@ impl Mode {
 #[derive(Debug, Clone)]
 pub struct Opts {
     pub scope: String,
-    pub surface: String,
+    /// One or more resolved harness ids (`--harness`, repeatable; alias-mapped from the
+    /// deprecated `--surface`). Epic 1 resolves the first; the multi-target install loop +
+    /// receipt upsert lands in Epic 2 (Issue 2.2/2.3).
+    pub harnesses: Vec<String>,
     pub target: String,
     pub dry_run: bool,
     pub quiet: bool,
@@ -85,24 +88,36 @@ struct SkillsStatusReport {
     skills: Vec<SkillStatusItem>,
 }
 
-/// `resolve_dest` mirrors the legacy installer's destination resolution: an explicit
-/// `target` wins; otherwise the anchor is `$HOME` (user scope) or the git root / cwd
-/// (project scope), joined with `.<surface>/skills` (SPEC-SKILLS-003). Shared by
-/// `naba skills` and `naba doctor`.
-pub fn resolve_dest(scope: &str, surface: &str, target: &str) -> AppResult<PathBuf> {
+/// `resolve_dest` is harness-aware (plan-008, Issue 1.3): an explicit `target` wins; otherwise
+/// the anchor is `$HOME` (user scope) or the git root / cwd (project scope), joined with the
+/// harness's scope-appropriate subpath from the [`crate::harness`] descriptor table
+/// (SPEC-SKILLS harness-layout). A canonical harness (`claude-code`, `opencode`, `pi`, `codex`,
+/// `agents`) uses its idiomatic subpath; an unknown/legacy id falls back to the uniform
+/// `.<id>/skills` layout so deprecated `--surface` values still resolve to their historical
+/// directory. Shared by `naba skills`, `naba doctor`, and `naba skills preflight`.
+pub fn resolve_dest(scope: &str, harness: &str, target: &str) -> AppResult<PathBuf> {
     if !target.is_empty() {
         return Ok(PathBuf::from(target));
     }
     let anchor = if scope == "project" {
         git_root_or_cwd()
     } else {
-        let home = std::env::var_os("HOME")
+        std::env::var_os("HOME")
             .map(PathBuf::from)
             .filter(|p| !p.as_os_str().is_empty())
-            .ok_or_else(|| AppError::general("$HOME is not defined"))?;
-        home
+            .ok_or_else(|| AppError::general("$HOME is not defined"))?
     };
-    Ok(anchor.join(format!(".{surface}")).join("skills"))
+    Ok(anchor.join(crate::harness::resolve_subpath(scope, harness)))
+}
+
+/// The harness a single-dest `skills`/`doctor`/`preflight` operation resolves against. Epic 1
+/// uses the first requested harness (default `claude-code`); the multi-harness install loop is
+/// Issue 2.2.
+fn primary_harness(harnesses: &[String]) -> &str {
+    harnesses
+        .first()
+        .map(String::as_str)
+        .unwrap_or(crate::harness::DEFAULT_HARNESS)
 }
 
 /// Git repository root (`git rev-parse --show-toplevel`), falling back to the current
@@ -126,7 +141,7 @@ fn git_root_or_cwd() -> PathBuf {
 /// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006) instead of the
 /// human lines.
 pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
-    let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+    let dest = resolve_dest(&opts.scope, primary_harness(&opts.harnesses), &opts.target)?;
     let mut items = Vec::new();
     for name in embed::skill_names() {
         let item = match mode {
@@ -151,7 +166,7 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
 /// `skills status`: print a one-line status per embedded skill (Go's `skillsStatusCmd`), or the
 /// universal envelope under `--json` (SPEC-JSON-006).
 pub fn status(opts: &Opts) -> AppResult<()> {
-    let dest = resolve_dest(&opts.scope, &opts.surface, &opts.target)?;
+    let dest = resolve_dest(&opts.scope, primary_harness(&opts.harnesses), &opts.target)?;
     let mut items = Vec::new();
     for name in embed::skill_names() {
         let st = embed::skill_status(&name, &dest.join(&name));
@@ -364,7 +379,7 @@ mod tests {
     fn opts(target: &Path) -> Opts {
         Opts {
             scope: "user".into(),
-            surface: "claude".into(),
+            harnesses: vec!["claude-code".into()],
             target: target.to_string_lossy().into_owned(),
             dry_run: false,
             quiet: false,
@@ -374,18 +389,56 @@ mod tests {
 
     #[test]
     fn resolve_dest_target_wins() {
-        let d = resolve_dest("user", "claude", "/tmp/explicit").unwrap();
+        let d = resolve_dest("user", "claude-code", "/tmp/explicit").unwrap();
         assert_eq!(d, PathBuf::from("/tmp/explicit"));
     }
 
+    /// The harness-layout gate test (SKILL.md Capability Gate: Harness path validation, the
+    /// CI baseline sourced from Issue 1.3): `resolve_dest` produces the correct idiomatic path
+    /// for every harness × scope, matching the descriptor table.
     #[test]
-    fn resolve_dest_user_scope_joins_surface_skills() {
-        // With an explicit HOME the user anchor is $HOME/.<surface>/skills.
-        let prev = std::env::var_os("HOME");
+    fn resolve_dest_harness_paths() {
+        let prev_home = std::env::var_os("HOME");
         std::env::set_var("HOME", "/home/tester");
-        let d = resolve_dest("user", "agents", "").unwrap();
-        assert_eq!(d, PathBuf::from("/home/tester/.agents/skills"));
-        match prev {
+
+        // User scope: anchored at $HOME, per-harness idiomatic subpath.
+        let user_cases = [
+            ("claude-code", "/home/tester/.claude/skills"),
+            ("opencode", "/home/tester/.config/opencode/skills"),
+            ("pi", "/home/tester/.pi/agent/skills"),
+            ("codex", "/home/tester/.agents/skills"),
+            ("agents", "/home/tester/.agents/skills"),
+            // legacy --surface value maps through the alias before resolution
+            ("claude", "/home/tester/.claude/skills"),
+        ];
+        for (harness, expect) in user_cases {
+            let h = crate::harness::surface_alias(harness);
+            assert_eq!(
+                resolve_dest("user", &h, "").unwrap(),
+                PathBuf::from(expect),
+                "user harness {harness}"
+            );
+        }
+
+        std::env::set_var("HOME", "/home/tester2");
+        // Project scope is anchored at the git root/cwd; assert the trailing subpath per harness.
+        let proj_cases = [
+            ("claude-code", ".claude/skills"),
+            ("opencode", ".opencode/skills"),
+            ("pi", ".pi/skills"),
+            ("codex", ".agents/skills"),
+            ("agents", ".agents/skills"),
+        ];
+        for (harness, sub) in proj_cases {
+            let d = resolve_dest("project", harness, "").unwrap();
+            assert!(
+                d.ends_with(sub),
+                "project harness {harness}: {} should end with {sub}",
+                d.display()
+            );
+        }
+
+        match prev_home {
             Some(v) => std::env::set_var("HOME", v),
             None => std::env::remove_var("HOME"),
         }
