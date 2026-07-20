@@ -554,6 +554,15 @@ response mimeType. They differ when the extension was corrected.
 | 5 | API error |
 | 10 | File I/O error |
 
+## Contributing
+
+Contributions are welcome — including AI-assisted ones (naba is itself built with
+AI agents). See [CONTRIBUTING.md](CONTRIBUTING.md) for how the project is
+constructed, the local validation gate every change must pass, how to file issues,
+and the AI-assisted contribution policy. Please also read the
+[Code of Conduct](CODE_OF_CONDUCT.md); report security issues privately per the
+[Security Policy](SECURITY.md).
+
 ## License
 
 MIT - see [LICENSE](LICENSE)
