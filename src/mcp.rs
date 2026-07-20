@@ -699,7 +699,7 @@ fn get_i64_slice(args: &Map<String, Value>, key: &str, default: &[i64]) -> Vec<i
 
 // ---------------------------------------------------------------------------
 // Tool schema assembly (SPEC-MCP-002..011). Schemas are hand-built serde_json to match the
-// Go-captured golden verbatim (types, enums, defaults, required order, descriptions).
+// pinned golden verbatim (types, enums, defaults, required order, descriptions).
 // ---------------------------------------------------------------------------
 
 /// The 8 pinned MCP tools with their exact input schemas.

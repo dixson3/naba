@@ -1,10 +1,9 @@
 # naba parity harness (`tests/parity/`)
 
-Black-box regression harness for the naba **Go -> Rust port** (plan-004). It drives the
-binary under test as an opaque process and inspects only observable behavior — stdout,
-stderr, exit code, files written, and the outgoing HTTP requests captured by a mock
-provider. It imports **no** Go or Rust internals, so the identical suite runs unchanged
-against either implementation.
+Black-box regression harness for the shipped **naba Rust CLI**. It drives the binary under
+test as an opaque process and inspects only observable behavior — stdout, stderr, exit
+code, files written, and the outgoing HTTP requests captured by a mock provider. It imports
+**no** naba internals, so it is a pure golden/behavioral suite over the binary.
 
 This directory delivers the **infrastructure** (Issue 1.2). The case table
 (`cases/*.yaml`, Issue 1.3) and captured goldens (Issue 1.4) are separate; the runner is
@@ -89,7 +88,7 @@ NABA_BIN="$PWD/target/release/naba"    uv run --project tests/parity pytest test
 
 | Fixture         | Scope    | Purpose |
 |:----------------|:---------|:--------|
-| `naba_bin`      | session  | Resolves `$NABA_BIN` (or the Go build) and asserts it exists. |
+| `naba_bin`      | session  | Resolves `$NABA_BIN` (the built `naba` binary) and asserts it exists. |
 | `runner`        | function | A `NabaRunner` bound to `naba_bin`. |
 | `config_dir`    | function | Isolated temp `NABA_CONFIG_DIR`. |
 | `output_dir`    | function | Isolated temp `NABA_OUTPUT_DIR` (MCP output path; SPEC-CFGSCHEMA-005). |
@@ -109,8 +108,7 @@ NABA_BIN="$PWD/target/release/naba"    uv run --project tests/parity pytest test
 - **`mock_provider.py`** — `ProviderMock`. Serves and **records**:
   - Gemini `POST /models/{model}:generateContent` -> canned inline-data PNG.
   - Gemini `GET /models?pageSize=1000` -> two-model list (doctor / list_models).
-  - OpenRouter `POST /api/v1/images` -> canned `data[].b64_json` PNG (forward-looking; the
-    Go binary speaks only Gemini today).
+  - OpenRouter `POST /api/v1/images` -> canned `data[].b64_json` PNG (the OpenRouter provider path).
 
   Every request's method, path, query, headers, and parsed JSON body are recorded so tests
   can assert the outgoing request shape (enriched prompt, `imageConfig`, `x-goog-api-key` /
@@ -179,16 +177,15 @@ parity driver uses: `--update-golden` (or `UPDATE_GOLDEN=1`).
 - **SPEC-MCP-012** — `resources/templates/list`: the `file:///{path}` template metadata
   (uri / name / description / `image/*` MIME).
 
-### Known Go limitation (xfail)
+### `resources/read` slash-path handling (dynamic xfail)
 
-`resources/read` of a real generated path **xfails on the Go binary**: mcp-go registers
-the template `file:///{path}` with RFC 6570 *simple* expansion, whose generated regexp
-does not match `/`, so an absolute path (`file:///var/.../naba-...png`) never matches and
-the read is rejected with `resource not found`. The test asserts the blob (base64) + MIME
-by extension on any server that can serve the read (a Rust port using a slash-matching /
-reserved-expansion template), and `xfail`s with that reason otherwise. Likewise,
-`no output directory configured` is only reachable with an **empty** `HOME` (the SDK
-re-seeds a default `HOME`; Go's `os.UserHomeDir` errors only on empty), which the test
+The shipped Rust binary serves `resources/read` of a real generated path (`file:///var/.../
+naba-...png`) using a slash-matching / RFC 6570 reserved-expansion template, so the test
+asserts the blob (base64) + MIME by extension and **passes**. The test keeps a dynamic
+`xfail` guard for any server whose template uses *simple* expansion (whose regexp does not
+match `/`, rejecting the read with `resource not found`) — that path applied to the
+now-retired Go build and no longer fires on the Rust binary. Separately,
+`no output directory configured` is only reachable with an **empty** `HOME`, which the test
 forces explicitly.
 
 ## SPEC clauses the harness already exercises
