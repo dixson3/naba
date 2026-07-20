@@ -73,4 +73,12 @@ _Optional._ Terms, acronyms, or project-specific jargon the plan uses.
 
 ## Additional context
 
-_Optional._ Anything else a cold reader needs that does not fit above.
+### Push authorization (operator directive, 2026-07-20)
+
+The operator **pre-authorized the `git push` at plan-execution completion** (yf-plan Phase 6
+push handoff / land-the-plane) — *not* at intake. The INTAKE commits are already on **local
+`main`, unpushed** (`1502c6e` approved + `f63b161` land-merge); leave them unpushed. When
+execution completes and Phase 6 merges the execute branch back to `main` and re-validates the
+merged tree, **push then** (`git push`, and `bd dolt push` if a Dolt remote is configured),
+bundling the intake commits with the execution commits. This satisfies the conservative
+authorized-only push contract — the authorization is recorded here rather than executed early.
