@@ -50,15 +50,28 @@ the `commands/` directory, and the README subcommand table together.
   5.3). Either is acceptable; the choice is recorded in Issue 4.0. The parity suite pins the
   status **semantics** (up-to-date/complete/unmodified flags behave correctly against a
   freshly-installed tree), not the hash literal.
-- **SPEC-EMBED-005** [NEW — plan-008] **Dual-purpose two-tree render.** `skills/naba/SKILL.md`
-  is a **minijinja template** gated by `{% if cli %}` / `{% if mcp %}`; `build.rs` renders the
-  single `skills/` source into two trees under `$OUT_DIR` — `cli/` (embedded via
-  `include_dir!("$OUT_DIR/cli")`, the tree `skills install` deploys) and `mcp/` (the
-  **subtractive**, MCP-flavored render served by the `skill://` MCP resource surface,
-  SPEC-MCP-014/015). Every non-`SKILL.md` file is copied **verbatim** into both trees. The `cli/`
-  render is authored to be **byte-identical to the source**, so the SPEC-EMBED-002 canonical tree
-  hash is **preserved** — existing installs keep matching and no forced post-cutover `upgrade` is
-  triggered by the render.
+- **SPEC-EMBED-005** [NEW — plan-008; amended plan-011] **Dual-purpose two-tree render.**
+  `skills/naba/SKILL.md` is a **minijinja template** gated by `{% if cli %}` / `{% if mcp %}`;
+  `build.rs` renders the single `skills/` source into two trees under `$OUT_DIR` — `cli/`
+  (embedded via `include_dir!("$OUT_DIR/cli")`, the tree `skills install` deploys) and `mcp/`
+  (served by the `skill://` MCP resource surface, SPEC-MCP-014/015). The two renders are
+  **authored, not subtractive** — the `mcp/` render carries genuine MCP-tool guidance rather than
+  a stripped copy of the CLI command docs:
+  - **`cli/` render** = the source tree **minus** the mcp-only subtree (`skills/<skill>/mcp/…`),
+    with `SKILL.md` rendered under `cli` and every other retained file copied verbatim. It is
+    **byte-identical to the source** (the `mcp/` subtree and every `{% if mcp %}` block vanish
+    under `cli`), so the SPEC-EMBED-002 canonical tree hash is **preserved** — existing installs
+    keep matching and no forced post-cutover `upgrade` is triggered by the render.
+  - **`mcp/` render** = the **MCP-authored** variant: `SKILL.md` rendered under `mcp` (its
+    `{% if mcp %}` guide body — MCP tool catalog, prompt engineering, `NABA_OUTPUT_DIR`/output-dir
+    resolution, quality semantics, `file://` result links; **no `/naba` slash commands, no
+    `--flag` tokens**) **plus** the mcp-only source subtree `skills/<skill>/mcp/…`, routed into
+    the `mcp/` tree only. The CLI `commands/*.md` and the `README.md` are **excluded** from the
+    `mcp/` render.
+
+  The `mcp/` tree is **neither hashed by SPEC-EMBED-002 nor deployed by `skills install`**
+  (`embedded_tree_hash` reads only `$OUT_DIR/cli`), so the MCP-authored content may diverge freely
+  from the CLI tree without affecting install-integrity status.
 
 ---
 

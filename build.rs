@@ -67,12 +67,21 @@ fn main() {
     render_skill_trees();
 }
 
-/// Render the single `skills/` source into two variants under `$OUT_DIR` (plan-008 Epic 3):
-/// `$OUT_DIR/cli/<skill>/…` (the tree `embed.rs` embeds + `skills install` deploys) and
-/// `$OUT_DIR/mcp/<skill>/…` (served by the MCP resource surface). `SKILL.md` is a minijinja
-/// template gated by `{% if cli %}` / `{% if mcp %}`; every other file is copied verbatim. The
-/// CLI render is authored to be byte-identical to the source (trim/lstrip block whitespace
-/// control), so the pinned `embed.rs` tree hash is preserved.
+/// Render the single `skills/` source into two **authored** variants under `$OUT_DIR`
+/// (plan-008 Epic 3; authored render, plan-011): `$OUT_DIR/cli/<skill>/…` (the tree `embed.rs`
+/// embeds + `skills install` deploys) and `$OUT_DIR/mcp/<skill>/…` (served by the MCP resource
+/// surface). `SKILL.md` is a minijinja template gated by `{% if cli %}` / `{% if mcp %}` and
+/// rendered into **both** trees. The remaining files are routed by path (SPEC-EMBED-005):
+///
+/// - the mcp-only subtree `skills/<skill>/mcp/…` → the **mcp** tree only;
+/// - the CLI `commands/*.md` and the skill `README.md` → the **cli** tree only;
+/// - anything else → both trees, verbatim.
+///
+/// So the cli render = source **minus** the `mcp/` subtree (byte-identical to the source — the
+/// `mcp/` subtree and every `{% if mcp %}` block vanish under `cli`, via trim/lstrip block
+/// whitespace control — so the pinned `embed.rs` tree hash is preserved), and the mcp render =
+/// the `SKILL.md` `{% if mcp %}` guide body plus the `mcp/` subtree, with `commands/*.md` and
+/// `README.md` excluded.
 fn render_skill_trees() {
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
     let src_root = Path::new(&manifest).join("skills");
@@ -123,13 +132,23 @@ fn render_dir(
         let rel = path.strip_prefix(src_root).expect("rel under src_root");
         let cli_dst = cli_root.join(rel);
         let mcp_dst = mcp_root.join(rel);
-        for dst in [&cli_dst, &mcp_dst] {
-            if let Some(parent) = dst.parent() {
-                std::fs::create_dir_all(parent).expect("mkdir out subdir");
-            }
-        }
-        // `SKILL.md` is the only templated file; everything else is copied verbatim.
+
+        // Route by path (SPEC-EMBED-005, authored render). `rel` is `<skill>/<skill-rel…>`;
+        // the skill-relative first component decides the tree(s). `SKILL.md` (at skill root)
+        // is the only templated file and renders into both trees.
+        let comps: Vec<std::ffi::OsString> = rel
+            .components()
+            .map(|c| c.as_os_str().to_os_string())
+            .collect();
+        let sub = comps.get(1).map(|c| c.to_string_lossy().into_owned());
+        let in_mcp_subtree = sub.as_deref() == Some("mcp");
+        let in_commands = sub.as_deref() == Some("commands");
+        let is_readme_at_root = comps.len() == 2 && name == "README.md";
+
         if name == "SKILL.md" {
+            // Templated into both trees.
+            std::fs::create_dir_all(cli_dst.parent().unwrap()).expect("mkdir cli subdir");
+            std::fs::create_dir_all(mcp_dst.parent().unwrap()).expect("mkdir mcp subdir");
             let source = std::fs::read_to_string(&path).expect("read SKILL.md");
             let cli = env
                 .render_str(&source, minijinja::context! { cli => true, mcp => false })
@@ -139,7 +158,18 @@ fn render_dir(
                 .expect("render SKILL.md (mcp)");
             std::fs::write(&cli_dst, cli).expect("write cli SKILL.md");
             std::fs::write(&mcp_dst, mcp).expect("write mcp SKILL.md");
+        } else if in_mcp_subtree {
+            // mcp-only authored content → mcp tree only.
+            std::fs::create_dir_all(mcp_dst.parent().unwrap()).expect("mkdir mcp subdir");
+            std::fs::copy(&path, &mcp_dst).expect("copy mcp file");
+        } else if in_commands || is_readme_at_root {
+            // CLI command docs + skill README → cli tree only (excluded from the mcp render).
+            std::fs::create_dir_all(cli_dst.parent().unwrap()).expect("mkdir cli subdir");
+            std::fs::copy(&path, &cli_dst).expect("copy cli file");
         } else {
+            // Anything else → both trees, verbatim.
+            std::fs::create_dir_all(cli_dst.parent().unwrap()).expect("mkdir cli subdir");
+            std::fs::create_dir_all(mcp_dst.parent().unwrap()).expect("mkdir mcp subdir");
             std::fs::copy(&path, &cli_dst).expect("copy cli file");
             std::fs::copy(&path, &mcp_dst).expect("copy mcp file");
         }

@@ -86,13 +86,22 @@ images in the output directory, newest first.
 
 ## Lazy-loading skills as resources
 
-Beyond the generated `file://` image links, the server exposes naba's embedded skill tree as
-MCP **resources** under a `skill://` URI scheme — the lazy-loading pattern:
+Beyond the generated `file://` image links, the server exposes **MCP-authored usage guidance**
+for its tools as MCP **resources** under a `skill://` URI scheme — the lazy-loading pattern.
 
-- **`resources/list`** enumerates the embedded skill tree cheaply. Per embedded skill `<name>`
-  it emits a compact `skill://<name>` index resource plus one `skill://<name>/<rel>` resource
-  per file (`SKILL.md`, `commands/*.md`, `README.md`). Listing carries **URIs and metadata
-  only — never file bodies** — so discovery is cheap.
+The important part: this guidance is written *for the MCP tools*, not borrowed from the CLI. naba
+renders its skill source into two variants — the `/naba` slash-command skill the
+[skills page](/skills/) deploys, and a separate **MCP render** served here. The MCP render
+describes calling `generate_image`, `edit_image`, and friends by **tool name and parameters**,
+with `NABA_OUTPUT_DIR` output resolution and `file://` result links — and **no `/naba` slash
+commands and no `--flags`**, because none of those exist in an MCP session. So a desktop assistant
+fetches guidance it can actually act on, instead of instructions about a shell it doesn't have.
+
+- **`resources/list`** enumerates the MCP render cheaply. Per embedded skill `<name>` it emits a
+  compact `skill://<name>` index resource plus one `skill://<name>/<rel>` resource per file — the
+  MCP guide (`SKILL.md`) plus any per-tool notes (`mcp/*.md`). The CLI command docs
+  (`commands/*.md`) and the skill `README.md` are **not** served here. Listing carries **URIs and
+  metadata only — never file bodies** — so discovery is cheap.
 - **`resources/read`** serves content on demand:
   - `skill://<name>/<rel>` returns that embedded file as text (MIME by extension —
     `text/markdown` for `.md`).
@@ -100,8 +109,10 @@ MCP **resources** under a `skill://` URI scheme — the lazy-loading pattern:
   - `file://<path>` returns a generated image by path (the reserved `file:///{path}` resource
     template).
 
-A client discovers skills up front and pulls full instruction content only when it needs it,
-so tool schemas and the resource listing both stay lean.
+Each generation tool's `description` also carries a one-line pointer to `skill://naba`, so the
+assistant knows the guidance exists and can fetch it on demand. Always-loaded context stays
+minimal — the assistant discovers skills up front and pulls the full instruction content only when
+it needs it, so tool schemas and the resource listing both stay lean.
 
 ## Related
 

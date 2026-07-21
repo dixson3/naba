@@ -16,7 +16,9 @@ What this file covers
   server can be byte-diffed against the Go-captured expectation. The ``quality``
   param description is normalized to ``<QUALITY_DESC>`` because it is a
   [DIVERGENCE] under multi-provider (SPEC-MCP-003) — inventory/enums are pinned,
-  the exact prose is not.
+  the exact prose is not. Each of the seven generation tools' served description
+  is the pinned base **plus** the uniform lazy-guidance pointer suffix
+  (SPEC-MCP-016); ``list_images`` carries no pointer.
 - **tools/call** — a happy-path ``generate_image`` against the recording
   provider mock (path + ``Format:`` text + ``file://`` resource link, image
   written under ``NABA_OUTPUT_DIR``; SPEC-MCP-004/013), ``edit_image`` /
@@ -174,10 +176,21 @@ ASPECT_DESC = "Aspect ratio (generationConfig.imageConfig.aspectRatio)"
 RESOLUTION_DESC = "Image resolution (generationConfig.imageConfig.imageSize)"
 QUALITY_ENUM = ["fast", "high"]
 
+# SPEC-MCP-016: the uniform lazy-guidance pointer appended to each of the SEVEN generation
+# tools' pinned base description (``list_images`` carries none). Must match ``SKILL_POINTER`` /
+# ``with_pointer()`` in ``src/mcp.rs`` verbatim.
+SKILL_POINTER = "For prompt-engineering and usage guidance, read the skill://naba MCP resource."
+
+
+def _desc(base: str) -> str:
+    """A generation tool's served description: pinned base + the SPEC-MCP-016 pointer."""
+    return f"{base}\n\n{SKILL_POINTER}"
+
+
 # description, required set, and the params whose enum/default/bounds SPEC pins.
 EXPECTED = {
     "generate_image": {
-        "description": "Generate an image from a text prompt",
+        "description": _desc("Generate an image from a text prompt"),
         "required": ["prompt"],
         "imageconfig": True,
         "params": {
@@ -193,19 +206,19 @@ EXPECTED = {
         },
     },
     "edit_image": {
-        "description": "Edit an existing image based on a text prompt",
+        "description": _desc("Edit an existing image based on a text prompt"),
         "required": ["prompt", "file"],
         "imageconfig": True,
         "params": {},
     },
     "restore_image": {
-        "description": "Restore or enhance an existing image",
+        "description": _desc("Restore or enhance an existing image"),
         "required": ["file"],
         "imageconfig": True,
         "params": {},
     },
     "generate_icon": {
-        "description": "Generate app icons in multiple sizes",
+        "description": _desc("Generate app icons in multiple sizes"),
         "required": ["prompt"],
         "imageconfig": False,  # quality only, no aspect/resolution
         "quality_only": True,
@@ -219,7 +232,7 @@ EXPECTED = {
         },
     },
     "generate_pattern": {
-        "description": "Generate seamless patterns and textures",
+        "description": _desc("Generate seamless patterns and textures"),
         "required": ["prompt"],
         "imageconfig": True,
         "params": {
@@ -232,7 +245,7 @@ EXPECTED = {
         },
     },
     "generate_story": {
-        "description": "Generate a sequence of images that tell a visual story",
+        "description": _desc("Generate a sequence of images that tell a visual story"),
         "required": ["prompt"],
         "imageconfig": True,
         "params": {
@@ -245,7 +258,7 @@ EXPECTED = {
         },
     },
     "generate_diagram": {
-        "description": "Generate technical diagrams and flowcharts",
+        "description": _desc("Generate technical diagrams and flowcharts"),
         "required": ["prompt"],
         "imageconfig": True,
         "params": {
@@ -679,11 +692,13 @@ def _norm(uri) -> str:
 
 
 def test_resources_list_enumerates_skill_files(naba_bin, output_dir):
-    """SPEC-MCP-014: resources/list enumerates the embedded skill tree (URIs only).
+    """SPEC-MCP-014: resources/list enumerates the embedded MCP render (URIs only).
 
-    A compact ``skill://naba`` index resource plus one ``skill://naba/<rel>`` resource
-    per embedded skill file (SKILL.md, README.md, commands/*.md). Listing carries paths /
-    metadata only — the resource entries have no file bodies attached (lazy loading).
+    A compact ``skill://naba`` index resource plus one ``skill://naba/<rel>`` resource per
+    file in the **authored MCP render** (SPEC-EMBED-005, plan-011): the ``SKILL.md`` MCP guide
+    plus the mcp-only ``mcp/*.md`` subtree. The CLI ``commands/*.md`` and ``README.md`` are
+    **excluded** — this is a hand-reviewed oracle for the intended surface, not a blind capture.
+    Listing carries paths / metadata only — no file bodies attached (lazy loading).
     """
     async def body(session, init):
         return (await session.list_resources()).resources
@@ -693,9 +708,16 @@ def test_resources_list_enumerates_skill_files(naba_bin, output_dir):
 
     # Compact per-skill index resource.
     assert "skill://naba" in uris, sorted(uris)
-    # The core skill files are enumerated as skill://naba/<rel> resources.
-    for rel in ("SKILL.md", "README.md", "commands/generate.md", "commands/edit.md"):
+    # The MCP-authored files are enumerated as skill://naba/<rel> resources.
+    for rel in ("SKILL.md", "mcp/input-images.md"):
         assert f"skill://naba/{rel}" in uris, f"missing skill://naba/{rel} in {sorted(uris)}"
+    # The CLI command docs and README are NOT served on the MCP surface.
+    assert not any("/commands/" in u for u in uris), (
+        f"MCP render must exclude commands/*.md: {sorted(uris)}"
+    )
+    assert "skill://naba/README.md" not in uris, (
+        f"MCP render must exclude README.md: {sorted(uris)}"
+    )
 
     # Markdown files advertise text/markdown; the listing carries no bodies.
     by_uri = {_norm(r.uri): r for r in resources}
@@ -726,6 +748,15 @@ def test_resources_read_skill_content(naba_bin, output_dir):
     assert text, "expected non-empty skill content"
     # SKILL.md carries the naba skill frontmatter/name (sanity that we served the real file).
     assert "naba" in text
+    # It is the MCP-authored render (SPEC-EMBED-005, plan-011), not the CLI skill: a tool
+    # catalog + prompt engineering, and NO /naba slash commands or --flag tokens.
+    assert "## Tools" in text and "`generate_image`" in text, "expected the MCP tool catalog"
+    assert "## Prompt engineering" in text
+    assert "## Router" not in text and "## Preflight" not in text
+    assert "/naba " not in text and "`/naba" not in text, "MCP render must have no /naba commands"
+    assert not any(  # a CLI long-flag is `--` followed by a letter
+        seg[:1].isalpha() for seg in text.split("--")[1:]
+    ), "MCP render must have no --flag tokens"
 
     # The compact index lists the file URIs (discovery aid).
     idx = read("skill://naba")

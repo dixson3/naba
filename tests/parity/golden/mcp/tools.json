@@ -1,6 +1,6 @@
 [
   {
-    "description": "Edit an existing image based on a text prompt",
+    "description": "Edit an existing image based on a text prompt\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {
@@ -59,7 +59,7 @@
     "name": "edit_image"
   },
   {
-    "description": "Generate technical diagrams and flowcharts",
+    "description": "Generate technical diagrams and flowcharts\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {
@@ -169,7 +169,7 @@
     "name": "generate_diagram"
   },
   {
-    "description": "Generate app icons in multiple sizes",
+    "description": "Generate app icons in multiple sizes\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "background": {
@@ -236,7 +236,7 @@
     "name": "generate_icon"
   },
   {
-    "description": "Generate an image from a text prompt",
+    "description": "Generate an image from a text prompt\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {
@@ -333,7 +333,7 @@
     "name": "generate_image"
   },
   {
-    "description": "Generate seamless patterns and textures",
+    "description": "Generate seamless patterns and textures\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {
@@ -433,7 +433,7 @@
     "name": "generate_pattern"
   },
   {
-    "description": "Generate a sequence of images that tell a visual story",
+    "description": "Generate a sequence of images that tell a visual story\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {
@@ -538,7 +538,7 @@
     "name": "list_images"
   },
   {
-    "description": "Restore or enhance an existing image",
+    "description": "Restore or enhance an existing image\n\nFor prompt-engineering and usage guidance, read the skill://naba MCP resource.",
     "inputSchema": {
       "properties": {
         "aspect": {

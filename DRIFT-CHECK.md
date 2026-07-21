@@ -43,10 +43,10 @@ and the site's install/config pages stay in agreement. **Re-approved for the pla
 skills render (2026-07-20):** `skills/naba/SKILL.md` is now a **minijinja template** gated by
 `{% if cli %}`; `build.rs` renders it into two embedded trees under `$OUT_DIR` — `cli/` (embedded
 via `include_dir!("$OUT_DIR/cli")`, byte-identical to the source, the tree `skills install`
-deploys) and `mcp/` (the subtractive MCP-flavored render the `skill://` resource surface serves).
-The `e-installer-skillset` contract text was updated accordingly; the source `skills/naba/` dir
-does **not** move (the render targets `$OUT_DIR`), so no `skill-md`/`commands` node glob change is
-needed. **Also re-approved for the plan-008 SPEC split (Issue 5.1–5.3, 2026-07-20):** the
+deploys) and `mcp/` (the MCP render the `skill://` resource surface serves — **authored, not
+subtractive**, per the plan-011 re-approval below). The `e-installer-skillset` contract text was
+updated accordingly; the source `skills/naba/` dir does **not** move (the render targets
+`$OUT_DIR`), so no `skill-md`/`commands` node glob change is needed. **Also re-approved for the plan-008 SPEC split (Issue 5.1–5.3, 2026-07-20):** the
 monolithic `SPEC.md` was split into per-domain files under `docs/specifications/` (`SPEC.md` is now
 a redirect stub), so the three spec nodes that pointed into the retired `IG/`/`EDD/` subtrees were
 re-pointed — `skill-spec` (`IG/skills.md` → `docs/specifications/skills.md`), `ig-configuration`
@@ -62,7 +62,20 @@ abstracts — `skill-spec` (skills.md, SKILLS axis) and two newly-declared spec 
 **not** `field-set-equal`: the portable SPEC and the naba specs are not byte-identical. `agent-tools.md`
 is **not** wired into `check_traceability.py`'s required `SPEC-*` set (it uses the distinct
 `AGENT-TOOLS-*` namespace and cites naba clauses as bare IDs). The engine enforces this manifest; it
-is a silent no-op only while `approved: no`.
+is a silent no-op only while `approved: no`. **Re-approved for the plan-011 authored MCP render
+(2026-07-21):** the `mcp/` render is now **authored, not subtractive** (SPEC-EMBED-005, amended) —
+it serves genuine MCP-tool guidance (the `skills/naba/SKILL.md` `{% if mcp %}` guide body plus the
+new mcp-only `skills/naba/mcp/*.md` subtree), with the CLI `commands/*.md` and `README.md`
+**excluded**. Two manifest consequences: (1) a new `skill-mcp` node (`skills/naba/mcp/*.md`) with a
+`cross-ref` edge `e-mcp-skill-tools` (`mcp-source` → `skill-mcp`) keeps the MCP guidance's tool
+references in agreement with the real tools in `src/mcp.rs`; and (2) **intermixed-source scoping**
+— `skills/naba/SKILL.md` is now a dual-render template whose raw source carries both cli- and
+mcp-framed prose (an accepted plan-011 tradeoff), so the prose-comparison edges rooted at the
+`skill-md` node (`e-readme-desc`, `e-skill-spec`, `e-web-skills-subcommands`) read the **cli-framed
+(`{% if cli %}`) sections** — the router, dispatch table, and CLI `description` — never the
+`{% if mcp %}` guide body, which is a separate surface checked by `e-mcp-skill-tools`. The
+tool-`description` pointer (SPEC-MCP-016) rides on the existing `e-web-mcp-tools` edge (the
+`src/mcp.rs` tool surface).
 
 ## 1. Artifact Nodes
 
@@ -73,6 +86,7 @@ is a silent no-op only while `approved: no`.
 | `skill-md` | `skills/naba/SKILL.md` | source | derived | required |
 | `frontmatter-contract` | `skills/naba/SKILL.md` (frontmatter `name` / `skill-group` / `depends-on-tool`) | source | derived | required |
 | `commands` | `skills/naba/commands/*.md` | source | derived | required |
+| `skill-mcp` | `skills/naba/mcp/*.md` | source | derived | required |
 | `skill-readme` | `skills/naba/README.md` | doc | derived | required |
 | `installer` | `src/skills.rs` | source | derived | required |
 | `project-readme` | `README.md` | doc | derived | required |
@@ -118,6 +132,7 @@ is a silent no-op only while `approved: no`.
 | `e-web-skills-lifecycle` | `cli-source` | `web-skills` | cross-ref |
 | `e-web-skills-subcommands` | `skill-md` | `web-skills` | cross-ref |
 | `e-web-mcp-tools` | `mcp-source` | `web-mcp` | cross-ref |
+| `e-mcp-skill-tools` | `mcp-source` | `skill-mcp` | cross-ref |
 | `e-readme-web-install` | `web-install` | `project-readme` | contract |
 | `e-agent-tools-skills` | `skill-spec` | `agent-tools-spec` | cross-ref |
 | `e-agent-tools-mcp` | `mcp-spec` | `agent-tools-spec` | cross-ref |
@@ -134,13 +149,13 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 |:---------|:----------|:--------------|
 | `e-readme-prereqs` | `field-set-subset` | the `skills/naba/README.md` Prerequisites match the SKILL.md frontmatter `depends-on-tool` (`[naba]`). Source is frontmatter `depends-on-tool`, not a prereq script. |
 | `e-readme-usage` | `section-present` | the `skills/naba/README.md` Subcommands table lists every `skills/naba/commands/<sub>.md` (one `/naba <sub>` row per command file). |
-| `e-readme-desc` | `value-equal` | the `skills/naba/README.md` intro/description matches the SKILL.md `description` intent. |
-| `e-installer-skillset` | `field-set-equal` | the `naba skills` installer (`src/skills.rs`, operating over the binary-embedded skill tree in `src/embed.rs`) deploys exactly the skill set — one dir per skill (one skill: `naba`) — and on `install`/`upgrade` injects the integrity marker into the deployed `SKILL.md`. `skills/naba/SKILL.md` is a **minijinja template**; `build.rs` renders it into `$OUT_DIR/cli` + `$OUT_DIR/mcp`, and the embed is `include_dir!("$OUT_DIR/cli")` — the installer deploys the **rendered `cli/` tree** (byte-identical to the source, so the deployed file set still equals the `skills/naba/` source set by construction). The MCP `skill://` surface serves the parallel `mcp/` render. |
+| `e-readme-desc` | `value-equal` | the `skills/naba/README.md` intro/description matches the SKILL.md `description` intent. **Intermixed-source scope (plan-011):** read the **cli-framed** `description` (the `{% if cli %}` branch — the `/naba` CLI skill), not the `{% if mcp %}` MCP description; the README documents the CLI skill. |
+| `e-installer-skillset` | `field-set-equal` | the `naba skills` installer (`src/skills.rs`, operating over the binary-embedded skill tree in `src/embed.rs`) deploys exactly the skill set — one dir per skill (one skill: `naba`) — and on `install`/`upgrade` injects the integrity marker into the deployed `SKILL.md`. `skills/naba/SKILL.md` is a **minijinja template**; `build.rs` renders the source into `$OUT_DIR/cli` + `$OUT_DIR/mcp`, and the embed is `include_dir!("$OUT_DIR/cli")` — the installer deploys the **rendered `cli/` tree** = the source **minus** the mcp-only `skills/naba/mcp/` subtree (byte-identical to the source, so the deployed file set still equals the `skills/naba/` source set by construction). The MCP `skill://` surface serves the parallel **authored** `mcp/` render (the `{% if mcp %}` `SKILL.md` guide body + the `skills/naba/mcp/*.md` subtree, with `commands/*.md` and `README.md` excluded — plan-011, SPEC-EMBED-005). |
 | `e-index-table` | `field-set-equal` | the project README "Subcommands" table lists exactly the subcommands in the SKILL.md dispatch table / `skills/naba/commands/` dir (same set, no extras or omissions). |
 | `e-cli-subcommand` | `identifier-matches` | every `naba <verb>` an inline `commands/*.md` invokes (generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`. Composite `commands/*.md` (storyboard/batch/brand-kit) invoke only those same verbs — no new command. CLI source is the fixed authority. |
 | `e-skill-preflight` | `identifier-matches` | the `naba skills preflight` invocation in the SKILL.md `## Preflight` section, and any `naba self …` verb the docs reference, correspond to real clap subcommands in `src/cli.rs` (`SkillsCommand::Preflight`, `Commands::SelfCmd` → `Update`/`Install`/`Uninstall`). CLI source is the fixed authority. |
 | `e-readme-self` | `field-set-equal` | the project README "Self-update" section documents exactly the `naba self` verbs that exist (`update`/`install --from-build`/`uninstall`) and the "Skill-gate preflight" subsection documents `naba skills preflight`; no README-documented `self`/`preflight` verb lacks a real command, and none is omitted. `self-source` is the fixed authority. |
-| `e-skill-spec` | `field-set-equal` | the subcommand set + tier (inline/composite) in the SKILL.md dispatch table equals the subcommand→CLI-verb map in `docs/specifications/skills.md` (the "Skills subcommand → CLI-verb map" section). Keeps the skills spec in sync with the skill. |
+| `e-skill-spec` | `field-set-equal` | the subcommand set + tier (inline/composite) in the SKILL.md dispatch table equals the subcommand→CLI-verb map in `docs/specifications/skills.md` (the "Skills subcommand → CLI-verb map" section). Keeps the skills spec in sync with the skill. **Intermixed-source scope (plan-011):** the dispatch table lives in the **cli-framed** (`{% if cli %}`) section of `skills/naba/SKILL.md`; read that, not the `{% if mcp %}` guide body (which has no `/naba` subcommands). |
 | `e-model-ig-config` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the Gemini default model id stated in `docs/specifications/configuration.md` (the §6 model-resolution built-in default, SPEC-CFGSCHEMA-006). `gemini-source` is the fixed authority. |
 | `e-model-edd-core` | `value-equal` | the `DEFAULT_MODEL` constant in `src/provider/gemini.rs` equals the Gemini default model id stated in `docs/specifications/configuration.md` (the §6 model-resolution built-in default, SPEC-CFGSCHEMA-006). `gemini-source` is the fixed authority. |
 | `e-web-usage-commands` | `identifier-matches` | every `naba <verb>` shown on the usage page (`web/content/pages/usage.md` — generate/edit/restore/icon/pattern/diagram/story) corresponds to a real clap command in `src/cli.rs`; a new user-facing command/verb must be reflected on the usage page. `cli-source` is the fixed authority. |
@@ -149,8 +164,9 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-web-install-methods` | `field-set-subset` | the install methods and the `naba skills install`/`upgrade` + `naba self install --from-build` lifecycle documented on the install page (`web/content/pages/install.md`) correspond to real commands in `src/cli.rs` / `src/self_cmd/*.rs`. `self-source`/`cli-source` are the fixed authority. |
 | `e-web-config-providers` | `field-set-subset` | the provider list, per-provider default models, the uniform api-key resolution precedence, the Bedrock auth modes + region default, the `naba provider`/`naba models` commands, and the nested config-key set (`default-provider`, `<provider>.model`/`.api-key`/`.api-key-envvar`) stated on the config page (`web/content/pages/config.md`) match the provider registry (`src/provider/registry.rs`), the Bedrock provider (`src/provider/bedrock.rs` — `DEFAULT_REGION`, `CURATED_MODELS`, auth modes), and the config schema/env-var constants + `valid_keys` in `src/config.rs`. `provider-source` is the fixed authority. |
 | `e-web-skills-lifecycle` | `field-set-subset` | the `naba skills` verbs (`install`/`upgrade`/`remove`/`status`/`preflight`) and their `--scope`/`--surface`/`--target`/`--dry-run`/`--json` flags documented on the skills page (`web/content/pages/skills.md`) correspond to real clap subcommands + args in `src/cli.rs` (`SkillsCommand`, `SkillsArgs`). `cli-source` is the fixed authority. |
-| `e-web-skills-subcommands` | `field-set-equal` | the `/naba <subcommand>` set on the skills page (`web/content/pages/skills.md`) equals the SKILL.md dispatch table (inline: generate/edit/restore/icon/pattern/diagram/story; composite: storyboard/batch/brand-kit) — no extras or omissions. `skill-md` is the source. |
-| `e-web-mcp-tools` | `field-set-equal` | the 8 MCP tools + their required/optional params, the `skill://<name>` / `skill://<name>/<rel>` / `file://` resource surface, and `NABA_OUTPUT_DIR` resolution documented on the MCP page (`web/content/pages/mcp.md`) equal the tools + schemas + resource handlers in `src/mcp.rs` (`tools()`, `skill_resources`, `read_skill_resource`, `resolve_output_dir`). `mcp-source` is the fixed authority. |
+| `e-web-skills-subcommands` | `field-set-equal` | the `/naba <subcommand>` set on the skills page (`web/content/pages/skills.md`) equals the SKILL.md dispatch table (inline: generate/edit/restore/icon/pattern/diagram/story; composite: storyboard/batch/brand-kit) — no extras or omissions. `skill-md` is the source. **Intermixed-source scope (plan-011):** the dispatch table is in the **cli-framed** (`{% if cli %}`) section; the `{% if mcp %}` guide body is a separate surface (MCP tools, no `/naba` subcommands) and is not compared here. |
+| `e-web-mcp-tools` | `field-set-equal` | the 8 MCP tools + their required/optional params, the `skill://<name>` / `skill://<name>/<rel>` / `file://` resource surface, `NABA_OUTPUT_DIR` resolution, and the per-tool lazy-guidance `skill://naba` pointer (SPEC-MCP-016) documented on the MCP page (`web/content/pages/mcp.md`) equal the tools + schemas + resource handlers in `src/mcp.rs` (`tools()`, `with_pointer`/`SKILL_POINTER`, `skill_resources`, `read_skill_resource`, `resolve_output_dir`). `mcp-source` is the fixed authority. |
+| `e-mcp-skill-tools` | `identifier-matches` | every naba MCP tool name (`generate_image`, `edit_image`, …) referenced in the authored MCP skill guidance (`skills/naba/mcp/*.md`, and the `{% if mcp %}` guide body of `skills/naba/SKILL.md`) corresponds to a real tool registered in `src/mcp.rs` (`tools()`). Keeps the MCP-authored guidance in agreement with the tool surface it documents. `mcp-source` is the fixed authority. |
 | `e-readme-web-install` | `field-set-subset` | the project README Install / Setup / Providers / Configuration / MCP sections agree with the site install + config pages (`web/content/pages/install.md`, `config.md`) on the install methods, the nested per-provider config surface, the providers (incl. Bedrock) + api-key resolution, and the MCP pointer. Neither side is `fixed` (both derive from the Rust sources); a mismatch is drift on whichever is stale. |
 | `e-agent-tools-skills` | `identifier-matches` | every naba `SPEC-*` clause id the `agent-tools.md` reference-implementation mapping cites for a SKILLS-axis requirement (e.g. `SPEC-EMBED-003`, `SPEC-HARNESS-001`, `SPEC-INSTALL-002`, `SPEC-PREFLIGHT-001`) resolves to a real clause defined in `docs/specifications/skills.md`. Agreement (`cross-ref`), **not** `field-set-equal`: the portable SPEC covers a generalizable subset, not the full skills clause set. Neither side is `fixed`; a stale citation is drift on whichever moved. |
 | `e-agent-tools-mcp` | `identifier-matches` | every naba `SPEC-MCP-*` clause id the `agent-tools.md` mapping cites for an MCP-axis requirement (`SPEC-MCP-001`/`013`/`014`/`015`) resolves to a real clause in `docs/specifications/mcp.md`. `cross-ref` agreement, not `field-set-equal` (the MCP axis keeps only the generalizable MCP clauses). |
@@ -162,6 +178,7 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 |:---------------|:-------------------|
 | `skill-md` | the single `skills/naba/` dir must contain one `SKILL.md` |
 | `commands` | `skills/naba/commands/` must contain one `<sub>.md` per dispatch-table subcommand |
+| `skill-mcp` | `skills/naba/mcp/` holds the mcp-only per-tool guidance files served by the `skill://` MCP resource surface (plan-011 authored render); referenced by the website MCP page and the SKILL.md `{% if mcp %}` guide body |
 | `skill-readme` | the `skills/naba/` dir must contain one `README.md` |
 | `installer` | the `naba skills` command (`src/skills.rs`), referenced by the project README "Claude Code Skills" / "Install the skill" sections and AGENTS.md "Claude Code Skills" |
 | `self-source` | `naba self` / `naba skills preflight` (`src/self_cmd/`, `src/preflight.rs`, `src/dirs.rs`), referenced by the project README "Self-update" / "Skill-gate preflight" sections, the SKILL.md `## Preflight` section, AGENTS.md "Architecture"/"Distribution", and SPEC §15–§18 |
@@ -198,8 +215,9 @@ A source-node edit fans out to every derived edge it feeds.
 
 | Changed-Path Glob | Scopes To |
 |:-------------------|:-----------|
-| `skills/naba/SKILL.md` | `e-readme-prereqs`, `e-readme-desc`, `e-installer-skillset`, `e-index-table`, `e-skill-preflight`, `e-skill-spec`, `e-web-skills-subcommands` |
+| `skills/naba/SKILL.md` | `e-readme-prereqs`, `e-readme-desc`, `e-installer-skillset`, `e-index-table`, `e-skill-preflight`, `e-skill-spec`, `e-web-skills-subcommands`, `e-mcp-skill-tools` |
 | `skills/naba/commands/*.md` | `e-readme-usage`, `e-index-table`, `e-cli-subcommand`, `e-skill-spec` |
+| `skills/naba/mcp/*.md` | `e-mcp-skill-tools` |
 | `skills/naba/README.md` | `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table` |
 | `src/skills.rs` | `e-installer-skillset` |
 | `README.md` | `e-index-table`, `e-readme-self`, `e-readme-web-install` |
@@ -211,7 +229,7 @@ A source-node edit fans out to every derived edge it feeds.
 | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight`, `e-web-config-self`, `e-web-install-methods` |
 | `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core`, `e-web-config-model` |
 | `src/provider/registry.rs`, `src/provider/bedrock.rs`, `src/config.rs` | `e-web-config-providers` |
-| `src/mcp.rs` | `e-web-mcp-tools` |
+| `src/mcp.rs` | `e-web-mcp-tools`, `e-mcp-skill-tools` |
 | `docs/specifications/configuration.md` | `e-model-ig-config`, `e-model-edd-core` |
 | `web/content/pages/usage.md` | `e-web-usage-commands` |
 | `web/content/pages/config.md` | `e-web-config-self`, `e-web-config-model`, `e-web-config-providers` |
@@ -227,10 +245,10 @@ Five `fixed` authorities: `cli-source` (`src/cli.rs`), `self-source` (`src/self_
 `src/config.rs`).
 
 On an `e-cli-subcommand`, `e-skill-preflight`, `e-readme-self`, `e-web-usage-commands`,
-`e-web-config-self`, `e-web-install-methods`, `e-web-skills-lifecycle`, `e-web-mcp-tools`, or
-`e-web-config-providers` conflict, the Rust source wins: report the `commands/*.md` / `SKILL.md`
-/ README / `web/content/pages/*.md` as drifted; never edit the CLI / MCP / provider source to
-match a doc. **Exception:** if the evidence shows a doc names a verb/tool/provider that genuinely
+`e-web-config-self`, `e-web-install-methods`, `e-web-skills-lifecycle`, `e-web-mcp-tools`,
+`e-mcp-skill-tools`, or `e-web-config-providers` conflict, the Rust source wins: report the
+`commands/*.md` / `SKILL.md` / `skills/naba/mcp/*.md` / README / `web/content/pages/*.md` as
+drifted; never edit the CLI / MCP / provider source to match a doc. **Exception:** if the evidence shows a doc names a verb/tool/provider that genuinely
 should exist but does not (a stale reference on either side), emit a **CONFLICT**, report it to
 the operator, and halt; never silently rewrite either side.
 

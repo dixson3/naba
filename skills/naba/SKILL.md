@@ -1,5 +1,6 @@
 ---
 name: naba
+{% if cli %}
 description: >
   Create or transform images with the naba CLI, invoked as `/naba <subcommand> …`.
   TRIGGER when: /naba invoked, or the user wants to — generate/create/make an image,
@@ -15,14 +16,29 @@ description: >
   brand asset set — icon + pattern + hero (`brand-kit`).
   SKIP for: editable diagram SOURCE (d2/mermaid text) — use the `diagram-authoring` or
   `mermaid` skills; `naba diagram` produces a rendered image, not editable source.
+{% endif %}
+{% if mcp %}
+description: >
+  Create or transform images with naba's MCP tools. Call `generate_image`, `edit_image`,
+  `restore_image`, `generate_icon`, `generate_pattern`, `generate_story`,
+  `generate_diagram`, or `list_images` with a text `prompt` and structured parameters;
+  each writes to the MCP output directory and returns a `file://` resource link. Fetch the
+  `skill://naba` resource for prompt-engineering and per-tool usage guidance.
+{% endif %}
 user-invocable: true
 skill-group: naba
+{% if cli %}
 depends-on-tool: [naba]
 allowed-tools: [Bash, Read, Agent]
+{% endif %}
+{% if mcp %}
+allowed-tools: []
+{% endif %}
 ---
 
 # naba
 
+{% if cli %}
 One skill for the whole `naba` image toolkit. Invoked as `/naba <subcommand> [args]`.
 This file is the single source of truth for the router and the shared guidance below;
 each subcommand's unique detail (usage, flags, examples) lives in `commands/<sub>.md`.
@@ -188,3 +204,78 @@ iteration (different style, surgical edit, more frames, etc.).
 `docs/specifications/skills.md`; `DRIFT-CHECK.md` edge `e-skill-spec` keeps the two in
 sync. When subcommands change, update this dispatch table, the `commands/` dir, the README
 subcommand table, and the skills spec together.
+{% endif %}
+{% if mcp %}
+naba exposes its image pipeline to MCP clients as **tools** — call them directly. There is no
+shell, no `naba` binary, and no slash commands in this context; everything here describes the
+MCP tools and their parameters. This file is the usage reference: fetch it as the `skill://naba`
+resource whenever you invoke a naba tool. Each tool's own `description` points here.
+
+## Tools
+
+Every generation tool takes a text `prompt` plus structured parameters (enums and numbers) and
+writes one or more PNG/JPEG files, returning each as a `file://` resource link (see **Output and
+results** below).
+
+| Tool | Purpose | Key parameters |
+| :--- | :------ | :------------- |
+| `generate_image` | Image from a text prompt (general purpose). | `prompt` (required); `style`, `variations`, `count` (1–8), `seed`, `aspect`, `resolution`, `quality`. |
+| `edit_image` | Modify an existing image. | `prompt` and `file` (both required); `aspect`, `resolution`, `quality`. |
+| `restore_image` | Restore or enhance an existing image. | `file` (required); `prompt` (optional); `aspect`, `resolution`, `quality`. |
+| `generate_icon` | App icon / logo mark, optionally multi-size. | `prompt` (required); `sizes`, `style`, `background`, `corners`, `format`, `quality`. |
+| `generate_pattern` | Seamless, tileable pattern or texture. | `prompt` (required); `style`, `colors`, `density`, `size`, `repeat`, `aspect`, `resolution`, `quality`. |
+| `generate_story` | Sequence of images that tell a visual story. | `prompt` (required); `steps` (2–8), `style`, `transition`, `layout`, `aspect`, `resolution`, `quality`. |
+| `generate_diagram` | Technical diagram / flowchart image. | `prompt` (required); `type`, `style`, `layout`, `complexity`, `colors`, `aspect`, `resolution`, `quality`. |
+| `list_images` | List recently generated images in the output directory. | `limit` (default 20). |
+
+`generate_diagram` renders a diagram **image**; for editable diagram source (d2/mermaid text) use
+a diagram-authoring tool instead. For per-tool specifics — chiefly the tools that take an input
+`file` — read the `skill://naba/mcp/input-images.md` resource.
+
+## Prompt engineering
+
+Build a `prompt` in this order: **subject + composition + style + lighting + details**.
+
+1. **Subject** — the main focus; be specific ("a tabby cat on a wooden fence", not "a cat").
+2. **Composition** — angle, framing, depth of field ("close-up", "bird's eye view", "centered
+   with negative space").
+3. **Style** — art style or medium; several tools also take a `style` parameter that constrains
+   this.
+4. **Lighting** — "golden hour", "soft diffused", "dramatic side lighting", "studio".
+5. **Details** — color palette, mood, texture, atmosphere ("warm earth tones", "moody").
+
+Some tools narrow this: `generate_icon` focuses on the **symbol/concept** (naba handles the
+framing); `generate_pattern` describes the **motif and feel** (its parameters handle tiling);
+`generate_diagram` describes the **system/process** (its `type` parameter picks the format);
+`edit_image` describes the **desired change**, not the whole image; `restore_image` needs minimal
+or no prompt; `generate_story` writes a **narrative arc**, not per-frame text.
+
+### Anti-patterns
+
+- **Avoid negatives** ("no text", "without watermarks") — they backfire; describe what you *do*
+  want.
+- **Avoid resolution specs in prompt text** ("4K", "1024x1024") — use the `resolution` / `size`
+  parameters instead.
+- **Keep prompts to 1–3 sentences** — beyond that, details compete and quality drops.
+- **Avoid generic prompts** ("a beautiful landscape") — add specifics ("a misty fjord at dawn
+  with a lone fishing boat").
+
+## Quality and provider
+
+- **`quality`** is a per-provider tier: on Gemini `fast` selects `gemini-3.1-flash-image` and
+  `high` selects `gemini-3-pro-image`; on OpenRouter it is a native quality parameter that does
+  not change the model slug. It defaults to the provider's fast tier.
+- **Provider selection is a server concern** — the tools take no provider parameter. The naba MCP
+  server resolves the provider from whichever API key is set in its host environment
+  (`GEMINI_API_KEY` or `OPENROUTER_API_KEY`). If a call fails with a missing-key error, the
+  server's environment needs a provider API key.
+
+## Output and results
+
+MCP tools do **not** take an output-path parameter. Each writes into the **MCP output directory**,
+resolved once by the server as: `NABA_OUTPUT_DIR` if set, else the configured output directory,
+else an XDG default. Every result returns the written path as text plus a **`file://` resource
+link** — read that resource to retrieve the image bytes. Multi-image tools (`generate_icon` with
+several `sizes`, `generate_story`) return one entry per image. Use `list_images` to enumerate the
+most recent outputs in that directory.
+{% endif %}
