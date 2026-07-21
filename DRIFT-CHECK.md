@@ -52,8 +52,17 @@ a redirect stub), so the three spec nodes that pointed into the retired `IG/`/`E
 re-pointed — `skill-spec` (`IG/skills.md` → `docs/specifications/skills.md`), `ig-configuration`
 (`IG/configuration.md` → `docs/specifications/configuration.md`), and `edd-core` (`EDD/CORE.md` →
 `docs/specifications/configuration.md`) — with their edge, referencer, and trigger-scope rows
-updated to the split-file homes. The engine enforces this manifest; it is a silent no-op only while
-`approved: no`.
+updated to the split-file homes. **Re-approved for the plan-009 agent-tools SPEC (2026-07-21):**
+the portable, tool-agnostic `docs/specifications/agent-tools.md` was added as a `derived` spec node
+(`agent-tools-spec`) with **`cross-ref` agreement edges** to the three per-domain axis specs it
+abstracts — `skill-spec` (skills.md, SKILLS axis) and two newly-declared spec nodes `mcp-spec`
+(mcp.md, MCP axis) and `json-spec` (json-output.md, JSON axis) — via `e-agent-tools-skills`,
+`e-agent-tools-mcp`, and `e-agent-tools-json`. The edges are deliberately `cross-ref`
+(identifier-level agreement that the mapping table's cited clause IDs resolve to real clauses),
+**not** `field-set-equal`: the portable SPEC and the naba specs are not byte-identical. `agent-tools.md`
+is **not** wired into `check_traceability.py`'s required `SPEC-*` set (it uses the distinct
+`AGENT-TOOLS-*` namespace and cites naba clauses as bare IDs). The engine enforces this manifest; it
+is a silent no-op only while `approved: no`.
 
 ## 1. Artifact Nodes
 
@@ -80,6 +89,9 @@ updated to the split-file homes. The engine enforces this manifest; it is a sile
 | `web-install` | `web/content/pages/install.md` | doc | derived | required |
 | `web-skills` | `web/content/pages/skills.md` | doc | derived | required |
 | `web-mcp` | `web/content/pages/mcp.md` | doc | derived | required |
+| `mcp-spec` | `docs/specifications/mcp.md` | spec | derived | required |
+| `json-spec` | `docs/specifications/json-output.md` | spec | derived | required |
+| `agent-tools-spec` | `docs/specifications/agent-tools.md` | spec | derived | required |
 
 ## 2. Source-of-Truth Edges
 
@@ -107,6 +119,9 @@ updated to the split-file homes. The engine enforces this manifest; it is a sile
 | `e-web-skills-subcommands` | `skill-md` | `web-skills` | cross-ref |
 | `e-web-mcp-tools` | `mcp-source` | `web-mcp` | cross-ref |
 | `e-readme-web-install` | `web-install` | `project-readme` | contract |
+| `e-agent-tools-skills` | `skill-spec` | `agent-tools-spec` | cross-ref |
+| `e-agent-tools-mcp` | `mcp-spec` | `agent-tools-spec` | cross-ref |
+| `e-agent-tools-json` | `json-spec` | `agent-tools-spec` | cross-ref |
 
 `e-depends-on-skill` (plan-001) is **deleted**: the composites no longer have sibling skills;
 their dependency is now intra-skill router logic, not a `depends-on-skill` frontmatter edge.
@@ -137,6 +152,9 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `e-web-skills-subcommands` | `field-set-equal` | the `/naba <subcommand>` set on the skills page (`web/content/pages/skills.md`) equals the SKILL.md dispatch table (inline: generate/edit/restore/icon/pattern/diagram/story; composite: storyboard/batch/brand-kit) — no extras or omissions. `skill-md` is the source. |
 | `e-web-mcp-tools` | `field-set-equal` | the 8 MCP tools + their required/optional params, the `skill://<name>` / `skill://<name>/<rel>` / `file://` resource surface, and `NABA_OUTPUT_DIR` resolution documented on the MCP page (`web/content/pages/mcp.md`) equal the tools + schemas + resource handlers in `src/mcp.rs` (`tools()`, `skill_resources`, `read_skill_resource`, `resolve_output_dir`). `mcp-source` is the fixed authority. |
 | `e-readme-web-install` | `field-set-subset` | the project README Install / Setup / Providers / Configuration / MCP sections agree with the site install + config pages (`web/content/pages/install.md`, `config.md`) on the install methods, the nested per-provider config surface, the providers (incl. Bedrock) + api-key resolution, and the MCP pointer. Neither side is `fixed` (both derive from the Rust sources); a mismatch is drift on whichever is stale. |
+| `e-agent-tools-skills` | `identifier-matches` | every naba `SPEC-*` clause id the `agent-tools.md` reference-implementation mapping cites for a SKILLS-axis requirement (e.g. `SPEC-EMBED-003`, `SPEC-HARNESS-001`, `SPEC-INSTALL-002`, `SPEC-PREFLIGHT-001`) resolves to a real clause defined in `docs/specifications/skills.md`. Agreement (`cross-ref`), **not** `field-set-equal`: the portable SPEC covers a generalizable subset, not the full skills clause set. Neither side is `fixed`; a stale citation is drift on whichever moved. |
+| `e-agent-tools-mcp` | `identifier-matches` | every naba `SPEC-MCP-*` clause id the `agent-tools.md` mapping cites for an MCP-axis requirement (`SPEC-MCP-001`/`013`/`014`/`015`) resolves to a real clause in `docs/specifications/mcp.md`. `cross-ref` agreement, not `field-set-equal` (the MCP axis keeps only the generalizable MCP clauses). |
+| `e-agent-tools-json` | `identifier-matches` | every naba `SPEC-JSON-*` / `SPEC-GLOBAL-*` clause id the `agent-tools.md` mapping cites for a JSON-axis requirement (`SPEC-JSON-002`/`003`/`005`/`006`/`007`, `SPEC-GLOBAL-003`) resolves to a real clause in `docs/specifications/json-output.md` / `commands.md`. `cross-ref` agreement, not `field-set-equal`. |
 
 ## 4. Referencers (orphan check)
 
@@ -158,6 +176,9 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `web-install` | the naba website install page (`web/content/pages/install.md`), linked from the site nav and `web/README.md` |
 | `web-skills` | the naba website skills page (`web/content/pages/skills.md`), linked from the site nav (`MENUITEMS`), the home cards, and the install/config pages |
 | `web-mcp` | the naba website MCP page (`web/content/pages/mcp.md`), linked from the site nav (`MENUITEMS`), the home cards, and the config page |
+| `mcp-spec` | `docs/specifications/mcp.md`, listed in the `docs/specifications/README.md` Contents table and cited by the `agent-tools.md` MCP-axis mapping |
+| `json-spec` | `docs/specifications/json-output.md`, listed in the `docs/specifications/README.md` Contents table and cited by the `agent-tools.md` JSON-axis mapping |
+| `agent-tools-spec` | `docs/specifications/agent-tools.md`, listed in the `docs/specifications/README.md` Contents table (the portable-pattern row) |
 
 ## 5. Required-Section Contracts
 
@@ -182,7 +203,10 @@ A source-node edit fans out to every derived edge it feeds.
 | `skills/naba/README.md` | `e-readme-prereqs`, `e-readme-usage`, `e-readme-desc`, `e-index-table` |
 | `src/skills.rs` | `e-installer-skillset` |
 | `README.md` | `e-index-table`, `e-readme-self`, `e-readme-web-install` |
-| `docs/specifications/skills.md` | `e-skill-spec` |
+| `docs/specifications/skills.md` | `e-skill-spec`, `e-agent-tools-skills` |
+| `docs/specifications/mcp.md` | `e-agent-tools-mcp` |
+| `docs/specifications/json-output.md` | `e-agent-tools-json` |
+| `docs/specifications/agent-tools.md` | `e-agent-tools-skills`, `e-agent-tools-mcp`, `e-agent-tools-json` |
 | `src/cli.rs` | `e-cli-subcommand`, `e-skill-preflight`, `e-web-usage-commands`, `e-web-install-methods`, `e-web-skills-lifecycle` |
 | `src/self_cmd/*.rs`, `src/preflight.rs`, `src/dirs.rs` | `e-readme-self`, `e-skill-preflight`, `e-web-config-self`, `e-web-install-methods` |
 | `src/provider/gemini.rs` | `e-model-ig-config`, `e-model-edd-core`, `e-web-config-model` |
