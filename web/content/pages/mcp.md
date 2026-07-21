@@ -7,6 +7,26 @@ server that exposes naba's image pipeline as MCP **tools**, and its embedded ski
 lazily-loaded MCP **resources**, to assistants like Claude Desktop and Cursor. It drives the
 same provider/selector/output pipeline the CLI uses — no generation logic is reimplemented.
 
+## Why run naba as an MCP server?
+
+MCP is the way to give a **desktop** assistant — one that can't run shell commands — first-class
+access to naba. The assistant calls naba's image tools directly over the protocol and gets
+structured results back, no terminal involved.
+
+That makes it the counterpart to the [agent harness skill](/skills/), and it helps to know which
+one you want:
+
+- **The skill** ([skills page](/skills/)) is for **coding agents that already have a shell** —
+  Claude Code, opencode, and friends. When triggered, the agent *shells out to the `naba` CLI*.
+  The skill is essentially instructions plus a command to run.
+- **The MCP server** is for **assistants without a shell** — Claude Desktop, Cursor. The
+  assistant calls naba's tools *over the MCP protocol*; naba runs as a long-lived server process
+  it talks to.
+
+Both drive the identical provider/selector/output pipeline, so you get the same images either
+way — the difference is purely how the assistant reaches naba. You can run both at once (a skill
+in your coding agent, an MCP server in your desktop app) from the same binary.
+
 ## Claude Desktop configuration
 
 Add naba to your `claude_desktop_config.json`:
@@ -85,5 +105,5 @@ so tool schemas and the resource listing both stay lean.
 
 ## Related
 
-- [Skills page](/skills/) — the same skill tree as a Claude Code slash command.
+- [skills page](/skills/) — the same skill tree as an in-agent `/naba` slash command (for shell-capable coding agents).
 - [config](/config/) — provider keys and `default_output_dir`.

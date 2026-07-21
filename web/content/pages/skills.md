@@ -1,11 +1,24 @@
 Title: skills
 Slug: skills
-Subtitle: the /naba Claude Code skill and its lifecycle
+Subtitle: the /naba agent skill and its lifecycle
 
-naba ships a single [Claude Code](https://claude.com/claude-code) skill that wraps the whole
-CLI as one slash command with subcommands: `/naba <subcommand>`. The skill files are
-**embedded in the binary** at compile time, so installing them is offline and always
-version-matched — there is no marketplace plugin and no separate installer script.
+A **skill** teaches an AI coding agent a new capability: some instructions, plus a command the
+agent runs on your behalf. naba's skill turns *"make me an app icon of a rocket ship"* into the
+right `naba` invocation — you get naba's images without leaving the conversation or memorizing
+CLI flags.
+
+naba ships a single skill that wraps the whole CLI as one slash command with subcommands:
+`/naba <subcommand>`. It installs into whichever **agent harness** you use —
+[Claude Code](https://claude.com/claude-code) is the default and the running example throughout
+this page, but opencode, pi, codex, and a portable `agents` layout work too (see
+[Harnesses](#harnesses-one-tree-five-idiomatic-homes) below). The skill files are **embedded in
+the binary** at compile time, so installing them is offline and always version-matched — there is
+no marketplace plugin and no separate installer script.
+
+> Prefer a desktop assistant that can't run shell commands (Claude Desktop, Cursor)? Use the
+> [MCP server](/mcp/) instead — it exposes the same image pipeline over a protocol. The
+> [why run naba as an MCP server](/mcp/#why-run-naba-as-an-mcp-server) section explains when to
+> reach for which.
 
 ## Subcommands
 

@@ -140,6 +140,10 @@ naba generate "a red apple" --provider bedrock
 
 ## Config file
 
+Environment variables and per-call flags handle one-off runs, but when you want the same choices
+every time — a pinned provider, a house aspect ratio, a default output directory — you record
+them once in a config file instead of repeating flags.
+
 The config lives at `$NABA_CONFIG_DIR/config.yaml` (default `~/.config/naba/config.yaml`;
 `$XDG_CONFIG_HOME/naba/config.yaml` when `XDG_CONFIG_HOME` is set). A complete example:
 
@@ -236,17 +240,18 @@ naba self install --from-build   # record the running build as a from-build inst
 naba self uninstall              # remove the from-build marker (--force also deletes the binary)
 ```
 
-A successful `self update` also refreshes the installed Claude Code skills
+A successful `self update` also refreshes your installed agent skills
 (`naba skills upgrade`) unless you pass `--binary-only`. GitHub Releases is canonical for
 every binary and for the self-update manifest — the website hosts no binaries.
 
-## Claude Code skills
+## Agent harness skills
 
 The `/naba` skill tree is embedded in the binary, so `naba skills` works offline and always
-matches the binary's version. See the [Skills page](/skills/) for the full subcommand set,
-implicit triggering, the five install harnesses (`--harness`, repeatable) and their idiomatic
-paths, user vs project scope, and the whole install / upgrade / status / remove / preflight
-lifecycle. The short form:
+matches the binary's version. It installs into whichever **agent harness** you use — Claude Code
+by default, but opencode, pi, codex, and a portable `agents` layout are supported too. See the
+[skills page](/skills/) for the full subcommand set, implicit triggering, every install harness
+(`--harness`, repeatable) and its idiomatic path, user vs project scope, and the whole install /
+upgrade / status / remove / preflight lifecycle. The short form:
 
 ```bash
 naba skills install                       # default: claude-code harness, user scope -> ~/.claude/skills

@@ -9,13 +9,22 @@ exact command
 naba outputs, mostly on the fast `gemini-3.1-flash-image` tier, with one on the higher-quality
 `gemini-3-pro-image` tier.)
 
+Every command here is also reachable from inside an AI agent as a `/naba <subcommand>` **skill**
+invocation — the [`/naba generate` … `/naba diagram`](/skills/#subcommands) slash commands run the
+exact same pipeline. But you rarely type the slash command: the skill is built to **trigger
+implicitly** from plain-language requests, so each example below also shows an *implicit trigger* —
+the way you'd naturally ask an agent for that same result, no flags to memorize. The
+[skills page](/skills/#implicit-triggering) covers the triggering rules in full.
+
 ## generate
 
-Turn a text prompt into an image.
+Turn a text prompt into an image. *Skill equivalent: `/naba generate`.*
 
 ```bash
 naba generate "a red apple on a white background"
 ```
+
+*Or just ask your agent: "generate an image of a red apple on a white background" — the skill triggers `/naba generate` for you.*
 
 <figure class="sample">
   <img src="/images/samples/generate.jpg" alt="A red apple on a white background">
@@ -26,6 +35,8 @@ naba generate "a red apple on a white background"
 naba generate "a serene mountain lake" --style watercolor
 ```
 
+*Implicit trigger: "paint me a serene mountain lake in watercolor" — the style shows up in your wording, no `--style` flag needed.*
+
 <figure class="sample">
   <img src="/images/samples/watercolor.jpg" alt="A serene mountain lake in watercolor style">
   <figcaption><span class="cap-prompt">"a serene mountain landscape lake, soft watercolor painting style"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
@@ -35,6 +46,8 @@ naba generate "a serene mountain lake" --style watercolor
 naba generate "a futuristic city skyline at dusk" --style pixel-art
 ```
 
+*Implicit trigger: "make a pixel-art picture of a futuristic city skyline at dusk."*
+
 <figure class="sample">
   <img src="/images/samples/pixelart.jpg" alt="A futuristic city skyline at dusk in pixel-art style">
   <figcaption><span class="cap-prompt">"a futuristic city skyline at dusk, pixel-art style, 16-bit"</span><span class="cap-model">gemini-3.1-flash-image</span></figcaption>
@@ -43,6 +56,8 @@ naba generate "a futuristic city skyline at dusk" --style pixel-art
 ```bash
 naba generate "a sweeping desert canyon vista at golden hour" --quality high --aspect 16:9
 ```
+
+*Implicit trigger: "create a high-quality, wide 16:9 image of a sweeping desert canyon vista at golden hour" — "high-quality" maps to `--quality high` and "wide 16:9" to `--aspect 16:9`.*
 
 <figure class="sample">
   <img src="/images/samples/vista.jpg" alt="A sweeping desert canyon vista at golden hour">
@@ -57,11 +72,13 @@ and are available on all generative commands. Valid `--aspect`: `1:1, 2:3, 3:2, 
 
 ## edit
 
-Modify an existing image with a natural-language instruction.
+Modify an existing image with a natural-language instruction. *Skill equivalent: `/naba edit`.*
 
 ```bash
 naba edit lake.jpg "make the sky dramatic and stormy"
 ```
+
+*Implicit trigger: "edit lake.jpg — make the sky dramatic and stormy" — naming an existing file with a change request routes to `/naba edit`.*
 
 <div class="io">
   <figure class="sample">
@@ -76,11 +93,13 @@ naba edit lake.jpg "make the sky dramatic and stormy"
 
 ## restore
 
-Enhance or repair an old or degraded image.
+Enhance or repair an old or degraded image. *Skill equivalent: `/naba restore`.*
 
 ```bash
 naba restore old-photo.jpg "sharpen and improve colors"
 ```
+
+*Implicit trigger: "clean up old-photo.jpg — sharpen it and improve the colors" — "restore/enhance/sharpen/denoise" an existing file routes to `/naba restore`.*
 
 <div class="io">
   <figure class="sample">
@@ -95,11 +114,13 @@ naba restore old-photo.jpg "sharpen and improve colors"
 
 ## icon
 
-Generate app icons in one or more sizes.
+Generate app icons in one or more sizes. *Skill equivalent: `/naba icon`.*
 
 ```bash
 naba icon "rocket ship" --style flat --size 512
 ```
+
+*Implicit trigger: "I need a flat app icon of a rocket ship at 512px" — "app icon" plus a size routes to `/naba icon`.*
 
 <figure class="sample">
   <img src="/images/samples/icon.jpg" alt="A flat-style rocket ship app icon">
@@ -108,11 +129,13 @@ naba icon "rocket ship" --style flat --size 512
 
 ## pattern
 
-Seamless, tileable textures and backgrounds.
+Seamless, tileable textures and backgrounds. *Skill equivalent: `/naba pattern`.*
 
 ```bash
 naba pattern "circuit board" --style tech --colors mono
 ```
+
+*Implicit trigger: "give me a seamless monochrome circuit-board texture" — "seamless/tileable pattern or texture" routes to `/naba pattern`.*
 
 <figure class="sample">
   <img src="/images/samples/pattern.jpg" alt="A seamless monochrome circuit-board pattern">
@@ -121,11 +144,13 @@ naba pattern "circuit board" --style tech --colors mono
 
 ## story
 
-A sequence of images that tell a visual narrative.
+A sequence of images that tell a visual narrative. *Skill equivalent: `/naba story` (plus the `/naba storyboard` composite for per-frame edits).*
 
 ```bash
 naba story "a small sailboat's voyage from calm harbor to open sea at sunset" --steps 3
 ```
+
+*Implicit trigger: "show me a 3-frame story of a small sailboat's voyage from calm harbor to open sea at sunset" — a "sequence" or "visual story" routes to `/naba story`.*
 
 <div class="sample-grid">
   <figure class="sample"><img src="/images/samples/story.jpg" alt="Story frame 1: sailboat in a calm harbor"><figcaption>frame 1</figcaption></figure>
@@ -137,11 +162,13 @@ naba story "a small sailboat's voyage from calm harbor to open sea at sunset" --
 
 ## diagram
 
-Rendered technical diagrams from a description.
+Rendered technical diagrams from a description. *Skill equivalent: `/naba diagram`.*
 
 ```bash
 naba diagram "user authentication flow" --type flowchart
 ```
+
+*Implicit trigger: "draw a flowchart of the user authentication flow" — asking for a flowchart, architecture, or network **image** routes to `/naba diagram`. (Asking for editable d2/mermaid **source** deliberately does not.)*
 
 <figure class="sample">
   <img src="/images/samples/diagram.jpg" alt="A user authentication flowchart">
@@ -175,4 +202,4 @@ naba models --provider openrouter --json
 
 Managing the binary itself — [`naba self update`](/config/#self-update),
 [`naba doctor`](/config/#health-check-naba-doctor), and the
-[`naba skills`](/config/#claude-code-skills) lifecycle — lives on the [config](/config/) page.
+[`naba skills`](/config/#agent-harness-skills) lifecycle — lives on the [config](/config/) page.
