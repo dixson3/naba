@@ -3,7 +3,8 @@
 **ID:** plan-010-james-dixson-b96a19
 **Author:** james-dixson
 **Created:** 2026-07-21
-**Status:** approved
+**Status:** complete
+**Epic:** naba-mol-9vf
 **Fingerprint:** c3015ded2ab9b3bf883ee5b9f0de123c2a4ceae22bb36e0b3ba4bd1e4343327a
 **Phase log:**
 - 2026-07-21 scoping: initial scope captured
@@ -12,6 +13,10 @@
 - 2026-07-21 review: red-team pass-1 — APPROVE (4 concerns folded: 1 medium, 3 low)
 - 2026-07-21 ready-for-approval: ready-check green — pass-1 APPROVE + audit pass
 - 2026-07-21 approved: operator approved
+- 2026-07-21 intake: epic naba-mol-9vf poured
+- 2026-07-21 executing: start gate resolved
+- 2026-07-21 reconciling: post-execution reconciliation
+- 2026-07-21 complete: plan complete
 
 ## Objective
 Fold naba's param/enum inventory to a single source of truth with a golden check, resolving the skill-md (skills/naba/commands/*.md) <-> src/mcp.rs enum drift (bead naba-lca)
