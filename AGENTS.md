@@ -142,9 +142,17 @@ out to naba must know:**
 Releases are cut by [cargo-dist](https://opensource.axo.dev/cargo-dist/): `[workspace.metadata.dist]`
 in `Cargo.toml` drives a generated `.github/workflows/release.yml` (tag glob
 `**[0-9]+.[0-9]+.[0-9]+*`) that publishes `.tar.gz` tarballs + `dist-manifest.json` to the GitHub
-Release and pushes the Homebrew formula to `dixson3/homebrew-tap` (`HOMEBREW_TAP_TOKEN`). **Homebrew
-is the documented default**; the `curl|sh` vendor installer (→ `~/.local/bin` + a receipt) is the
-self-update-capable path. See SPEC §15 (SPEC-DIST) and the README.
+Release and pushes the Homebrew formula to `dixson3/homebrew-tap` (`HOMEBREW_TAP_TOKEN`). The
+`curl|sh` vendor installer (→ `~/.local/bin` + a receipt) is the **documented default** and the
+self-update-capable path; Homebrew is a documented alternative. A successful Release chains to
+`web-deploy.yml`, which republishes naba.ysapp.net (GitHub OIDC — no local AWS keys). See SPEC §15
+(SPEC-DIST) and the README.
+
+**Releasing (lockstep rule).** Cutting a release means, in order: (1) bump the `Cargo.toml`
+package `version`; (2) bump `web/pelicanconf.py` `NABA_RELEASE` to the **same** `vX.Y.Z` (the site
+header shows this string so visitors see the latest version); (3) commit to `main`; (4) tag
+`vX.Y.Z` and push the tag, which triggers `release.yml` → `web-deploy.yml`. **Never push a release
+tag without updating `NABA_RELEASE`** — a stale header string would misreport the latest version.
 
 ## Claude Code Skills
 

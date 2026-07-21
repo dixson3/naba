@@ -5,6 +5,9 @@ AUTHOR = "James Dixson"
 CURRENT_YEAR = datetime.now().year
 SITENAME = "naba"
 SITESUBTITLE = "AI image generation from your terminal"
+# Latest released version, shown in the site header so visitors see it immediately.
+# MUST be bumped in lockstep with every release tag (see AGENTS.md "Releasing").
+NABA_RELEASE = "v0.7.0"
 # Full-sentence description for meta/OG (crawlers want >=100 chars).
 SITE_DESCRIPTION = (
     "naba is a single-binary Rust CLI for AI image generation across multiple providers "

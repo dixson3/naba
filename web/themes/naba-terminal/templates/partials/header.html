@@ -1,7 +1,7 @@
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="{{ SITEURL }}/">
-      <span class="prompt">naba</span><span class="cursor">&nbsp;</span>
+      <span class="prompt">naba</span>{% if NABA_RELEASE %}<span class="version">({{ NABA_RELEASE }})</span>{% endif %}<span class="cursor">&nbsp;</span>
     </a>
     <nav class="nav">
       {% for title, url in MENUITEMS %}

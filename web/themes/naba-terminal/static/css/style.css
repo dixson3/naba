@@ -57,6 +57,7 @@ a:hover { color: var(--green); text-decoration: underline; text-underline-offset
 .brand { font-weight: 700; font-size: 18px; color: var(--fg); }
 .brand .prompt { color: var(--green); }
 .brand .prompt::before { content: "> "; color: var(--fg-mute); }
+.brand .version { color: var(--fg-mute); font-weight: 400; font-size: 13px; margin-left: 8px; }
 .brand .cursor { display: inline-block; width: 9px; height: 1.05em; margin-left: 2px;
   background: var(--green); vertical-align: -2px; animation: blink 1.1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
