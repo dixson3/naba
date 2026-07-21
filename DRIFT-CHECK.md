@@ -180,7 +180,7 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | `commands` | `skills/naba/commands/` must contain one `<sub>.md` per dispatch-table subcommand |
 | `skill-mcp` | `skills/naba/mcp/` holds the mcp-only per-tool guidance files served by the `skill://` MCP resource surface (plan-011 authored render); referenced by the website MCP page and the SKILL.md `{% if mcp %}` guide body |
 | `skill-readme` | the `skills/naba/` dir must contain one `README.md` |
-| `installer` | the `naba skills` command (`src/skills.rs`), referenced by the project README "Claude Code Skills" / "Install the skill" sections and AGENTS.md "Claude Code Skills" |
+| `installer` | the `naba skills` command (`src/skills.rs`), referenced by the project README "Agent Skills" / "Install the skill" sections and AGENTS.md "Claude Code Skills" |
 | `self-source` | `naba self` / `naba skills preflight` (`src/self_cmd/`, `src/preflight.rs`, `src/dirs.rs`), referenced by the project README "Self-update" / "Skill-gate preflight" sections, the SKILL.md `## Preflight` section, AGENTS.md "Architecture"/"Distribution", and SPEC §15–§18 |
 | `skill-spec` | referenced by AGENTS.md "Claude Code Skills" section and the SKILL.md drift note |
 | `gemini-source` | the `DEFAULT_MODEL` constant is consumed by `src/commands.rs`, `src/doctor.rs`, and `src/mcp.rs` (client construction) |

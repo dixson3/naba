@@ -330,6 +330,8 @@ by the `.bak` backup).
 
 `naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 8 image tools to AI assistants like Claude Desktop and Cursor, plus MCP-authored usage guidance for those tools as lazily-loaded `skill://` resources.
 
+MCP is how you give a **desktop** assistant — one that can't run shell commands — first-class access to naba: it calls naba's tools directly over the protocol and gets structured results back, no terminal involved. It's the counterpart to [Agent Skills](#agent-skills) above (which shell out to the CLI for coding agents that *do* have a shell); both drive the identical provider/selector/output pipeline, so you get the same images either way — the difference is purely how the assistant reaches naba.
+
 **Claude Desktop configuration** — add to your `claude_desktop_config.json`:
 
 ```json
@@ -382,13 +384,24 @@ cheaply as `skill://naba/<rel>` URIs (paths only — no bodies) plus a compact `
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | naba mcp
 ```
 
-## Claude Code Skills
+## Agent Skills
 
-naba ships a single [Claude Code](https://claude.com/claude-code) skill that wraps the CLI
-as one slash command with subcommands: `/naba <subcommand>` (e.g. `/naba generate`,
-`/naba edit`, `/naba icon`, …). The skill files are **embedded in the `naba` binary** and
-installed with `naba skills install` (offline, version-matched) — there is no marketplace
-plugin and no separate installer script.
+A **skill** teaches an AI coding agent a new capability — a little instruction plus a command the
+agent runs on your behalf. naba's skill turns *"make me an app icon of a rocket ship"* into the
+right `naba` invocation, so you get naba's images without leaving the conversation or memorizing
+CLI flags.
+
+naba ships a **single** skill that wraps the whole CLI as one slash command with subcommands:
+`/naba <subcommand>` (e.g. `/naba generate`, `/naba edit`, `/naba icon`, …). It installs into
+whichever **agent harness** you use — [Claude Code](https://claude.com/claude-code) is the default
+and the running example here, but opencode, pi, codex, and a portable `agents` layout work too
+(see [Harnesses](#harnesses) below). The skill files are **embedded in the `naba` binary** at
+compile time and installed with `naba skills install`, so installation is offline and always
+version-matched — there is no marketplace plugin and no separate installer script.
+
+> **Prefer a desktop assistant that can't run shell commands** (Claude Desktop, Cursor)? Use the
+> [MCP Server](#mcp-server) instead — it exposes the same image pipeline over a protocol, so the
+> assistant calls naba's tools without a terminal.
 
 > **Prerequisite:** the skill shells out to the `naba` CLI, so the **`naba` binary must be
 > installed and on PATH** (see [Install](#install)) and a provider API key set —
@@ -427,21 +440,48 @@ plugin and no separate installer script.
 ### Install the skill
 
 ```bash
-naba skills install                  # default: user scope -> ~/.claude/skills
-naba skills install --dry-run        # show what would be written, change nothing
-naba skills install --scope project  # install into <git-root>/.claude/skills instead
-naba skills install --surface agents # install into ~/.agents/skills (agents surface)
-naba skills install --target DIR     # install into an explicit directory
-naba skills upgrade                  # rewrite from the embedded tree, pruning stale files
-naba skills remove                   # remove the naba skill again
-naba skills status                   # report up-to-date / complete / unmodified
+naba skills install                          # default: claude-code harness, user scope -> ~/.claude/skills
+naba skills install --dry-run                # show what would be written, change nothing
+naba skills install --scope project          # install into <git-root>/.claude/skills instead
+naba skills install --harness opencode       # install into ~/.config/opencode/skills
+naba skills install --harness claude-code --harness pi   # repeatable: several harnesses at once
+naba skills install --target DIR             # install into an explicit directory
+naba skills upgrade                          # refresh every previously-installed harness target
+naba skills remove                           # remove the naba skill again
+naba skills status                           # report up-to-date / complete / unmodified
 ```
 
 The skill tree is embedded into the binary at compile time, so `naba skills` works offline and always
 matches the binary's version. On `install`/`upgrade` it writes a hidden integrity marker
 into the deployed `SKILL.md` (`<!-- naba-skills: v=<version> tree=<sha256> -->`); `status`
 and `naba doctor` use that marker to confirm the install is current, complete, and
-unmodified. The repository source `skills/naba/SKILL.md` stays marker-free.
+unmodified. The repository source `skills/naba/SKILL.md` stays marker-free. Every verb also
+accepts `--json` for a machine-readable `{status, data}` envelope.
+
+### Harnesses
+
+The same embedded skill tree installs to several agent **harnesses**, each at its own idiomatic
+skills path. Select one with `--harness <name>`; the flag is **repeatable**, so one `install` can
+target several at once:
+
+| Harness | Project-scope path | User-scope path |
+|:--------|:-------------------|:----------------|
+| **claude-code** (default) | `<root>/.claude/skills` | `~/.claude/skills` |
+| **opencode** | `<root>/.opencode/skills` | `~/.config/opencode/skills` |
+| **pi** | `<root>/.pi/skills` | `~/.pi/agent/skills` |
+| **codex** | `<root>/.agents/skills` | `~/.agents/skills` |
+| **agents** (portable) | `<root>/.agents/skills` | `~/.agents/skills` |
+
+The portable **`agents`** harness writes the generic `.agents/skills` location that opencode, pi,
+and codex all read — the one-shot way to cover multiple generic harnesses. `--scope` chooses the
+`<root>` each harness installs under (**user** = `$HOME`, the default; **project** = the git root,
+else the current directory); `--target DIR` overrides scope and harness entirely. `naba skills
+upgrade` refreshes **every** harness target you previously installed to (tracked in an install
+receipt), continuing on error — so a multi-harness install stays in sync in one call.
+
+> The old `--surface claude|agents` flag still works as a deprecated hidden alias
+> (`claude` → `claude-code`, `agents` → `agents`) and prints a deprecation notice. Prefer
+> `--harness`.
 
 ### Health check
 
@@ -450,7 +490,7 @@ unmodified. The repository source `skills/naba/SKILL.md` stays marker-free.
 ```bash
 naba doctor                  # checks skills install, API key, model, config
 naba doctor --json           # structured output
-naba doctor --surface agents # check the agents-surface install instead
+naba doctor --harness agents # check the agents-harness install instead
 ```
 
 It reports: skills installed and matching this binary (integrity marker present,
@@ -475,6 +515,23 @@ It reports three axes: **auth** (the effective provider's key is present — no 
 cache; an absent/stale cache is `unknown` and **non-blocking** (a fresh install always
 passes). Overall `status` is `ok` unless auth or skills fails (`auth_missing` /
 `skills_outdated`); the gate exits non-zero on a non-`ok` status.
+
+### Implicit triggering
+
+You rarely type `/naba` yourself. The skill's description tells the agent to **trigger it
+automatically** whenever your request matches an image task — even in plain language. Any of
+these fire the right subcommand with no slash command:
+
+- "make me an image of a red apple on white" → `generate`
+- "remove the background from logo.png" → `edit`
+- "sharpen and denoise this old photo" → `restore`
+- "an app icon for a rocket ship at 256 and 512" → `icon`
+- "a seamless circuit-board texture" → `pattern`
+- "draw a flowchart of the auth flow" → `diagram`
+
+The skill **skips** requests for editable diagram *source* (d2/mermaid text) — `naba diagram`
+produces a rendered image, not editable source. Explicit `/naba <subcommand>` invocation always
+works too, and is the reliable trigger when you want a specific subcommand.
 
 ### Subcommands
 
