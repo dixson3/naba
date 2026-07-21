@@ -2,23 +2,23 @@ Title: install
 Slug: install
 Subtitle: get naba on your machine
 
-naba is a single self-contained Rust binary — no runtime, no dependencies. The **bootstrap
-installer** below is the recommended way in; other paths follow.
+naba is a single self-contained Rust binary — no runtime, no dependencies. The **vendor
+`curl | sh` installer** below is the recommended way in; other paths follow.
 
-## Bootstrap (curl | sh) — recommended
+## Vendor install (curl | sh) — recommended
 
-This fetches the vendor installer (a mirror of cargo-dist's
-`naba-installer.sh`), drops the binary in `~/.local/bin`, and records an install receipt so
-naba can update itself later with [`naba self update`](/config/#self-update).
+This runs the vendor installer (a mirror of cargo-dist's `naba-installer.sh`) via a short
+bootstrap URL, drops the binary in `~/.local/bin`, and records an install receipt so naba can
+update itself later with [`naba self update`](/config/#self-update):
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://naba.ysapp.net/install.sh | sh
 ```
 
-> This bootstrap script is a byte-for-byte mirror of the cargo-dist installer published on
-> GitHub Releases — it in turn fetches sha256-checksummed release tarballs from GitHub.
-> **GitHub Releases** remains canonical for every binary; the `naba.ysapp.net` domain hosts only the
-> convenience `install.sh`.
+> The `naba.ysapp.net/install.sh` bootstrap is a byte-for-byte mirror of the cargo-dist
+> installer published on GitHub Releases — it in turn fetches sha256-checksummed release
+> tarballs from GitHub. **GitHub Releases** remains canonical for every binary; the
+> `naba.ysapp.net` domain hosts only the convenience `install.sh`.
 
 ## Alternatives
 
@@ -53,7 +53,7 @@ cargo build --release      # binary at target/release/naba
 
 | Path | Self-updates in place | Best for |
 |:-----|:----------------------|:---------|
-| **Bootstrap `curl \| sh`** | **yes** (`naba self update`) | **most people — fast install + in-place updates** |
+| **Vendor install `curl \| sh`** | **yes** (`naba self update`) | **most people — fast install + in-place updates** |
 | Homebrew | no (use `brew upgrade`) | macOS/Linux users already on Homebrew |
 | Cargo | no | Rust developers |
 | From source | with `self install --from-build` | hacking on naba |

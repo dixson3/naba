@@ -207,7 +207,7 @@ their dependency is now intra-skill router logic, not a `depends-on-skill` front
 | Install | `skill-readme` | `naba skills install` reference (binary-embedded skill) |
 | Subcommands table | `project-readme` | one `/naba <sub>` row per subcommand in the dispatch table |
 | Skill install instructions | `project-readme` | `naba skills install`/`upgrade`/`remove`/`status` verbs + flags |
-| Self-update | `project-readme` | `naba self update`/`install --from-build`/`uninstall` + the vendor `curl\|sh` install; Homebrew remains the documented default |
+| Self-update | `project-readme` | `naba self update`/`install --from-build`/`uninstall` + the vendor `curl\|sh` install as the documented default (self-updating); Homebrew is a documented alternative |
 
 ## 6. Trigger Scope
 
