@@ -3,11 +3,11 @@ Slug: skills
 Subtitle: the /naba agent skill and its lifecycle
 
 A **skill** teaches an AI coding agent a new capability: some instructions, plus a command the
-agent runs on your behalf. naba's skill turns *"make me an app icon of a rocket ship"* into the
-right `naba` invocation — you get naba's images without leaving the conversation or memorizing
+agent runs on your behalf. `naba`'s skill turns *"make me an app icon of a rocket ship"* into the
+right `naba` invocation — you get `naba`'s images without leaving the conversation or memorizing
 CLI flags.
 
-naba ships a single skill that wraps the whole CLI as one slash command with subcommands:
+`naba` ships a single skill that wraps the whole CLI as one slash command with subcommands:
 `/naba <subcommand>`. It installs into whichever **agent harness** you use —
 [Claude Code](https://claude.com/claude-code) is the default and the running example throughout
 this page, but opencode, pi, codex, and a portable `agents` layout work too (see
@@ -17,7 +17,7 @@ no marketplace plugin and no separate installer script.
 
 > Prefer a desktop assistant that can't run shell commands (Claude Desktop, Cursor)? Use the
 > [MCP server](/mcp/) instead — it exposes the same image pipeline over a protocol. The
-> [why run naba as an MCP server](/mcp/#why-run-naba-as-an-mcp-server) section explains when to
+> [why run `naba` as an MCP server](/mcp/#why-run-naba-as-an-mcp-server) section explains when to
 > reach for which.
 
 ## Subcommands
@@ -34,7 +34,7 @@ Invoke as `/naba <subcommand> [args]`; run `/naba help` to print the dispatch ta
 | `/naba diagram` | Generate technical diagram images |
 | `/naba story` | Generate a sequential image series |
 | `/naba storyboard` | Composite: story sequence + per-frame edits |
-| `/naba batch` | Composite: orchestrate multiple naba calls (icon suites, asset pipelines) |
+| `/naba batch` | Composite: orchestrate multiple `naba` calls (icon suites, asset pipelines) |
 | `/naba brand-kit` | Composite: icon + pattern + hero image set |
 
 The seven inline subcommands run a single `naba` CLI call directly; the three composites
@@ -121,7 +121,7 @@ receipt — and continues on error, so a multi-harness install stays in sync in 
 
 ### Integrity marker
 
-On `install`/`upgrade` naba writes a hidden integrity marker into the deployed `SKILL.md`
+On `install`/`upgrade` `naba` writes a hidden integrity marker into the deployed `SKILL.md`
 (`<!-- naba-skills: v=<version> tree=<sha256> -->`); `status` and `naba doctor` use it to
 confirm the install is current, complete, and unmodified. The repository source
 `skills/naba/SKILL.md` stays marker-free.

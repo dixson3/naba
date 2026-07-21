@@ -2,11 +2,11 @@ Title: usage
 Slug: usage
 Subtitle: commands, with the images they make
 
-Every image command routes through one of naba's providers (Gemini, OpenRouter, or AWS
+Every image command routes through one of `naba`'s providers (Gemini, OpenRouter, or AWS
 Bedrock) — see [config](/config/) for provider and key setup. Each example below shows the
 exact command
 **and the image it produced**; captions note the prompt and the model used. (These are real
-naba outputs, mostly on the fast `gemini-3.1-flash-image` tier, with one on the higher-quality
+`naba` outputs, mostly on the fast `gemini-3.1-flash-image` tier, with one on the higher-quality
 `gemini-3-pro-image` tier.)
 
 Every command here is also reachable from inside an AI agent as a `/naba <subcommand>` **skill**

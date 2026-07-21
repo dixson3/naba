@@ -66,6 +66,13 @@ All image commands follow: resolve provider + API key -> enrich prompt -> call p
 - `--json` auto-enabled when stdout is piped (SPEC-GLOBAL-003).
 - **Validation:** `cargo build`, `cargo test`, `cargo clippy -D warnings`, `cargo fmt --check`, and the parity suite (`tests/parity/`) must all pass.
 
+## Writing Voice
+
+When writing or editing **user-facing documentation** — `README.md`, `CONTRIBUTING.md`, the `web/`
+site, and similar prose — consult [`VOICE.md`](VOICE.md) first. It covers verbose, human-friendly
+exposition; precedence written as explicit ordered lists (never `A > B > C`); and naming the tool
+as `` `naba` `` (never bare) in prose.
+
 ## Environment Variables
 
 | Variable             | Purpose                                                       |

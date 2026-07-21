@@ -2,14 +2,14 @@ Title: config
 Slug: config
 Subtitle: providers, keys, models, and defaults
 
-naba's configuration is **nested and per-provider**. A single `config.yaml` holds a default
+`naba`'s configuration is **nested and per-provider**. A single `config.yaml` holds a default
 provider, a per-provider block (default model + api-key source) for each provider you use, and
 the top-level image defaults. Every key is optional — an absent key resolves to a built-in
 default on read.
 
 ## Set an API key
 
-The fastest path is an environment variable — naba reads each provider's conventional key
+The fastest path is an environment variable — `naba` reads each provider's conventional key
 without any config at all:
 
 ```bash
@@ -28,7 +28,7 @@ naba config set bedrock.api-key <your-token>
 
 ### API-key resolution precedence
 
-For **every** provider, naba resolves the api-key with one uniform precedence — highest first:
+For **every** provider, `naba` resolves the api-key with one uniform precedence — highest first:
 
 1. **Inline** `providers.<provider>.api-key` (from `config set <provider>.api-key`)
 2. **Custom env var** named by `providers.<provider>.api-key-envvar`
@@ -44,7 +44,7 @@ naba config set gemini.api-key-envvar MY_TEAM_GEMINI_KEY
 
 ## Providers
 
-naba routes every image command through one of its registered providers:
+`naba` routes every image command through one of its registered providers:
 
 | Provider | Conventional key env var | Default model |
 |:---------|:-------------------------|:--------------|
@@ -71,7 +71,7 @@ naba config set default-provider gemini      # pin a default provider
 ### Per-provider default model
 
 Each provider carries its **own** default model. When `providers.<provider>.model` is unset,
-naba falls back to that provider's compiled-in default (the table above). So switching providers
+`naba` falls back to that provider's compiled-in default (the table above). So switching providers
 never leaves you model-less, and you can pin a different model per provider:
 
 ```bash
@@ -81,7 +81,7 @@ naba config set openrouter.model bytedance-seed/seedream-4.5
 
 ### Provider resolution precedence
 
-When you don't pass `--provider`, naba resolves the provider in this order:
+When you don't pass `--provider`, `naba` resolves the provider in this order:
 
 1. **CLI** `--provider`
 2. **Config** `default-provider` key
@@ -120,7 +120,7 @@ Amazon and Stability image families:
 
 ### Bedrock auth (two modes)
 
-Bedrock supports **both** credential paths; naba prefers the bearer token when one resolves,
+Bedrock supports **both** credential paths; `naba` prefers the bearer token when one resolves,
 otherwise it falls back to AWS SigV4 signing:
 
 | Mode | How to supply | Notes |
@@ -130,8 +130,12 @@ otherwise it falls back to AWS SigV4 signing:
 
 ### Bedrock region
 
-The region defaults to **`us-east-1`** (broadest image-model coverage) and is read from
-`AWS_REGION` > `AWS_DEFAULT_REGION` > the default:
+The region defaults to **`us-east-1`** (broadest image-model coverage), resolved in this order
+(highest precedence first):
+
+1. `AWS_REGION`
+2. `AWS_DEFAULT_REGION`
+3. the built-in default (`us-east-1`)
 
 ```bash
 export AWS_REGION=us-west-2
@@ -213,7 +217,7 @@ accepted as aliases for backward compatibility.
 ### Config auto-migration
 
 An old **flat** config (top-level `api_key` / `model` / `provider`) is auto-migrated to the
-nested schema on first load. naba writes a `config.yaml.bak` backup with the original bytes
+nested schema on first load. `naba` writes a `config.yaml.bak` backup with the original bytes
 first, then rewrites the document: `api_key` → `providers.gemini.api-key` (its historical
 Gemini scope), `model` → the resolved default provider's block, `provider` →
 `default_provider`. The migration is idempotent and graceful on empty/missing/malformed inputs;

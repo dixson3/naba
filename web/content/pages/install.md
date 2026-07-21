@@ -2,13 +2,13 @@ Title: install
 Slug: install
 Subtitle: get naba on your machine
 
-naba is a single self-contained Rust binary — no runtime, no dependencies. The **vendor
+`naba` is a single self-contained Rust binary — no runtime, no dependencies. The **vendor
 `curl | sh` installer** below is the recommended way in; other paths follow.
 
 ## Vendor install (curl | sh) — recommended
 
 This runs the vendor installer (a mirror of cargo-dist's `naba-installer.sh`) via a short
-bootstrap URL, drops the binary in `~/.local/bin`, and records an install receipt so naba can
+bootstrap URL, drops the binary in `~/.local/bin`, and records an install receipt so `naba` can
 update itself later with [`naba self update`](/config/#self-update):
 
 ```bash
@@ -56,14 +56,14 @@ cargo build --release      # binary at target/release/naba
 | **Vendor install `curl \| sh`** | **yes** (`naba self update`) | **most people — fast install + in-place updates** |
 | Homebrew | no (use `brew upgrade`) | macOS/Linux users already on Homebrew |
 | Cargo | no | Rust developers |
-| From source | with `self install --from-build` | hacking on naba |
+| From source | with `self install --from-build` | hacking on `naba` |
 
 ## Agent harness skills
 
-The steps above give you the `naba` command-line tool. naba can *also* install itself as a
+The steps above give you the `naba` command-line tool. `naba` can *also* install itself as a
 **skill** inside an AI coding agent — so instead of remembering CLI flags, you (or the agent)
 can just say *"make me an app icon of a rocket ship"* and the right `naba` command runs for you.
-naba ships **one** skill that wraps the whole CLI as a single slash command with subcommands:
+`naba` ships **one** skill that wraps the whole CLI as a single slash command with subcommands:
 `/naba generate`, `/naba edit`, `/naba icon`, and so on.
 
 That skill is not tied to any one agent. It installs into whichever **agent harness** you use —
@@ -102,14 +102,14 @@ things have to be in place for it to actually produce an image:
 
 1. **The `naba` binary is installed and on your `PATH`** — the steps at the top of this page.
 2. **A provider API key is set** — `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, or
-   `AWS_BEARER_TOKEN_BEDROCK`. See [config](/config/) for how naba resolves keys.
+   `AWS_BEARER_TOKEN_BEDROCK`. See [config](/config/) for how `naba` resolves keys.
 
 `naba skills install` will happily write the files before either is true; the skill just stays
 inert until the binary is reachable and a key is present.
 
 ### Where to go next
 
-- **[skills](/skills/)** — the full lifecycle: every subcommand, how the agent triggers naba
+- **[skills](/skills/)** — the full lifecycle: every subcommand, how the agent triggers `naba`
   automatically from plain-language requests, and the detailed flags (`--scope` for user vs.
   project installs, the repeatable `--harness` to install into several agents at once, `--target`
   for an explicit directory, plus `status`, `remove`, and the fast `preflight` gate).

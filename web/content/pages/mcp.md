@@ -3,14 +3,14 @@ Slug: mcp
 Subtitle: naba as a Model Context Protocol server
 
 `naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io)
-server that exposes naba's image pipeline as MCP **tools**, and its embedded skill tree as
+server that exposes `naba`'s image pipeline as MCP **tools**, and its embedded skill tree as
 lazily-loaded MCP **resources**, to assistants like Claude Desktop and Cursor. It drives the
 same provider/selector/output pipeline the CLI uses — no generation logic is reimplemented.
 
 ## Why run naba as an MCP server?
 
 MCP is the way to give a **desktop** assistant — one that can't run shell commands — first-class
-access to naba. The assistant calls naba's image tools directly over the protocol and gets
+access to `naba`. The assistant calls `naba`'s image tools directly over the protocol and gets
 structured results back, no terminal involved.
 
 That makes it the counterpart to the [agent harness skill](/skills/), and it helps to know which
@@ -20,16 +20,16 @@ one you want:
   Claude Code, opencode, and friends. When triggered, the agent *shells out to the `naba` CLI*.
   The skill is essentially instructions plus a command to run.
 - **The MCP server** is for **assistants without a shell** — Claude Desktop, Cursor. The
-  assistant calls naba's tools *over the MCP protocol*; naba runs as a long-lived server process
+  assistant calls `naba`'s tools *over the MCP protocol*; `naba` runs as a long-lived server process
   it talks to.
 
 Both drive the identical provider/selector/output pipeline, so you get the same images either
-way — the difference is purely how the assistant reaches naba. You can run both at once (a skill
+way — the difference is purely how the assistant reaches `naba`. You can run both at once (a skill
 in your coding agent, an MCP server in your desktop app) from the same binary.
 
 ## Claude Desktop configuration
 
-Add naba to your `claude_desktop_config.json`:
+Add `naba` to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -58,8 +58,13 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ## `NABA_OUTPUT_DIR`
 
 MCP tools do **not** use the CLI's `-o`/CWD path. They write images through the MCP output-dir
-resolution: `NABA_OUTPUT_DIR` env > config `default_output_dir` > the XDG default
-`~/.local/share/naba/images`. Setting `NABA_OUTPUT_DIR` is recommended so you know where
+resolution, in this order (highest precedence first):
+
+1. the `NABA_OUTPUT_DIR` environment variable
+2. the `default_output_dir` config key
+3. the XDG default (`~/.local/share/naba/images`)
+
+Setting `NABA_OUTPUT_DIR` is recommended so you know where
 generated images land. Errors surface as tool-level error results (`isError: true`), never a
 process exit.
 
@@ -89,7 +94,7 @@ images in the output directory, newest first.
 Beyond the generated `file://` image links, the server exposes **MCP-authored usage guidance**
 for its tools as MCP **resources** under a `skill://` URI scheme — the lazy-loading pattern.
 
-The important part: this guidance is written *for the MCP tools*, not borrowed from the CLI. naba
+The important part: this guidance is written *for the MCP tools*, not borrowed from the CLI. `naba`
 renders its skill source into two variants — the `/naba` slash-command skill the
 [skills page](/skills/) deploys, and a separate **MCP render** served here. The MCP render
 describes calling `generate_image`, `edit_image`, and friends by **tool name and parameters**,
