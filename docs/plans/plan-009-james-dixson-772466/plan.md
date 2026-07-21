@@ -3,7 +3,8 @@
 **ID:** plan-009-james-dixson-772466
 **Author:** james-dixson
 **Created:** 2026-07-21
-**Status:** approved
+**Status:** complete
+**Epic:** naba-mol-d10
 **Fingerprint:** 0f63fbbe7d3aa0abe4d3d63af37988f741d19adc379dd33184e8fb915495c17a
 **Phase log:**
 - 2026-07-21 scoping: initial scope captured
@@ -12,6 +13,10 @@
 - 2026-07-21 review: red-team pass-1 — APPROVE (5 concerns folded: 2 medium, 3 low)
 - 2026-07-21 ready-for-approval: ready-check green — pass-1 APPROVE + audit pass
 - 2026-07-21 approved: operator approved
+- 2026-07-21 intake: epic naba-mol-d10 poured
+- 2026-07-21 executing: start gate resolved
+- 2026-07-21 reconciling: post-execution reconciliation
+- 2026-07-21 complete: plan complete
 
 ## Objective
 Author a tool-agnostic agent-tools SPEC (skills self-management lifecycle, MCP-over-CLI interface, --json agent output with envelopes + pipe-auto-enable) with naba as reference implementation; yoshiko-flow recon + cross-reference; resolves GH #12
