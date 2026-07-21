@@ -29,6 +29,7 @@ renumbered, regardless of which file a clause lives in.
 | [mcp.md](mcp.md) | §11 MCP surface (SPEC-MCP) |
 | [skills.md](skills.md) | Skills subcommand → CLI-verb map, §12 Skill-embed (SPEC-EMBED), §18 Skills preflight (SPEC-PREFLIGHT), §19 Harness layout (SPEC-HARNESS), §20 Skills install receipt (SPEC-INSTALL) |
 | [distribution.md](distribution.md) | §13 Version injection (SPEC-VERSION-BUILD), §15 Distribution (SPEC-DIST), §16 XDG directories (SPEC-DIRS), §17 Vendor install & self-update (SPEC-SELF) |
+| [agent-tools.md](agent-tools.md) | **Tool-agnostic** agent-tools pattern (`AGENT-TOOLS-SKILLS`/`-MCP`/`-JSON`) — the portable contract the per-domain specs above realize; naba is the reference implementation and yoshiko-flow `yf` a conforming one. Its own `AGENT-TOOLS-*` namespace is distinct from `SPEC-*` and is **not** part of the naba parity/traceability required set. |
 
 ---
 
