@@ -53,6 +53,7 @@ use rmcp::{serve_server, ErrorData as McpError, RoleServer, ServerHandler};
 
 use crate::config::Config;
 use crate::embed;
+use crate::enums;
 use crate::error::{AppError, AppResult};
 use crate::output;
 use crate::prompt;
@@ -768,8 +769,7 @@ fn generate_image_tool() -> Tool {
         json!({
             "type": "string",
             "description": "Art style",
-            "enum": ["photorealistic", "watercolor", "oil-painting", "sketch", "pixel-art",
-                     "anime", "vintage", "modern", "abstract", "minimalist"],
+            "enum": enums::GENERATE_STYLE_VALUES,
         }),
     );
     props.insert(
@@ -779,8 +779,7 @@ fn generate_image_tool() -> Tool {
             "description": "Variation types to apply",
             "items": {
                 "type": "string",
-                "enum": ["lighting", "angle", "color-palette", "composition", "mood",
-                         "season", "time-of-day"],
+                "enum": enums::GENERATE_VARIATION_VALUES,
             },
         }),
     );
@@ -862,7 +861,7 @@ fn generate_icon_tool() -> Tool {
             "type": "string",
             "description": "Visual style of the icon",
             "default": "modern",
-            "enum": ["flat", "skeuomorphic", "minimal", "modern"],
+            "enum": enums::ICON_STYLE_VALUES,
         }),
     );
     props.insert(
@@ -875,7 +874,7 @@ fn generate_icon_tool() -> Tool {
             "type": "string",
             "description": "Corner style",
             "default": "rounded",
-            "enum": ["rounded", "sharp"],
+            "enum": enums::ICON_CORNERS_VALUES,
         }),
     );
     props.insert(
@@ -884,7 +883,7 @@ fn generate_icon_tool() -> Tool {
             "type": "string",
             "description": "Output format",
             "default": "png",
-            "enum": ["png", "jpeg"],
+            "enum": enums::ICON_FORMAT_VALUES,
         }),
     );
     // icon: quality only (no aspect/resolution).
@@ -908,7 +907,7 @@ fn generate_pattern_tool() -> Tool {
             "type": "string",
             "description": "Pattern style",
             "default": "abstract",
-            "enum": ["geometric", "organic", "abstract", "floral", "tech"],
+            "enum": enums::PATTERN_STYLE_VALUES,
         }),
     );
     props.insert(
@@ -917,7 +916,7 @@ fn generate_pattern_tool() -> Tool {
             "type": "string",
             "description": "Color scheme",
             "default": "colorful",
-            "enum": ["mono", "duotone", "colorful"],
+            "enum": enums::PATTERN_COLORS_VALUES,
         }),
     );
     props.insert(
@@ -926,7 +925,7 @@ fn generate_pattern_tool() -> Tool {
             "type": "string",
             "description": "Element density",
             "default": "medium",
-            "enum": ["sparse", "medium", "dense"],
+            "enum": enums::PATTERN_DENSITY_VALUES,
         }),
     );
     props.insert(
@@ -943,7 +942,7 @@ fn generate_pattern_tool() -> Tool {
             "type": "string",
             "description": "Tiling method",
             "default": "tile",
-            "enum": ["tile", "mirror"],
+            "enum": enums::PATTERN_REPEAT_VALUES,
         }),
     );
     insert_image_config(&mut props);
@@ -976,7 +975,7 @@ fn generate_story_tool() -> Tool {
             "type": "string",
             "description": "Visual consistency across frames",
             "default": "consistent",
-            "enum": ["consistent", "evolving"],
+            "enum": enums::STORY_STYLE_VALUES,
         }),
     );
     props.insert(
@@ -985,7 +984,7 @@ fn generate_story_tool() -> Tool {
             "type": "string",
             "description": "Transition style between frames",
             "default": "smooth",
-            "enum": ["smooth", "dramatic", "fade"],
+            "enum": enums::STORY_TRANSITION_VALUES,
         }),
     );
     props.insert(
@@ -994,7 +993,7 @@ fn generate_story_tool() -> Tool {
             "type": "string",
             "description": "Output layout format",
             "default": "separate",
-            "enum": ["separate", "grid", "comic"],
+            "enum": enums::STORY_LAYOUT_VALUES,
         }),
     );
     insert_image_config(&mut props);
@@ -1017,8 +1016,7 @@ fn generate_diagram_tool() -> Tool {
             "type": "string",
             "description": "Type of diagram",
             "default": "flowchart",
-            "enum": ["flowchart", "architecture", "network", "database", "wireframe",
-                     "mindmap", "sequence"],
+            "enum": enums::DIAGRAM_TYPE_VALUES,
         }),
     );
     props.insert(
@@ -1027,7 +1025,7 @@ fn generate_diagram_tool() -> Tool {
             "type": "string",
             "description": "Visual style",
             "default": "professional",
-            "enum": ["professional", "clean", "hand-drawn", "technical"],
+            "enum": enums::DIAGRAM_STYLE_VALUES,
         }),
     );
     props.insert(
@@ -1036,7 +1034,7 @@ fn generate_diagram_tool() -> Tool {
             "type": "string",
             "description": "Layout orientation",
             "default": "hierarchical",
-            "enum": ["horizontal", "vertical", "hierarchical", "circular"],
+            "enum": enums::DIAGRAM_LAYOUT_VALUES,
         }),
     );
     props.insert(
@@ -1045,7 +1043,7 @@ fn generate_diagram_tool() -> Tool {
             "type": "string",
             "description": "Level of detail",
             "default": "detailed",
-            "enum": ["simple", "detailed", "comprehensive"],
+            "enum": enums::DIAGRAM_COMPLEXITY_VALUES,
         }),
     );
     props.insert(
@@ -1054,7 +1052,7 @@ fn generate_diagram_tool() -> Tool {
             "type": "string",
             "description": "Color scheme",
             "default": "accent",
-            "enum": ["mono", "accent", "categorical"],
+            "enum": enums::DIAGRAM_COLORS_VALUES,
         }),
     );
     insert_image_config(&mut props);

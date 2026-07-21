@@ -15,6 +15,7 @@ mod config;
 mod dirs;
 mod doctor;
 mod embed;
+mod enums;
 mod error;
 mod harness;
 mod mcp;
