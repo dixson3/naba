@@ -11,8 +11,10 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
   capability, so no handshake change is introduced by the skill surface.
 - **SPEC-MCP-002** [PINNED] Exactly **8 tools**: `generate_image`, `edit_image`,
   `restore_image`, `generate_icon`, `generate_pattern`, `generate_story`,
-  `generate_diagram`, `list_images`. Tool/param inventory, enums, defaults, and descriptions
-  are [PINNED] verbatim per the tables below.
+  `generate_diagram`, `list_images`. Tool/param inventory, enums, defaults, and the **base**
+  descriptions are [PINNED] verbatim per the tables below. The seven **generation** tools' served
+  descriptions are the pinned base **plus** the uniform lazy-guidance pointer suffix defined in
+  SPEC-MCP-016 (`list_images`, the utility tool, carries no pointer).
 - **SPEC-MCP-003** [PINNED] Shared imageConfig options on the image tools: `aspect` (enum =
   `ValidAspectRatios`, desc `Aspect ratio (generationConfig.imageConfig.aspectRatio)`),
   `resolution` (enum = `ValidImageSizes`, desc `Image resolution
@@ -72,22 +74,33 @@ Clause IDs (`SPEC-<AREA>-NNN`) are stable and are never renumbered; append only.
 
 ### §11.1 Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
 
-- **SPEC-MCP-014** [NEW] `resources/list` enumerates the **embedded skill tree** as concrete
-  MCP resources so a client discovers skills cheaply and fetches instruction content on
-  demand. The tree served here is the **`mcp/` render** (the subtractive, MCP-flavored variant
-  produced by the `build.rs` two-tree render — SPEC-EMBED-005), **not** the CLI-flavored `cli/`
-  tree that `skills install` deploys; this fixes the earlier behavior where the MCP surface served
-  CLI-oriented content. For each embedded skill `<name>` (from the binary's `mcp/` skill embed) it
-  emits: a
-  compact index resource — URI `skill://<name>`, name `<name> skills index`, MIME
-  `text/markdown` — followed by one resource per file — URI `skill://<name>/<rel>` for each
-  skill-relative path `<rel>` (sorted: `README.md`, `SKILL.md`, `commands/*.md`), name
-  `<name>/<rel>`, MIME by extension (`.md` → `text/markdown`, else `text/plain`). The listing
-  carries **URIs/metadata only — never file bodies** (the lazy-loading contract).
+- **SPEC-MCP-014** [NEW — amended plan-011] `resources/list` enumerates the **embedded skill
+  tree** as concrete MCP resources so a client discovers skills cheaply and fetches instruction
+  content on demand. The tree served here is the **`mcp/` render** — the **MCP-authored** variant
+  produced by the `build.rs` two-tree render (SPEC-EMBED-005): the `SKILL.md` `{% if mcp %}` guide
+  body **plus** the mcp-only `skills/<name>/mcp/…` subtree, with the CLI `commands/*.md` and
+  `README.md` **excluded**. It is **not** the CLI-flavored `cli/` tree that `skills install`
+  deploys; this fixes the earlier behavior where the MCP surface served CLI-oriented content
+  (`/naba` slash commands, `--flags`). For each embedded skill `<name>` (from the binary's `mcp/`
+  skill embed) it emits: a compact index resource — URI `skill://<name>`, name `<name> skills
+  index`, MIME `text/markdown` — followed by one resource per file — URI `skill://<name>/<rel>`
+  for each skill-relative path `<rel>` in the `mcp/` render (sorted by slash path; e.g.
+  `SKILL.md`, `mcp/*.md`), name `<name>/<rel>`, MIME by extension (`.md` → `text/markdown`, else
+  `text/plain`). The listing carries **URIs/metadata only — never file bodies** (the lazy-loading
+  contract).
 - **SPEC-MCP-015** [NEW] `resources/read` resolves the `skill://` scheme: `skill://<name>/<rel>`
   returns the embedded file content as `TextResourceContents` (`text`, MIME by extension —
-  SPEC-MCP-014), served from the **`mcp/` render** embed (SPEC-EMBED-005), i.e. the MCP-flavored
+  SPEC-MCP-014), served from the **`mcp/` render** embed (SPEC-EMBED-005), i.e. the MCP-authored
   variant rather than the `cli/` tree deployed on disk; `skill://<name>`
   returns a generated markdown index listing every `skill://<name>/<rel>` URI. An unknown
   skill or file → `resource not found: <uri>`. `file://` reads (SPEC-MCP-012) are unchanged;
   the eight tools (SPEC-MCP-002) are unaffected.
+- **SPEC-MCP-016** [NEW — plan-011] **Tool-description lazy-guidance pointer.** Each of the seven
+  **generation** tools (`generate_image`, `edit_image`, `restore_image`, `generate_icon`,
+  `generate_pattern`, `generate_story`, `generate_diagram`) carries, appended to its SPEC-MCP-004…010
+  pinned base description, a single **uniform** pointer line directing the client to fetch the
+  `skill://naba` MCP resource for prompt-engineering and usage guidance. The suffix is
+  identical across all seven tools and is the only mutation to the pinned descriptions; the tool
+  `name` and `inputSchema` are unchanged. `list_images` (SPEC-MCP-011, the utility tool) carries
+  **no** pointer. This keeps always-loaded tool context minimal — the detailed guidance is fetched
+  on demand via `resources/read` (SPEC-MCP-015), not baked into the tool schemas.

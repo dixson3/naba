@@ -11,13 +11,16 @@
 //! # Skills as MCP resources — lazy loading (SPEC-MCP-014/015)
 //!
 //! `resources/list` ([`list_resources`](NabaMcpServer::list_resources)) enumerates the
-//! embedded skill tree (`skills/<name>/…`, via [`crate::embed`]) as concrete MCP resources —
-//! one `skill://<name>/<rel>` URI per file (`SKILL.md`, `commands/*.md`, `README.md`) plus a
-//! compact `skill://<name>` index resource. Listing carries **URIs/paths only** (no file
-//! bodies), so a client discovers skills cheaply and fetches full instruction content ON
-//! DEMAND via `resources/read` of a `skill://<name>/<rel>` URI — the lazy-loading pattern.
-//! Reads are served from the MCP render via [`embed::read_skill_file_mcp`] / [`embed::skill_files_mcp`]
-//! accessors the CLI skill commands use; no content is duplicated.
+//! embedded **MCP render** of the skill tree (`skills/<name>/…`, via [`crate::embed`]) as
+//! concrete MCP resources — one `skill://<name>/<rel>` URI per file plus a compact
+//! `skill://<name>` index resource. The MCP render is **authored, not subtractive**
+//! (SPEC-EMBED-005, plan-011): the `SKILL.md` `{% if mcp %}` guide body plus the mcp-only
+//! `skills/<name>/mcp/…` subtree, with the CLI `commands/*.md` and `README.md` excluded — so
+//! the surface serves genuine MCP-tool guidance, not the CLI command docs. Listing carries
+//! **URIs/paths only** (no file bodies), so a client discovers skills cheaply and fetches full
+//! instruction content ON DEMAND via `resources/read` of a `skill://<name>/<rel>` URI — the
+//! lazy-loading pattern. Reads are served from the MCP render via
+//! [`embed::read_skill_file_mcp`] / [`embed::skill_files_mcp`]; no content is duplicated.
 //!
 //! # Reserved / slash-matching resource read (SPEC-MCP-012)
 //!
@@ -703,6 +706,18 @@ fn get_i64_slice(args: &Map<String, Value>, key: &str, default: &[i64]) -> Vec<i
 // pinned golden verbatim (types, enums, defaults, required order, descriptions).
 // ---------------------------------------------------------------------------
 
+/// SPEC-MCP-016: the uniform lazy-guidance pointer appended to each **generation** tool's
+/// SPEC-MCP-004…010 pinned base description. `list_images` (the utility tool, SPEC-MCP-011)
+/// carries no pointer. Keeps always-loaded tool context minimal — the detailed guidance is
+/// fetched on demand as the `skill://naba` resource (SPEC-MCP-014/015), not baked into schemas.
+const SKILL_POINTER: &str =
+    "For prompt-engineering and usage guidance, read the skill://naba MCP resource.";
+
+/// Append the SPEC-MCP-016 pointer to a pinned base tool description.
+fn with_pointer(base: &str) -> String {
+    format!("{base}\n\n{SKILL_POINTER}")
+}
+
 /// The 8 pinned MCP tools with their exact input schemas.
 fn tools() -> Vec<Tool> {
     vec![
@@ -800,7 +815,7 @@ fn generate_image_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "generate_image",
-        "Generate an image from a text prompt",
+        with_pointer("Generate an image from a text prompt"),
         schema(Value::Object(props), &["prompt"]),
     )
 }
@@ -818,7 +833,7 @@ fn edit_image_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "edit_image",
-        "Edit an existing image based on a text prompt",
+        with_pointer("Edit an existing image based on a text prompt"),
         schema(Value::Object(props), &["prompt", "file"]),
     )
 }
@@ -836,7 +851,7 @@ fn restore_image_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "restore_image",
-        "Restore or enhance an existing image",
+        with_pointer("Restore or enhance an existing image"),
         schema(Value::Object(props), &["file"]),
     )
 }
@@ -890,7 +905,7 @@ fn generate_icon_tool() -> Tool {
     props.insert("quality".into(), quality_prop());
     Tool::new(
         "generate_icon",
-        "Generate app icons in multiple sizes",
+        with_pointer("Generate app icons in multiple sizes"),
         schema(Value::Object(props), &["prompt"]),
     )
 }
@@ -948,7 +963,7 @@ fn generate_pattern_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "generate_pattern",
-        "Generate seamless patterns and textures",
+        with_pointer("Generate seamless patterns and textures"),
         schema(Value::Object(props), &["prompt"]),
     )
 }
@@ -999,7 +1014,7 @@ fn generate_story_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "generate_story",
-        "Generate a sequence of images that tell a visual story",
+        with_pointer("Generate a sequence of images that tell a visual story"),
         schema(Value::Object(props), &["prompt"]),
     )
 }
@@ -1058,7 +1073,7 @@ fn generate_diagram_tool() -> Tool {
     insert_image_config(&mut props);
     Tool::new(
         "generate_diagram",
-        "Generate technical diagrams and flowcharts",
+        with_pointer("Generate technical diagrams and flowcharts"),
         schema(Value::Object(props), &["prompt"]),
     )
 }
@@ -1222,6 +1237,21 @@ mod tests {
             .find(|r| r.uri == "skill://naba/SKILL.md")
             .expect("SKILL.md resource");
         assert_eq!(skill_md.mime_type.as_deref(), Some("text/markdown"));
+        // Authored MCP render (SPEC-EMBED-005, plan-011): the mcp-only subtree is served, and
+        // the CLI `commands/*.md` and `README.md` are excluded — the surface is MCP-authored
+        // guidance, not the CLI command docs.
+        assert!(
+            uris.contains(&"skill://naba/mcp/input-images.md"),
+            "missing mcp-only subtree resource: {uris:?}"
+        );
+        assert!(
+            !uris.iter().any(|u| u.contains("/commands/")),
+            "MCP render must exclude the CLI commands/*.md: {uris:?}"
+        );
+        assert!(
+            !uris.contains(&"skill://naba/README.md"),
+            "MCP render must exclude the CLI README.md: {uris:?}"
+        );
         // Listing is cheap: no file bodies are attached to the Resource entries.
     }
 
@@ -1243,14 +1273,34 @@ mod tests {
                 // CLI tree.
                 let expected = embed::read_skill_file_mcp("naba", "SKILL.md").unwrap();
                 assert_eq!(text.as_bytes(), expected);
-                // The MCP variant is subtractive: no CLI router / preflight / Bash mechanics.
+                // The MCP variant is authored (SPEC-EMBED-005, plan-011), not subtractive: it
+                // drops the CLI router/preflight AND carries no `/naba` slash commands or
+                // `--flag` tokens.
                 assert!(
                     !text.contains("## Router") && !text.contains("## Preflight"),
                     "MCP SKILL.md must drop the CLI router/preflight sections"
                 );
                 assert!(
-                    text.contains("### Prompt engineering"),
-                    "MCP SKILL.md keeps the shared prompt guidance"
+                    !text.contains("/naba ") && !text.contains("`/naba"),
+                    "MCP SKILL.md must carry no /naba slash commands"
+                );
+                // A CLI long-flag is `--` followed by a letter (e.g. `--style`); the YAML
+                // frontmatter `---` and table `:---` delimiters are not flags.
+                let has_flag = text.match_indices("--").any(|(i, _)| {
+                    text[i + 2..]
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_alphabetic())
+                });
+                assert!(!has_flag, "MCP SKILL.md must carry no --flag tokens");
+                // It is genuine MCP-tool guidance: an MCP tool catalog + prompt engineering.
+                assert!(
+                    text.contains("## Tools") && text.contains("`generate_image`"),
+                    "MCP SKILL.md must document the MCP tools"
+                );
+                assert!(
+                    text.contains("## Prompt engineering"),
+                    "MCP SKILL.md keeps the prompt-engineering guidance"
                 );
             }
             other => panic!("expected text contents, got {other:?}"),

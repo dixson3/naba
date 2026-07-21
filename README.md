@@ -328,7 +328,7 @@ by the `.bak` backup).
 
 ### MCP Server
 
-`naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 8 image tools to AI assistants like Claude Desktop and Cursor, plus the embedded skill tree as lazily-loaded `skill://` resources.
+`naba mcp` starts a stdio-based [Model Context Protocol](https://modelcontextprotocol.io) server that exposes all 8 image tools to AI assistants like Claude Desktop and Cursor, plus MCP-authored usage guidance for those tools as lazily-loaded `skill://` resources.
 
 **Claude Desktop configuration** — add to your `claude_desktop_config.json`:
 
@@ -368,10 +368,13 @@ The generative tools accept `aspect`, `resolution`, and `quality` params (matchi
 CLI); `generate_icon` accepts `quality`. With `count`/`steps`/`sizes` > 1 the same
 `imageConfig` applies to every image in the call.
 
-**Skills as resources (lazy loading).** `resources/list` enumerates the embedded skill tree
-cheaply as `skill://naba/<rel>` URIs (paths only — no bodies), plus a compact `skill://naba`
-index; `resources/read` serves a file's content on demand (`skill://naba/<rel>`) or the
-generated index (`skill://naba`). See the website [MCP page](https://naba.ysapp.net/mcp/).
+**Skills as resources (lazy loading).** The server also exposes **MCP-authored** usage guidance
+for its tools as `skill://` resources — written for the MCP tools (tool names, params,
+`NABA_OUTPUT_DIR`, `file://` results), not the `/naba` CLI docs. `resources/list` enumerates it
+cheaply as `skill://naba/<rel>` URIs (paths only — no bodies) plus a compact `skill://naba` index;
+`resources/read` serves a file's content on demand (`skill://naba/<rel>`) or the generated index
+(`skill://naba`). Each generation tool's description points to `skill://naba`. See the website
+[MCP page](https://naba.ysapp.net/mcp/).
 
 **Manual test** — verify the server responds to the MCP initialize handshake:
 
