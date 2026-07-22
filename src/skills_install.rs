@@ -33,6 +33,13 @@ pub struct Target {
     pub scope: String,
     /// The resolved absolute destination directory the skills were written to.
     pub path: String,
+    /// The embedded skill names deployed to this target at the last install/upgrade. The
+    /// whole-skill garbage-collection pass (plan-012) diffs this recorded set against the
+    /// current binary's `embed::skill_names()` to sweep skills a newer binary no longer ships.
+    /// `#[serde(default)]` keeps v1 rows (which lack the field) loadable — they read as an
+    /// **empty** set, which means "GC nothing" until the next install/upgrade repopulates it.
+    #[serde(default)]
+    pub skills: Vec<String>,
 }
 
 impl Target {
@@ -45,10 +52,20 @@ impl Target {
             harness: harness.into(),
             scope: scope.into(),
             path: path.into(),
+            skills: Vec::new(),
         }
     }
 
-    /// The upsert identity: `(harness, scope, path)`.
+    /// Attach the deployed skill-name set (builder). Skills are **not** part of the upsert
+    /// identity — [`key`](Self::key) stays `(harness, scope, path)` so re-recording the same
+    /// target updates its skill list in place rather than adding a duplicate row.
+    pub fn with_skills(mut self, skills: Vec<String>) -> Self {
+        self.skills = skills;
+        self
+    }
+
+    /// The upsert identity: `(harness, scope, path)`. Deliberately excludes `skills` so an
+    /// install/upgrade updates the recorded skill set of an existing row.
     fn key(&self) -> (&str, &str, &str) {
         (&self.harness, &self.scope, &self.path)
     }
@@ -269,12 +286,17 @@ mod tests {
         let p = tmp_path("roundtrip");
         let _ = std::fs::remove_file(&p);
         let mut reg = Registry::default();
-        reg.upsert(Target::new("opencode", "project", "/repo/.opencode/skills"));
+        reg.upsert(
+            Target::new("opencode", "project", "/repo/.opencode/skills")
+                .with_skills(vec!["naba".into(), "gone".into()]),
+        );
         reg.save_to(&p).unwrap();
 
         let loaded = Registry::load_from(&p).unwrap();
         assert_eq!(loaded.version, SCHEMA_VERSION);
         assert_eq!(loaded.targets, reg.targets);
+        // The deployed skill-name set (plan-012 GC basis) round-trips.
+        assert_eq!(loaded.targets[0].skills, vec!["naba", "gone"]);
 
         // Atomic write leaves no temp sibling.
         let dir = p.parent().unwrap();
@@ -289,6 +311,23 @@ mod tests {
             })
             .collect();
         assert!(leftovers.is_empty(), "atomic write left a temp file");
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn v1_row_without_skills_field_loads_empty() {
+        // A pre-plan-012 (v1) row has no `skills` key; `#[serde(default)]` must load it as an
+        // empty set ("GC nothing") rather than failing to parse.
+        let p = tmp_path("v1compat");
+        let _ = std::fs::remove_file(&p);
+        std::fs::write(
+            &p,
+            br#"{"version":1,"targets":[{"harness":"claude-code","scope":"user","path":"/h/.claude/skills"}]}"#,
+        )
+        .unwrap();
+        let reg = Registry::load_from(&p).unwrap();
+        assert_eq!(reg.targets.len(), 1);
+        assert!(reg.targets[0].skills.is_empty());
         let _ = std::fs::remove_file(&p);
     }
 

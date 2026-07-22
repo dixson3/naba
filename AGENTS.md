@@ -150,9 +150,14 @@ self-update-capable path; Homebrew is a documented alternative. A successful Rel
 
 **Releasing (lockstep rule).** Cutting a release means, in order: (1) bump the `Cargo.toml`
 package `version`; (2) bump `web/pelicanconf.py` `NABA_RELEASE` to the **same** `vX.Y.Z` (the site
-header shows this string so visitors see the latest version); (3) commit to `main`; (4) tag
-`vX.Y.Z` and push the tag, which triggers `release.yml` → `web-deploy.yml`. **Never push a release
-tag without updating `NABA_RELEASE`** — a stale header string would misreport the latest version.
+header shows this string so visitors see the latest version); (3) finalize `CHANGELOG.md` — move the
+`## [Unreleased]` items into a new `## [X.Y.Z] - YYYY-MM-DD` section (dated, version without a `v`
+prefix inside the brackets); (4) commit to `main`; (5) tag `vX.Y.Z` and push the tag, which triggers
+`release.yml` → `web-deploy.yml`. **Never push a release tag without updating `NABA_RELEASE`** — a
+stale header string would misreport the latest version. **Likewise, never push a release tag without
+finalizing the CHANGELOG section** — cargo-dist matches the tag `vX.Y.Z` to the `## [X.Y.Z]` heading
+to generate the GitHub Release notes, so a missing or mis-formatted section silently falls back to a
+raw commit dump.
 
 ## Claude Code Skills
 

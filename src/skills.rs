@@ -65,6 +65,19 @@ struct SkillActionItem {
     pruned: Vec<String>,
 }
 
+/// One whole-skill garbage-collection outcome (plan-012). A skill is a GC candidate when it was
+/// recorded as deployed to a target but the current binary no longer ships it
+/// (`embed::skill_names()`). Because a GC'd skill is absent from the embedded set it can never
+/// surface through the [`SkillActionItem`] deploy loop — this collection is how sweeps render.
+#[derive(Debug, Clone, serde::Serialize)]
+struct GcItem {
+    name: String,
+    path: String,
+    /// `removed` (swept), `skipped_no_marker` (lacked naba's integrity marker — vetoed), or
+    /// `would-remove` (under `--dry-run`).
+    outcome: &'static str,
+}
+
 /// The `install`/`upgrade`/`remove` `--json` payload (SPEC-JSON-006) for a **single** target —
 /// the pinned flat shape (`--target` or a single `--harness`).
 #[derive(Debug, Clone, serde::Serialize)]
@@ -73,6 +86,9 @@ struct SkillsActionReport {
     destination: String,
     dry_run: bool,
     skills: Vec<SkillActionItem>,
+    /// Whole-skill GC outcomes for this target (plan-012); omitted when empty.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    gc: Vec<GcItem>,
 }
 
 /// One target's outcome inside a multi-harness action report (plan-008 Issue 2.2/2.3). Under
@@ -83,6 +99,9 @@ struct SkillsTargetReport {
     destination: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     skills: Vec<SkillActionItem>,
+    /// Whole-skill GC outcomes for this target (plan-012); omitted when empty.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    gc: Vec<GcItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
 }
@@ -163,42 +182,85 @@ fn git_root_or_cwd() -> PathBuf {
     std::env::current_dir().unwrap_or_default()
 }
 
-/// The (harness, destination) targets a `skills` invocation operates on, deduped by resolved
-/// absolute path (plan-008 Issue 2.2/2.3). A `--target` override collapses to a single target
-/// under the primary harness; otherwise every requested `--harness` resolves to its idiomatic
-/// dest, and paths shared by two harnesses (codex + portable `agents` both → `.agents/skills`)
-/// are deployed **once**.
-fn install_targets(opts: &Opts) -> AppResult<Vec<(String, PathBuf)>> {
-    if !opts.target.is_empty() {
-        let h = primary_harness(&opts.harnesses).to_string();
-        return Ok(vec![(h, PathBuf::from(&opts.target))]);
-    }
-    let mut seen = std::collections::BTreeSet::new();
-    let mut out = Vec::new();
-    for h in &opts.harnesses {
-        let dest = resolve_dest(&opts.scope, h, "")?;
-        if seen.insert(dest.clone()) {
-            out.push((h.clone(), dest));
-        }
-    }
-    Ok(out)
+/// A resolved deployment target: one on-disk `dest`, the registry `rows` that dedup to it, and
+/// the `prev_skills` recorded there before this run (plan-012 GC basis).
+///
+/// Two registry rows can share a resolved path (codex + portable `agents` both → `.agents/skills`).
+/// GC must **read** the union of their recorded skill sets (so a skill recorded under either row
+/// is a candidate) and, after a sweep, **write** the new set back to *every* co-resolving row —
+/// else a row left behind keeps a phantom name and re-reports it on every future upgrade. `rows`
+/// carries the whole `(harness, scope)` fan-out; `harness`/`scope` are the representative first
+/// row used for reporting.
+#[derive(Debug, Clone)]
+struct ResolvedTarget {
+    harness: String,
+    scope: String,
+    dest: PathBuf,
+    /// Every `(harness, scope)` registry row that resolves to `dest` — the record fan-out set.
+    rows: Vec<(String, String)>,
+    /// Union of the skill names recorded at `dest` across `rows` before this run.
+    prev_skills: Vec<String>,
 }
 
-/// Record (or, on remove, drop) a target in the skills-install registry (Issue 2.2). Best-effort:
-/// a registry read/write failure is reported to stderr but never fails the deploy that already
-/// succeeded — the on-disk skills are the source of truth, the registry is a convenience index.
-fn record_target(mode: Mode, harness: &str, scope: &str, dest: &Path) {
-    let path = dest.display().to_string();
+/// The targets a `skills` invocation operates on, deduped by resolved absolute path (plan-008
+/// Issue 2.2/2.3). A `--target` override collapses to a single target under the primary harness;
+/// otherwise every requested `--harness` resolves to its idiomatic dest, and paths shared by two
+/// harnesses (codex + portable `agents` both → `.agents/skills`) are deployed **once**. These
+/// flag-resolved targets carry no `prev_skills` — GC only runs on the receipt-driven upgrade path.
+fn install_targets(opts: &Opts) -> AppResult<Vec<ResolvedTarget>> {
+    let mut pairs: Vec<(String, PathBuf)> = Vec::new();
+    if !opts.target.is_empty() {
+        let h = primary_harness(&opts.harnesses).to_string();
+        pairs.push((h, PathBuf::from(&opts.target)));
+    } else {
+        let mut seen = std::collections::BTreeSet::new();
+        for h in &opts.harnesses {
+            let dest = resolve_dest(&opts.scope, h, "")?;
+            if seen.insert(dest.clone()) {
+                pairs.push((h.clone(), dest));
+            }
+        }
+    }
+    Ok(pairs
+        .into_iter()
+        .map(|(harness, dest)| ResolvedTarget {
+            rows: vec![(harness.clone(), opts.scope.clone())],
+            scope: opts.scope.clone(),
+            harness,
+            dest,
+            prev_skills: Vec::new(),
+        })
+        .collect())
+}
+
+/// Record (or, on remove, drop) a target in the skills-install registry (Issue 2.2; plan-012
+/// records the deployed skill set for GC). Best-effort: a registry read/write failure is reported
+/// to stderr but never fails the deploy that already succeeded — the on-disk skills are the source
+/// of truth, the registry is a convenience index.
+///
+/// The upsert (and, on remove, the drop) fans out over **every** `(harness, scope)` row in
+/// `rt.rows` — the write half of the read-union GC contract — so co-resolving rows never diverge.
+/// `skills` is the set to record (embedded ∪ any GC name not yet swept); see [`recorded_skill_set`].
+fn record_target(mode: Mode, rt: &ResolvedTarget, skills: &[String]) {
+    let path = rt.dest.display().to_string();
     let result = (|| -> AppResult<()> {
         let mut reg = crate::skills_install::Registry::load()?;
-        let changed = match mode {
-            // Install and upgrade both assert "this target now carries naba's skills".
-            Mode::Install | Mode::Upgrade => {
-                reg.upsert(crate::skills_install::Target::new(harness, scope, &path))
-            }
-            Mode::Remove => reg.remove(harness, scope, &path),
-        };
-        if changed {
+        let mut changed = false;
+        for (harness, scope) in &rt.rows {
+            let c = match mode {
+                // Install and upgrade both assert "this target now carries naba's skills".
+                Mode::Install | Mode::Upgrade => reg.upsert(
+                    crate::skills_install::Target::new(harness, scope, &path)
+                        .with_skills(skills.to_vec()),
+                ),
+                Mode::Remove => reg.remove(harness, scope, &path),
+            };
+            changed |= c;
+        }
+        // Install/upgrade may only mutate an existing row's skill list (upsert → false), so save
+        // whenever we asserted ownership; on remove, save only when a row was actually dropped.
+        let should_save = matches!(mode, Mode::Install | Mode::Upgrade) || changed;
+        if should_save {
             reg.save()?;
         }
         Ok(())
@@ -212,21 +274,116 @@ fn record_target(mode: Mode, harness: &str, scope: &str, dest: &Path) {
 /// `--surface`/`--target`) enumerates the install receipt — every previously-installed target,
 /// across every harness — migrating an empty registry from a legacy disk scan first (Issue 2.3,
 /// 2.4). Enumerated targets are deduped by resolved absolute path (codex + `agents` share
-/// `.agents/skills`). Every other invocation uses the flag-resolved [`install_targets`].
-fn targets_for(mode: Mode, opts: &Opts) -> AppResult<Vec<(String, PathBuf)>> {
+/// `.agents/skills`); rows that dedup to one path have their `(harness, scope)` rows collected and
+/// their recorded skill sets **unioned** into `prev_skills` (plan-012 GC read half). Every other
+/// invocation uses the flag-resolved [`install_targets`].
+fn targets_for(mode: Mode, opts: &Opts) -> AppResult<Vec<ResolvedTarget>> {
     if mode == Mode::Upgrade && !opts.explicit {
         let reg = crate::skills_install::load_or_migrate()?;
-        let mut seen = std::collections::BTreeSet::new();
-        let mut out = Vec::new();
+        let mut out: Vec<ResolvedTarget> = Vec::new();
+        let mut idx: std::collections::HashMap<PathBuf, usize> = std::collections::HashMap::new();
         for t in reg.targets {
             let p = PathBuf::from(&t.path);
-            if seen.insert(p.clone()) {
-                out.push((t.harness, p));
+            match idx.get(&p) {
+                Some(&i) => {
+                    let rt = &mut out[i];
+                    rt.rows.push((t.harness.clone(), t.scope.clone()));
+                    for s in t.skills {
+                        if !rt.prev_skills.contains(&s) {
+                            rt.prev_skills.push(s);
+                        }
+                    }
+                }
+                None => {
+                    idx.insert(p.clone(), out.len());
+                    out.push(ResolvedTarget {
+                        harness: t.harness.clone(),
+                        scope: t.scope.clone(),
+                        rows: vec![(t.harness, t.scope)],
+                        dest: p,
+                        prev_skills: t.skills,
+                    });
+                }
             }
         }
         return Ok(out);
     }
     install_targets(opts)
+}
+
+/// The GC remove-safety gate (plan-012): true when `<skill_dir>/SKILL.md` carries naba's hidden
+/// integrity marker ([`embed::MARKER_PREFIX`]), proving naba deployed it. A dir that lost or never
+/// had the marker is another tool's (or the operator's) — GC vetoes its removal.
+fn has_naba_marker(skill_dir: &Path) -> bool {
+    fs::read_to_string(skill_dir.join("SKILL.md"))
+        .map(|c| c.contains(embed::MARKER_PREFIX))
+        .unwrap_or(false)
+}
+
+/// Whole-skill garbage-collection pass over one target (plan-012, step (c)/(d)). The GC set is the
+/// recorded `prev_skills` minus the current binary's `embed::skill_names()`; each candidate dir is
+/// swept with `remove_dir_all` **only** after the marker-safety gate ([`has_naba_marker`]) passes.
+/// A dir lacking the marker is REPORTED (`skipped_no_marker`), never removed — `remove_dir_all` is
+/// irreversible, so the marker veto plus the empty-default recorded set are the complete safety
+/// story. Under `--dry-run` nothing is deleted; candidates report `would-remove`. An already-absent
+/// dir reports `removed` so its phantom name is dropped from the recorded set on the next record.
+fn gc_pass(rt: &ResolvedTarget, opts: &Opts) -> AppResult<Vec<GcItem>> {
+    let embedded: std::collections::HashSet<String> = embed::skill_names().into_iter().collect();
+    let mut out = Vec::new();
+    for name in &rt.prev_skills {
+        if embedded.contains(name) {
+            continue; // still shipped by this binary — not a GC candidate.
+        }
+        let skill_dir = rt.dest.join(name);
+        let path = skill_dir.display().to_string();
+        let item = |outcome: &'static str| GcItem {
+            name: name.clone(),
+            path: path.clone(),
+            outcome,
+        };
+        if !skill_dir.exists() {
+            // Already gone — record as removed so the phantom name is dropped.
+            out.push(item("removed"));
+            continue;
+        }
+        // Remove-safety gate: a dir that lost/lacks the marker is reported, never removed.
+        if !has_naba_marker(&skill_dir) {
+            if !opts.json && !opts.quiet {
+                println!("  GC skipped (no naba marker): {name} ({path})");
+            }
+            out.push(item("skipped_no_marker"));
+            continue;
+        }
+        if opts.dry_run {
+            if !opts.json && !opts.quiet {
+                println!("(dry run) would remove stale skill {name} ({path})");
+            }
+            out.push(item("would-remove"));
+            continue;
+        }
+        fs::remove_dir_all(&skill_dir).map_err(|e| AppError::file_io(e.to_string()))?;
+        if !opts.json && !opts.quiet {
+            println!("  GC removed stale skill: {name} ({path})");
+        }
+        out.push(item("removed"));
+    }
+    Ok(out)
+}
+
+/// The skill-name set to record after an install/upgrade: the current embedded set plus any GC
+/// candidate **not** successfully swept (`skipped_no_marker`, `would-remove`, or a failed remove).
+/// A name is dropped from the registry only once its dir is gone, so a partial GC failure leaves it
+/// recorded and the next upgrade retries rather than silently orphaning the on-disk directory.
+fn recorded_skill_set(gc: &[GcItem]) -> Vec<String> {
+    let mut set = embed::skill_names();
+    for g in gc {
+        if g.outcome != "removed" && !set.contains(&g.name) {
+            set.push(g.name.clone());
+        }
+    }
+    set.sort();
+    set.dedup();
+    set
 }
 
 /// Deploy/remove all embedded skills for a single target, returning the per-skill items or the
@@ -272,26 +429,38 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
     // A single flag-resolved target keeps the pinned fail-fast + flat-JSON behavior; several
     // targets (multi-harness install or receipt-driven upgrade) run continue-on-error.
     let continue_on_error = targets.len() > 1;
-    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>, Option<String>)> = Vec::new();
+    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>, Vec<GcItem>, Option<String>)> =
+        Vec::new();
     let mut failures = 0usize;
-    for (harness, dest) in &targets {
-        match run_one_target(mode, dest, opts) {
-            Ok(items) => {
+    for rt in &targets {
+        // Ordered per plan-012: (a) prev_skills already read in targets_for; (b) deploy the
+        // current embedded set; (c)/(d) diff + marker-vetoed sweep; (e) record the new set.
+        let outcome = run_one_target(mode, &rt.dest, opts).and_then(|items| {
+            let gc = if mode == Mode::Upgrade {
+                gc_pass(rt, opts)?
+            } else {
+                Vec::new()
+            };
+            Ok((items, gc))
+        });
+        match outcome {
+            Ok((items, gc)) => {
                 if !opts.dry_run {
-                    record_target(mode, harness, &opts.scope, dest);
+                    record_target(mode, rt, &recorded_skill_set(&gc));
                 }
-                per_target.push((harness.clone(), dest.clone(), items, None));
+                per_target.push((rt.harness.clone(), rt.dest.clone(), items, gc, None));
             }
             Err(e) if continue_on_error => {
                 failures += 1;
                 eprintln!(
                     "warning: skipping {} target {} — {e}",
-                    harness,
-                    dest.display()
+                    rt.harness,
+                    rt.dest.display()
                 );
                 per_target.push((
-                    harness.clone(),
-                    dest.clone(),
+                    rt.harness.clone(),
+                    rt.dest.clone(),
+                    Vec::new(),
                     Vec::new(),
                     Some(e.to_string()),
                 ));
@@ -301,21 +470,23 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
     }
 
     if opts.json {
-        if per_target.len() == 1 && per_target[0].3.is_none() {
-            let (_, dest, items, _) = per_target.into_iter().next().unwrap();
+        if per_target.len() == 1 && per_target[0].4.is_none() {
+            let (_, dest, items, gc, _) = per_target.into_iter().next().unwrap();
             output::print_ok_json(SkillsActionReport {
                 action: mode.action(),
                 destination: dest.display().to_string(),
                 dry_run: opts.dry_run,
                 skills: items,
+                gc,
             });
         } else {
             let targets = per_target
                 .into_iter()
-                .map(|(harness, dest, skills, error)| SkillsTargetReport {
+                .map(|(harness, dest, skills, gc, error)| SkillsTargetReport {
                     harness,
                     destination: dest.display().to_string(),
                     skills,
+                    gc,
                     error,
                 })
                 .collect();
@@ -326,7 +497,7 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
             });
         }
     } else if !opts.dry_run && !opts.quiet {
-        for (_, dest, _, error) in &per_target {
+        for (_, dest, _, _, error) in &per_target {
             match error {
                 None => println!("Destination: {}", dest.display()),
                 Some(e) => println!("Skipped: {} — {e}", dest.display()),
@@ -641,7 +812,7 @@ mod tests {
             json: false,
         };
         let targets = install_targets(&o).unwrap();
-        let ids: Vec<&str> = targets.iter().map(|(h, _)| h.as_str()).collect();
+        let ids: Vec<&str> = targets.iter().map(|rt| rt.harness.as_str()).collect();
         assert_eq!(
             ids,
             ["codex", "claude-code"],
@@ -693,6 +864,74 @@ mod tests {
 
         run(Mode::Upgrade, &o).unwrap();
         assert!(!stale.exists(), "upgrade should prune stale files");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Whole-skill GC (plan-012 Issue 3.5), paralleling `upgrade_prunes_stale_files`: a skill "A"
+    /// a newer binary no longer ships is swept from disk, while a co-located NON-naba skill "B"
+    /// (no integrity marker) is left untouched by the marker-safety veto. Drives [`gc_pass`]
+    /// directly with a synthetic `prev_skills` set so it needs no global skills-install registry
+    /// state (which lives at a shared config path); [`recorded_skill_set`] verifies the (e)
+    /// drop-only-after-removal rule.
+    #[test]
+    fn upgrade_gc_sweeps_dropped_skill_but_spares_unmarked() {
+        let dir = std::env::temp_dir().join(format!("naba-skills-gc-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+
+        // "A": a former naba skill (carries the integrity marker) the current binary no longer
+        // ships. `naba` (still embedded) plays the "kept" skill.
+        let a = dir.join("A");
+        fs::create_dir_all(&a).unwrap();
+        let marker = embed::format_marker("9.9.9", "deadbeefcafe");
+        fs::write(
+            a.join("SKILL.md"),
+            embed::inject_marker("---\nname: A\n---\n", &marker),
+        )
+        .unwrap();
+
+        // "B": co-located, NOT naba's (no marker) — the veto must spare it.
+        let b = dir.join("B");
+        fs::create_dir_all(&b).unwrap();
+        fs::write(b.join("SKILL.md"), "---\nname: B\n---\n").unwrap();
+
+        let o = opts(&dir);
+        let rt = ResolvedTarget {
+            harness: "claude-code".into(),
+            scope: "user".into(),
+            dest: dir.clone(),
+            rows: vec![("claude-code".into(), "user".into())],
+            // "naba" is still embedded ⇒ never a GC candidate; "A"/"B" are not embedded.
+            prev_skills: vec!["A".into(), "B".into(), "naba".into()],
+        };
+
+        let gc = gc_pass(&rt, &o).unwrap();
+
+        // (d) A swept (marker present); B spared (no marker); naba never a candidate.
+        assert!(!a.exists(), "GC should remove the dropped, naba-marked skill A");
+        assert!(
+            b.join("SKILL.md").is_file(),
+            "marker veto must spare the unmarked co-located skill B"
+        );
+        let by_name = |n: &str| gc.iter().find(|g| g.name == n);
+        assert_eq!(by_name("A").unwrap().outcome, "removed");
+        assert_eq!(by_name("B").unwrap().outcome, "skipped_no_marker");
+        assert!(
+            by_name("naba").is_none(),
+            "a still-embedded skill is not a GC candidate"
+        );
+
+        // (e) drop-only-after-removal: A gone from the recorded set, B retained for retry.
+        let recorded = recorded_skill_set(&gc);
+        assert!(
+            !recorded.contains(&"A".to_string()),
+            "swept skill dropped from the recorded set"
+        );
+        assert!(
+            recorded.contains(&"B".to_string()),
+            "vetoed skill stays recorded so the next upgrade retries"
+        );
+        assert!(recorded.contains(&"naba".to_string()));
 
         let _ = fs::remove_dir_all(&dir);
     }
