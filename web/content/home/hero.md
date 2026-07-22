@@ -5,6 +5,6 @@ Cta: install guide | /install/ | primary
 Cta: usage | /usage/
 Cta: github | {github_url} | external
 
-naba is a single-binary Rust CLI for AI image generation across multiple providers
+`naba` is a single-binary Rust CLI for AI image generation across multiple providers
 (Google Gemini, OpenRouter, and AWS Bedrock). Generate, edit, restore, and compose
 images — icons, patterns, stories, diagrams — straight from the command line.

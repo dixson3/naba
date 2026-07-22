@@ -1,10 +1,10 @@
 # Contributing to naba
 
-Thanks for your interest in naba — a single-binary Rust CLI for AI image
+Thanks for your interest in `naba` — a single-binary Rust CLI for AI image
 generation across multiple providers (Google Gemini, OpenRouter, AWS Bedrock),
 which also runs as a stdio MCP server.
 
-naba is built almost entirely with AI agents (Claude Code). We **welcome
+`naba` is built almost entirely with AI agents (Claude Code). We **welcome
 AI-assisted contributions** — the bar is not *how* you wrote a change, but that
 you understand it, you stand behind it, and it passes the full validation suite.
 See [AI-assisted contributions](#ai-assisted-contributions) below.
@@ -48,7 +48,7 @@ A quick orientation so you know where things live and what is authoritative.
 
 ### Spec-driven development (important)
 
-naba is **spec-first**. The per-domain specs under `docs/specifications/` are the
+`naba` is **spec-first**. The per-domain specs under `docs/specifications/` are the
 source of truth; the code implements them and the parity suite proves it.
 
 - **Every behavior change updates the relevant `docs/specifications/*.md` file** —
@@ -136,7 +136,7 @@ pass.
 Issues live at <https://github.com/dixson3/naba/issues>.
 
 **A good bug report includes:** what you ran (exact command), what you expected,
-what happened (stderr + exit code), your OS/arch, and how you installed naba.
+what happened (stderr + exit code), your OS/arch, and how you installed `naba`.
 Reproduction steps beat prose — a minimal repro is the fastest path to a fix.
 
 **A good feature request** states the problem you're trying to solve, not just a
@@ -146,13 +146,13 @@ proposed implementation.
 
 Please report suspected vulnerabilities privately to the maintainer rather than in
 a public issue, with a **real, reproducible, independently verifiable** problem in
-actual naba source. See the note on AI-generated security reports below.
+actual `naba` source. See the note on AI-generated security reports below.
 
 ---
 
 ## AI-assisted contributions
 
-naba is itself built with AI agents, so we welcome AI-assisted work. The rules
+`naba` is itself built with AI agents, so we welcome AI-assisted work. The rules
 below exist to keep quality high and maintainer time protected — they follow the
 emerging cross-project consensus for 2025–2026 (see, e.g., the living
 [open-source AI contribution policy catalog](https://github.com/melissawm/open-source-ai-contribution-policies),
@@ -170,7 +170,7 @@ validation gate above — is what lets us welcome AI contributions safely.
 - **Run the full [validation gate](#the-validation-gate) yourself** before
   submitting. Unvalidated AI output — code the author didn't run, read, or test —
   will be closed. The suite, not the disclosure line, is the real filter.
-- **Disclose AI assistance** in your commits via a trailer. naba's convention is
+- **Disclose AI assistance** in your commits via a trailer. `naba`'s convention is
   `Co-Authored-By: Claude <noreply@anthropic.com>` for Claude-assisted work; a
   generic `Assisted-by: <tool/model>` trailer is also fine. Disclosure is
   *recommended*, not gatekept — it just helps reviewers calibrate.
@@ -187,7 +187,7 @@ validation gate above — is what lets us welcome AI contributions safely.
   contain nothing useful." Confirm an issue is real and reproducible before filing.
 - **Unverified AI security reports.** Any security report prepared with AI must
   disclose that, and must describe a real, reproducible, independently verifiable
-  issue in actual naba source. Reports that appear to be unverified AI output will
+  issue in actual `naba` source. Reports that appear to be unverified AI output will
   be closed without response. (This mirrors [Django's](https://docs.djangoproject.com/en/dev/internals/security/)
   and [curl's](https://daniel.haxx.se/blog/2025/07/14/death-by-a-thousand-slops/)
   hard-won stance on AI security-report spam.)
