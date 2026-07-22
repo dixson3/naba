@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-21
+
+### Added
+
+- Whole-skill garbage collection on `naba skills upgrade`: a skill dropped from a
+  newer binary is now swept from disk instead of lingering forever. Removal is gated
+  by the naba-ownership marker (a co-located non-naba skill is never touched), and
+  sweeps surface in the per-target `gc` report under `--json` and `--dry-run`. The
+  post-`self update` skills refresh inherits the behavior.
+- A curated `CHANGELOG.md` (Keep a Changelog format), so cargo-dist generates readable
+  GitHub Release notes from a hand-written section instead of a raw commit summary.
+
+### Changed
+
+- Swept the remaining user-facing docs (`CONTRIBUTING.md` and the `web/content` prose)
+  to the `VOICE.md` writing-voice rules for a consistent reader experience.
+- Folded a CHANGELOG-finalize step into the release lockstep so each tagged release
+  ships an intentional set of notes.
+
 ## [0.7.0] - 2026-07-21
 
 ### Added

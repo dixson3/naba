@@ -1,6 +1,6 @@
 [package]
 name = "naba"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 description = "Nanobanana image generation CLI (multi-provider: Gemini, OpenRouter)"
 license = "MIT"
