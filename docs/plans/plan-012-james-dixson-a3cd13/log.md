@@ -1,6 +1,9 @@
 # Log
 
 ## 2026-07-21
+- reconciling: post-execution reconciliation
+- executing: start gate resolved
+- intake: epic naba-mol-c30 poured
 - approved: operator approved
 - ready-for-approval: ready-check green — last red-team APPROVE + audit pass
 - review: pass-2 red-team APPROVE

@@ -4,17 +4,19 @@ okf_spec: OKF-PLAN
 id: plan-012-james-dixson-a3cd13
 author: james-dixson
 created: '2026-07-21'
-status: approved
+status: reconciling
 deliverable_class: standard
 fingerprint: cd94cb77e969bf08964baf77a2cbd31bf94530c62386441cac52856aac687d02
+epic: naba-mol-c30
 ---
 # Plan: Address issues #16 (VOICE.md doc sweep), #17 (curated CHANGELOG.md), #18 (whole-skill garbage collection)
 
 **ID:** plan-012-james-dixson-a3cd13
 **Author:** james-dixson
 **Created:** 2026-07-21
-**Status:** approved
+**Status:** reconciling
 **Deliverable-class:** standard
+**Epic:** naba-mol-c30
 **Fingerprint:** cd94cb77e969bf08964baf77a2cbd31bf94530c62386441cac52856aac687d02
 **Phase log:**
 - 2026-07-21 scoping: three independent upstream issues bundled into one plan; all three `include`
