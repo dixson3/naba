@@ -1,6 +1,7 @@
 # Log
 
 ## 2026-07-23
+- complete: plan complete — naba-docs theme ported, built clean, verified
 - reconciling: post-execution reconciliation (worktree merge-back)
 - executing: start gate resolved
 - intake: epic naba-mol-7z1 poured

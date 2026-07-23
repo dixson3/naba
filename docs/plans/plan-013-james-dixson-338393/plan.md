@@ -4,7 +4,7 @@ okf_spec: OKF-PLAN
 id: plan-013-james-dixson-338393
 author: james-dixson
 created: '2026-07-23'
-status: reconciling
+status: complete
 deliverable_class: standard
 fingerprint: b9cea91a3178b93ac97fd03b08ac6a6a451d3daec6506227396a470267bf1ae0
 epic: naba-mol-7z1
@@ -14,7 +14,7 @@ epic: naba-mol-7z1
 **ID:** plan-013-james-dixson-338393
 **Author:** james-dixson
 **Created:** 2026-07-23
-**Status:** reconciling
+**Status:** complete
 **Deliverable-class:** standard
 **Epic:** naba-mol-7z1
 **Fingerprint:** b9cea91a3178b93ac97fd03b08ac6a6a451d3daec6506227396a470267bf1ae0
