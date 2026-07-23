@@ -20,18 +20,30 @@ make parity                                 # parity suite against the Rust bina
 
 ### Web site (`web/`)
 
-Pelican static site (see `web/README.md`). Use the pinned venv at `web/.venv`.
+Pelican static site (see `web/README.md`). **Always use the pinned project venv at
+`web/.venv`** (`web/.venv/bin/pelican`, `web/.venv/bin/python3`). Do **not** run the build
+through an ephemeral `uv run --with pelican …` env — the ad-hoc env drifts from the pinned
+`requirements.txt` and has bitten local previews.
 
 ```bash
-# rebuild output/ after any content/theme/plugin change
+# rebuild output/ after any content/theme/plugin change, then serve it
 web/.venv/bin/pelican web/content -o web/output -s web/pelicanconf.py
 
 # serve the built output/ for local preview at http://127.0.0.1:8000/
 web/.venv/bin/python3 -m http.server 8000 --bind 127.0.0.1 --directory web/output
 ```
 
+> **Python version pin (required):** `web/.venv` MUST be **Python 3.12** (pinned via
+> `web/.python-version`, matching CI in `web-deploy.yml`). On **Python 3.13/3.14** Pelican
+> 4.11.0 *non-deterministically* shadows the `naba-docs` templates (`base/index/page.html`)
+> with its builtin `simple` theme — the CSS "disappears" and pages render as a bare blog
+> listing, differently on each run. If you see that, your venv is on the wrong Python:
+> `rm -rf web/.venv && (cd web && uv venv --python 3.12 .venv && uv pip install -r requirements.txt)`.
+> CI already uses 3.12, so production deploys are unaffected.
+
 Prefer this static serve + manual rebuild over `make devserver` (`pelican -lr`): the
-autoreload server is single-threaded and wedges after a rebuild. Homepage content is markdown,
+autoreload server is single-threaded, wedges after a rebuild, **and does not apply
+`pelicanconf.py` at all** (renders the builtin `simple` theme). Homepage content is markdown,
 not theme HTML: the hero is `web/content/home/hero.md` and the feature cards are
 `web/content/cards/*.md`, both read by the `home_content` plugin (`web/plugins/home_content.py`).
 

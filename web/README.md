@@ -30,13 +30,17 @@ web/
 
 ```bash
 cd web
-python3 -m venv .venv && . .venv/bin/activate
+# Use Python 3.12 (pinned in .python-version, matches CI). Pelican 4.11 renders the
+# theme unreliably on 3.13/3.14 — see AGENTS.md.
+python3.12 -m venv .venv && . .venv/bin/activate   # or: uv venv --python 3.12 .venv
 pip install -r requirements.txt
 
-make devserver        # serve + live-reload at http://localhost:8000
+# rebuild + serve (preferred over `make devserver`; see AGENTS.md)
+.venv/bin/pelican content -o output -s pelicanconf.py
+.venv/bin/python3 -m http.server 8000 --directory output
 ```
 
-Edit `content/` and `themes/naba-docs/`; the dev server regenerates on change.
+Edit `content/` and `themes/naba-docs/`, then rebuild.
 
 ### Homepage content
 
