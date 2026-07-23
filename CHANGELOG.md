@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-23
+
+### Fixed
+
+- Restored a green CI baseline: applied `cargo fmt` and resolved a
+  `clippy::type_complexity` lint in `src/skills.rs` (a `PerTargetRow` type alias
+  for the per-target result tuple). No behavior change — the shipped binary is
+  functionally identical to 0.8.1.
+
 ## [0.8.1] - 2026-07-23
 
 ### Changed
