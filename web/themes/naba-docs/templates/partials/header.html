@@ -1,0 +1,16 @@
+<header class="site-header">
+  <div class="header-inner">
+    <label for="nav-toggle" class="nav-burger" aria-label="Toggle navigation" title="Toggle navigation">
+      <span></span><span></span><span></span>
+    </label>
+    <a class="brand" href="{{ SITEURL }}/">
+      <span class="brand-glyph">&gt;_</span>
+      <span class="brand-name">naba</span>
+      {% if NABA_RELEASE %}<span class="brand-version">{{ NABA_RELEASE }}</span>{% endif %}
+    </a>
+    <div class="header-spacer"></div>
+    <nav class="header-links" aria-label="External links">
+      <a class="header-link" href="{{ GITHUB_URL }}" title="GitHub">GitHub <span class="ext-mark">&#8599;</span></a>
+    </nav>
+  </div>
+</header>

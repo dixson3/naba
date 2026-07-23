@@ -1,0 +1,21 @@
+{# Left navigation tree. `cur` is the current page's url ('' on the homepage).
+   Static groups — naba has no skill_pages plugin, so no SKILL_NAV loop. #}
+{% set cur = (page.url if page else '') %}
+
+<div class="nav-group">
+  <p class="nav-group-title">Getting started</p>
+  <ul class="nav-list">
+    <li><a class="nav-item{% if cur == '' %} active{% endif %}" href="{{ SITEURL }}/">Overview</a></li>
+    <li><a class="nav-item{% if cur == 'install/' %} active{% endif %}" href="{{ SITEURL }}/install/">Install</a></li>
+    <li><a class="nav-item{% if cur == 'usage/' %} active{% endif %}" href="{{ SITEURL }}/usage/">Usage</a></li>
+  </ul>
+</div>
+
+<div class="nav-group">
+  <p class="nav-group-title">Reference</p>
+  <ul class="nav-list">
+    <li><a class="nav-item{% if cur == 'config/' %} active{% endif %}" href="{{ SITEURL }}/config/">Config</a></li>
+    <li><a class="nav-item{% if cur == 'skills/' %} active{% endif %}" href="{{ SITEURL }}/skills/">Skills</a></li>
+    <li><a class="nav-item{% if cur == 'mcp/' %} active{% endif %}" href="{{ SITEURL }}/mcp/">MCP</a></li>
+  </ul>
+</div>
