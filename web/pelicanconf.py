@@ -70,8 +70,9 @@ ARTICLE_PATHS = ["_no_articles"]
 DISPLAY_PAGES_ON_MENU = False
 DISPLAY_CATEGORIES_ON_MENU = False
 
-# Bespoke dark terminal/technical theme.
-THEME = "themes/naba-terminal"
+# Dark documentation theme (ported from yoshiko-flow's yoshikoflow), light-blue accent:
+# sticky header, left nav tree, centered content, right on-page TOC.
+THEME = "themes/naba-docs"
 
 # Header nav (title, url). Pretty directory-style URLs.
 MENUITEMS = (

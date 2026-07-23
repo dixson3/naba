@@ -1,7 +1,8 @@
 # naba website (`web/`)
 
 The source for **https://naba.ysapp.net** — a bespoke [Pelican](https://getpelican.com)
-static site with a dark terminal/technical theme, published to AWS (private S3 + CloudFront +
+static site with a dark documentation theme (sticky header, left nav tree, centered content,
+right on-page TOC; light-blue accent), published to AWS (private S3 + CloudFront +
 ACM + Route53).
 
 ```text
@@ -17,7 +18,7 @@ web/
 │   ├── images/samples/     # dogfooded naba output shown on the usage page
 │   └── extra/              # robots.txt, staged install.sh (site-root files)
 ├── plugins/home_content.py # local plugin: hero.md + cards/*.md -> HOME_HERO / HOME_CARDS
-├── themes/naba-terminal/   # bespoke theme: templates + one hand-authored CSS file
+├── themes/naba-docs/       # docs theme: templates + one hand-authored CSS file
 ├── scripts/
 │   ├── sync_installer.sh   # stage the hosted install.sh from a cargo-dist release
 │   ├── provision_aws.sh    # idempotent AWS provisioning (gated, billable)
@@ -35,11 +36,11 @@ pip install -r requirements.txt
 make devserver        # serve + live-reload at http://localhost:8000
 ```
 
-Edit `content/` and `themes/naba-terminal/`; the dev server regenerates on change.
+Edit `content/` and `themes/naba-docs/`; the dev server regenerates on change.
 
 ### Homepage content
 
-The homepage is the `index` direct template (`themes/naba-terminal/templates/index.html`),
+The homepage is the `index` direct template (`themes/naba-docs/templates/index.html`),
 kept structural on purpose — its content lives in markdown, not the theme. The
 `home_content` plugin (`plugins/home_content.py`) reads the files below and exposes them to
 `index.html` as `HOME_HERO` / `HOME_CARDS`. Neither is published as a standalone page.
