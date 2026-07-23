@@ -160,11 +160,21 @@ self-update-capable path; Homebrew is a documented alternative. A successful Rel
 `web-deploy.yml`, which republishes naba.ysapp.net (GitHub OIDC — no local AWS keys). See SPEC §15
 (SPEC-DIST) and the README.
 
+**Green-CI gate (required).** Never push a release tag while the `ci` workflow is failing on
+`main`. Before tagging: push the release commit to `main`, wait for the `ci` run on that commit
+to complete **green** (`gh run list --workflow ci --branch main` → `success`), and only then tag
+and push `vX.Y.Z`. The cargo-dist `release.yml` does **not** re-run `ci`, so a red `main` would
+otherwise ship an unvalidated binary. Locally, the fast pre-check mirrors the `ci` gates:
+`cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo build --release &&
+cargo test` (plus the parity job: `uv run tests/parity/check_traceability.py` and
+`NABA_BIN=$PWD/target/release/naba uv run --project tests/parity pytest tests/parity`).
+
 **Releasing (lockstep rule).** Cutting a release means, in order: (1) bump the `Cargo.toml`
 package `version`; (2) bump `web/pelicanconf.py` `NABA_RELEASE` to the **same** `vX.Y.Z` (the site
 header shows this string so visitors see the latest version); (3) finalize `CHANGELOG.md` — move the
 `## [Unreleased]` items into a new `## [X.Y.Z] - YYYY-MM-DD` section (dated, version without a `v`
-prefix inside the brackets); (4) commit to `main`; (5) tag `vX.Y.Z` and push the tag, which triggers
+prefix inside the brackets); (4) commit to `main` **and wait for `ci` to go green** (the gate above);
+(5) tag `vX.Y.Z` and push the tag, which triggers
 `release.yml` → `web-deploy.yml`. **Never push a release tag without updating `NABA_RELEASE`** — a
 stale header string would misreport the latest version. **Likewise, never push a release tag without
 finalizing the CHANGELOG section** — cargo-dist matches the tag `vX.Y.Z` to the `## [X.Y.Z]` heading

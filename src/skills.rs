@@ -406,6 +406,16 @@ fn run_one_target(mode: Mode, dest: &Path, opts: &Opts) -> AppResult<Vec<SkillAc
 /// reported and the command still processes the rest, then exits non-zero. Under `--json`
 /// (incl. the piped auto-enable) emits the universal envelope (SPEC-JSON-006): the pinned flat
 /// shape for a single target, a `targets` array otherwise.
+/// One per-target install/upgrade outcome row:
+/// `(harness, dest, skill actions, gc sweeps, error)`.
+type PerTargetRow = (
+    String,
+    PathBuf,
+    Vec<SkillActionItem>,
+    Vec<GcItem>,
+    Option<String>,
+);
+
 pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
     let targets = targets_for(mode, opts)?;
 
@@ -429,8 +439,7 @@ pub fn run(mode: Mode, opts: &Opts) -> AppResult<()> {
     // A single flag-resolved target keeps the pinned fail-fast + flat-JSON behavior; several
     // targets (multi-harness install or receipt-driven upgrade) run continue-on-error.
     let continue_on_error = targets.len() > 1;
-    let mut per_target: Vec<(String, PathBuf, Vec<SkillActionItem>, Vec<GcItem>, Option<String>)> =
-        Vec::new();
+    let mut per_target: Vec<PerTargetRow> = Vec::new();
     let mut failures = 0usize;
     for rt in &targets {
         // Ordered per plan-012: (a) prev_skills already read in targets_for; (b) deploy the
@@ -908,7 +917,10 @@ mod tests {
         let gc = gc_pass(&rt, &o).unwrap();
 
         // (d) A swept (marker present); B spared (no marker); naba never a candidate.
-        assert!(!a.exists(), "GC should remove the dropped, naba-marked skill A");
+        assert!(
+            !a.exists(),
+            "GC should remove the dropped, naba-marked skill A"
+        );
         assert!(
             b.join("SKILL.md").is_file(),
             "marker veto must spare the unmarked co-located skill B"
