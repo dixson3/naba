@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-07-23
+
+### Changed
+
+- Rebuilt the naba website (`naba.ysapp.net`) on a new `naba-docs` documentation
+  theme ported from yoshiko-flow: sticky header, left navigation tree, centered
+  content, and a right-rail on-page table of contents with scroll-spy and a mobile
+  nav drawer — recolored to a dark theme with a light-blue accent. Retired the old
+  single-column `naba-terminal` theme.
+
+### Fixed
+
+- Pinned the website build environment to Python 3.12 (`web/.python-version`): on
+  Python 3.13/3.14 Pelican 4.11 non-deterministically fell back to its builtin theme
+  and dropped the site's styling. CI already used 3.12, so published releases were
+  unaffected.
+
 ## [0.8.0] - 2026-07-21
 
 ### Added

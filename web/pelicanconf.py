@@ -7,7 +7,7 @@ SITENAME = "naba"
 SITESUBTITLE = "AI image generation from your terminal"
 # Latest released version, shown in the site header so visitors see it immediately.
 # MUST be bumped in lockstep with every release tag (see AGENTS.md "Releasing").
-NABA_RELEASE = "v0.8.0"
+NABA_RELEASE = "v0.8.1"
 # Full-sentence description for meta/OG (crawlers want >=100 chars).
 SITE_DESCRIPTION = (
     "naba is a single-binary Rust CLI for AI image generation across multiple providers "
